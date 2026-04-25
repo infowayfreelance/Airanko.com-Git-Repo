@@ -12,7 +12,6 @@ export default function Navbar() {
     { label: 'Home', href: '/' },
     { label: 'SEO Tools', href: '/#tools' },
     { label: 'Image Resizer', href: '/tools/image-resizer' },
-    { label: 'Logo Generator', href: '/tools/logo-generator' },
     { label: 'Blog', href: '#' },
   ]
 
