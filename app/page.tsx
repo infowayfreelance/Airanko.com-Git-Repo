@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Zap,
   Smartphone,
+  Images,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -108,6 +109,16 @@ const seoTools = [
     href: '/tools/mobile-checker',
     color: 'text-primary',
     bg: 'bg-primary/10',
+  },
+  {
+    icon: Images,
+    label: 'Bulk Image Resizer',
+    description: 'Resize and convert unlimited images at once. Apply global settings or tweak each image individually.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/bulk-image-resizer',
+    color: 'text-teal-600',
+    bg: 'bg-teal-50',
   },
 ]
 

@@ -13,6 +13,7 @@ export default function Navbar() {
     { label: 'SEO Tools', href: '/#tools' },
     { label: 'Image Resizer', href: '/tools/image-resizer' },
     { label: 'Mobile Checker', href: '/tools/mobile-checker' },
+    { label: 'Bulk Resizer', href: '/tools/bulk-image-resizer' },
     { label: 'Blog', href: '#' },
   ]
 
