@@ -12,6 +12,7 @@ import {
   Star,
   CheckCircle2,
   Zap,
+  Smartphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -97,6 +98,16 @@ const seoTools = [
     href: '#',
     color: 'text-violet-600',
     bg: 'bg-violet-50',
+  },
+  {
+    icon: Smartphone,
+    label: 'Mobile Friendliness Checker',
+    description: 'Preview any website in mobile, tablet, or desktop view to test responsive design.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/mobile-checker',
+    color: 'text-primary',
+    bg: 'bg-primary/10',
   },
 ]
 
