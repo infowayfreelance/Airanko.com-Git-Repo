@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import {
@@ -22,7 +22,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
@@ -93,6 +92,9 @@ export default function ImageResizerTool() {
   const [resizeHeight, setResizeHeight] = useState(0)
   const [lockAR, setLockAR] = useState(true)
   const [percentage, setPercentage] = useState(100)
+  // Track whether the user has explicitly changed the output dimensions
+  // If false, we use the natural crop/image size instead of forcing a resize
+  const [resizeOverridden, setResizeOverridden] = useState(false)
 
   // Crop state
   const [crop, setCrop] = useState<Crop>()
@@ -130,6 +132,7 @@ export default function ImageResizerTool() {
         setResizeWidth(img.width)
         setResizeHeight(img.height)
         setPercentage(100)
+        setResizeOverridden(false)
       }
       img.src = src
     }
@@ -151,6 +154,7 @@ export default function ImageResizerTool() {
   const handleWidthChange = (val: string) => {
     const w = parseInt(val) || 0
     setResizeWidth(w)
+    setResizeOverridden(true)
     if (lockAR && originalDimensions.w > 0) {
       setResizeHeight(Math.round((w / originalDimensions.w) * originalDimensions.h))
       setPercentage(Math.round((w / originalDimensions.w) * 100))
@@ -160,6 +164,7 @@ export default function ImageResizerTool() {
   const handleHeightChange = (val: string) => {
     const h = parseInt(val) || 0
     setResizeHeight(h)
+    setResizeOverridden(true)
     if (lockAR && originalDimensions.h > 0) {
       setResizeWidth(Math.round((h / originalDimensions.h) * originalDimensions.w))
       setPercentage(Math.round((h / originalDimensions.h) * 100))
@@ -168,6 +173,7 @@ export default function ImageResizerTool() {
 
   const handlePercentageChange = (pct: number) => {
     setPercentage(pct)
+    setResizeOverridden(true)
     if (originalDimensions.w > 0) {
       setResizeWidth(Math.round((originalDimensions.w * pct) / 100))
       setResizeHeight(Math.round((originalDimensions.h * pct) / 100))
@@ -177,6 +183,7 @@ export default function ImageResizerTool() {
   const applyPreset = (width: number, height: number) => {
     setResizeWidth(width)
     setResizeHeight(height)
+    setResizeOverridden(true)
     if (originalDimensions.w > 0) {
       setPercentage(Math.round((width / originalDimensions.w) * 100))
     }
@@ -209,38 +216,65 @@ export default function ImageResizerTool() {
       img.crossOrigin = 'anonymous'
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
+        // Use willReadFrequently: false and preserve transparency
+        const ctx = canvas.getContext('2d', { alpha: true })
         if (!ctx) { resolve(); return }
 
+        // Source rectangle — defaults to full image (including transparent areas)
         let sx = 0, sy = 0, sw = img.width, sh = img.height
-        let dw = resizeWidth || img.width
-        let dh = resizeHeight || img.height
 
-        // Apply crop if set
+        // Apply crop if set — scale from display coords back to natural image coords
         if (completedCrop && imgRef.current) {
-          const scaleX = img.width / imgRef.current.width
-          const scaleY = img.height / imgRef.current.height
+          const scaleX = img.width / imgRef.current.naturalWidth
+          const scaleY = img.height / imgRef.current.naturalHeight
+          // imgRef dimensions are the CSS-rendered size; we need natural pixel coords
+          const displayScaleX = imgRef.current.width / imgRef.current.naturalWidth
+          const displayScaleY = imgRef.current.height / imgRef.current.naturalHeight
+
           if (completedCrop.unit === '%') {
             sx = (completedCrop.x / 100) * img.width
             sy = (completedCrop.y / 100) * img.height
             sw = (completedCrop.width / 100) * img.width
             sh = (completedCrop.height / 100) * img.height
           } else {
-            sx = completedCrop.x * scaleX
-            sy = completedCrop.y * scaleY
-            sw = completedCrop.width * scaleX
-            sh = completedCrop.height * scaleY
+            // completedCrop values are in display pixels — convert to natural image pixels
+            const invDisplayX = 1 / (displayScaleX || 1)
+            const invDisplayY = 1 / (displayScaleY || 1)
+            sx = completedCrop.x * invDisplayX
+            sy = completedCrop.y * invDisplayY
+            sw = completedCrop.width * invDisplayX
+            sh = completedCrop.height * invDisplayY
           }
-          if (!resizeWidth) { dw = sw; dh = sh }
+
+          // Clamp to image bounds
+          sx = Math.max(0, Math.round(sx))
+          sy = Math.max(0, Math.round(sy))
+          sw = Math.min(Math.round(sw), img.width - sx)
+          sh = Math.min(Math.round(sh), img.height - sy)
+        }
+
+        // Destination dimensions:
+        // - If the user explicitly changed resize dimensions, use those.
+        // - Otherwise use the natural crop/image size to preserve aspect ratio.
+        let dw: number
+        let dh: number
+        if (resizeOverridden && resizeWidth > 0 && resizeHeight > 0) {
+          dw = resizeWidth
+          dh = resizeHeight
+        } else {
+          dw = sw
+          dh = sh
         }
 
         canvas.width = dw
         canvas.height = dh
 
+        // For JPEG (no alpha), fill white background first
         if (format === 'image/jpeg') {
           ctx.fillStyle = '#ffffff'
           ctx.fillRect(0, 0, dw, dh)
         }
+        // For all other formats (PNG, WebP, GIF) keep transparent areas transparent
 
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh)
 
@@ -270,7 +304,7 @@ export default function ImageResizerTool() {
     })
 
     setIsProcessing(false)
-  }, [imgSrc, resizeWidth, resizeHeight, completedCrop, format, quality, originalFile, imgRef])
+  }, [imgSrc, resizeWidth, resizeHeight, resizeOverridden, completedCrop, format, quality, originalFile, imgRef])
 
   const reset = () => {
     setImgSrc(null)
@@ -283,6 +317,7 @@ export default function ImageResizerTool() {
     setResizeWidth(0)
     setResizeHeight(0)
     setPercentage(100)
+    setResizeOverridden(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -358,7 +393,15 @@ export default function ImageResizerTool() {
               <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
                 <CropIcon className="h-3.5 w-3.5" /> Drag to crop — adjust handles to define the crop area
               </p>
-              <div className="flex justify-center">
+              {/* Checkerboard so transparent PNG areas are clearly visible */}
+              <div
+                className="flex justify-center rounded-lg overflow-hidden"
+                style={{
+                  backgroundImage:
+                    'repeating-conic-gradient(#d1d5db 0% 25%, #f9fafb 0% 50%)',
+                  backgroundSize: '20px 20px',
+                }}
+              >
                 <ReactCrop
                   crop={crop}
                   onChange={(c) => setCrop(c)}
@@ -372,7 +415,7 @@ export default function ImageResizerTool() {
                     src={imgSrc}
                     alt="Upload preview"
                     onLoad={onImageLoad}
-                    className="max-h-[420px] max-w-full object-contain"
+                    style={{ maxHeight: 420, display: 'block' }}
                     crossOrigin="anonymous"
                   />
                 </ReactCrop>
@@ -395,12 +438,22 @@ export default function ImageResizerTool() {
                     {FORMAT_LABELS[format]} &middot; {formatBytes(previewSize)}
                   </Badge>
                 </div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewUrl}
-                  alt="Processed output"
-                  className="mx-auto max-h-64 max-w-full rounded-lg object-contain"
-                />
+                {/* Checkerboard background to visualise transparency in output */}
+                <div
+                  className="flex items-center justify-center rounded-lg overflow-hidden"
+                  style={{
+                    backgroundImage:
+                      'repeating-conic-gradient(#d1d5db 0% 25%, #f9fafb 0% 50%)',
+                    backgroundSize: '20px 20px',
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewUrl}
+                    alt="Processed output"
+                    className="mx-auto max-h-64 max-w-full object-contain"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -651,7 +704,13 @@ export default function ImageResizerTool() {
               <div className="rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground space-y-1">
                 <div className="flex justify-between">
                   <span>Output size</span>
-                  <span className="font-medium text-foreground">{resizeWidth} × {resizeHeight}px</span>
+                  <span className="font-medium text-foreground">
+                    {resizeOverridden
+                      ? `${resizeWidth} × ${resizeHeight}px`
+                      : completedCrop
+                        ? `${Math.round(completedCrop.width)}${completedCrop.unit} × ${Math.round(completedCrop.height)}${completedCrop.unit} (natural)`
+                        : `${resizeWidth} × ${resizeHeight}px`}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Format</span>
