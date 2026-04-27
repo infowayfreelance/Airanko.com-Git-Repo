@@ -14,6 +14,7 @@ export default function Navbar() {
     { label: 'Image Resizer', href: '/tools/image-resizer' },
     { label: 'Mobile Checker', href: '/tools/mobile-checker' },
     { label: 'Bulk Resizer', href: '/tools/bulk-image-resizer' },
+    { label: 'Meta Checker', href: '/tools/meta-checker' },
     { label: 'Blog', href: '#' },
   ]
 
