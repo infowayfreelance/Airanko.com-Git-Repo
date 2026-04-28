@@ -39,11 +39,12 @@ export default function BulkImageResizerPage() {
       {/* Footer */}
       <footer className="border-t border-border bg-card mt-12 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <Link href="/" className="flex items-center gap-2 font-heading font-bold text-foreground">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-              <Zap className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
-            Ai <span className="text-primary ml-1">Ranko</span>
+          <Link href="/" className="flex items-center" aria-label="Ai Ranko home">
+            <img
+              src="/images/ai-ranko-logo.webp"
+              alt="Ai Ranko"
+              className="h-7 w-auto"
+            />
           </Link>
           <p className="text-sm text-muted-foreground text-center">
             &copy; {new Date().getFullYear()} Ai Ranko. Your images never leave your device.

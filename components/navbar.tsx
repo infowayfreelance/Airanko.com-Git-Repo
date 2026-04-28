@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Menu, X, Zap } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function Navbar() {
@@ -22,13 +22,12 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 font-heading font-bold text-xl text-foreground">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Zap className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span>
-            Ai <span className="text-primary">Ranko</span>
-          </span>
+        <Link href="/" className="flex items-center" aria-label="Ai Ranko home">
+          <img
+            src="/images/ai-ranko-logo.webp"
+            alt="Ai Ranko"
+            className="h-8 w-auto"
+          />
         </Link>
 
         {/* Desktop nav */}
