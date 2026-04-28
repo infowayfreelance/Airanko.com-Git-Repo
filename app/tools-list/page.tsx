@@ -6,6 +6,20 @@ export const metadata: Metadata = {
   title: 'Free Browser-Based Tools — Master List',
   description:
     'A complete list of free, in-browser tools you can build with no API keys, no servers, and no ongoing costs. Save as PDF to keep a copy.',
+  // Hide from search engines and crawlers — accessible only via direct link.
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      'max-snippet': -1,
+      'max-image-preview': 'none',
+      'max-video-preview': -1,
+    },
+  },
 }
 
 export default function ToolsListPage() {
