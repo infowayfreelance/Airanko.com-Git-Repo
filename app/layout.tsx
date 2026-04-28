@@ -20,6 +20,22 @@ export const metadata: Metadata = {
     title: 'Ai Ranko – AI-Powered SEO & Image Tools',
     description: 'Free AI-powered SEO and image tools for marketers, developers, and creators.',
     type: 'website',
+    siteName: 'Ai Ranko',
+    images: [
+      {
+        url: '/ai-ranko-og.webp',
+        width: 1200,
+        height: 630,
+        alt: 'Ai Ranko – AI-Powered SEO Intelligence. Analyze. Optimize. Rank.',
+        type: 'image/webp',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Ai Ranko – AI-Powered SEO & Image Tools',
+    description: 'Free AI-powered SEO and image tools for marketers, developers, and creators.',
+    images: ['/ai-ranko-og.webp'],
   },
 }
 
