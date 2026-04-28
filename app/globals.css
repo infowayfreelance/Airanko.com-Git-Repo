@@ -127,3 +127,49 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print styles for the /tools-list "Save as PDF" page. */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Hide site chrome that doesn't belong in the PDF. */
+  nav,
+  header[role='banner'],
+  footer[role='contentinfo'],
+  [data-print-hide],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  thead {
+    display: table-header-group;
+  }
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+  section {
+    page-break-inside: avoid;
+  }
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

@@ -1,8 +1,0 @@
-[project]
-name = "generate-tools-pdf"
-version = "0.1.0"
-description = "Generate a PDF of all in-browser free tool ideas."
-requires-python = ">=3.10"
-dependencies = [
-    "reportlab>=4.2.0",
-]
