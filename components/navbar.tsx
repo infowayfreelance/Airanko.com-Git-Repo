@@ -4,17 +4,17 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  AiToolsMegaMenu,
+  AiToolsMobileMenu,
+} from '@/components/ai-tools-mega-menu'
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
 
   const navLinks = [
     { label: 'Home', href: '/' },
-    { label: 'SEO Tools', href: '/#tools' },
-    { label: 'Image Resizer', href: '/tools/image-resizer' },
-    { label: 'Mobile Checker', href: '/tools/mobile-checker' },
-    { label: 'Bulk Resizer', href: '/tools/bulk-image-resizer' },
-    { label: 'Meta Checker', href: '/tools/meta-checker' },
+    { label: 'Pricing', href: '#' },
     { label: 'Blog', href: '#' },
   ]
 
@@ -32,20 +32,34 @@ export default function Navbar() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6">
-          {navLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {link.label}
-            </Link>
-          ))}
+          <Link
+            href="/"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Home
+          </Link>
+          <AiToolsMegaMenu />
+          {navLinks
+            .filter((l) => l.label !== 'Home')
+            .map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" size="sm">Sign In</Button>
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+          <Button variant="ghost" size="sm">
+            Sign In
+          </Button>
+          <Button
+            size="sm"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
             Get Started Free
           </Button>
         </div>
@@ -63,21 +77,36 @@ export default function Navbar() {
       {/* Mobile menu */}
       {open && (
         <div className="md:hidden border-t border-border bg-card px-4 pb-4 pt-2">
-          <nav className="flex flex-col gap-2">
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                onClick={() => setOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
+          <nav className="flex flex-col gap-1">
+            <Link
+              href="/"
+              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              Home
+            </Link>
+            <AiToolsMobileMenu onNavigate={() => setOpen(false)} />
+            {navLinks
+              .filter((l) => l.label !== 'Home')
+              .map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  onClick={() => setOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
           </nav>
           <div className="mt-4 flex flex-col gap-2">
-            <Button variant="ghost" size="sm" className="justify-start">Sign In</Button>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button variant="ghost" size="sm" className="justify-start">
+              Sign In
+            </Button>
+            <Button
+              size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
               Get Started Free
             </Button>
           </div>
