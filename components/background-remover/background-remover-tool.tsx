@@ -127,9 +127,12 @@ export default function BackgroundRemoverTool() {
       const { output } = await model({ input: pixel_values })
 
       // Build a full-resolution alpha mask from the model output.
-      const maskImage = await RawImage.fromTensor(
+      // NOTE: `.resize()` returns a Promise — must be awaited or the mask
+      // pixel buffer ends up empty and nothing gets removed.
+      const maskTensorImage = RawImage.fromTensor(
         output[0].mul(255).to('uint8'),
-      ).resize(image.width, image.height)
+      )
+      const maskImage = await maskTensorImage.resize(image.width, image.height)
 
       setProgress(90)
 
