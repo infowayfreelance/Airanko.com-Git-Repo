@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import {
@@ -85,6 +85,11 @@ export default function ImageResizerTool() {
   const [imgSrc, setImgSrc] = useState<string | null>(null)
   const [originalFile, setOriginalFile] = useState<File | null>(null)
   const [originalDimensions, setOriginalDimensions] = useState({ w: 0, h: 0 })
+  // Effective base dimensions for scaling/aspect-ratio math.
+  // When a crop is active, this becomes the crop's natural pixel size so the
+  // percentage slider and width/height inputs preserve the crop's aspect ratio
+  // instead of stretching it back to the original image's aspect ratio.
+  const [baseDims, setBaseDims] = useState({ w: 0, h: 0 })
   const [isDragging, setIsDragging] = useState(false)
 
   // Resize state
@@ -129,6 +134,7 @@ export default function ImageResizerTool() {
       img.crossOrigin = 'anonymous'
       img.onload = () => {
         setOriginalDimensions({ w: img.width, h: img.height })
+        setBaseDims({ w: img.width, h: img.height })
         setResizeWidth(img.width)
         setResizeHeight(img.height)
         setPercentage(100)
@@ -155,9 +161,12 @@ export default function ImageResizerTool() {
     const w = parseInt(val) || 0
     setResizeWidth(w)
     setResizeOverridden(true)
-    if (lockAR && originalDimensions.w > 0) {
-      setResizeHeight(Math.round((w / originalDimensions.w) * originalDimensions.h))
-      setPercentage(Math.round((w / originalDimensions.w) * 100))
+    // Aspect-ratio lock + percentage are computed against the effective base
+    // (crop size when cropped, original size otherwise) so dimensions never
+    // get distorted away from the visible crop's shape.
+    if (lockAR && baseDims.w > 0) {
+      setResizeHeight(Math.round((w / baseDims.w) * baseDims.h))
+      setPercentage(Math.round((w / baseDims.w) * 100))
     }
   }
 
@@ -165,18 +174,18 @@ export default function ImageResizerTool() {
     const h = parseInt(val) || 0
     setResizeHeight(h)
     setResizeOverridden(true)
-    if (lockAR && originalDimensions.h > 0) {
-      setResizeWidth(Math.round((h / originalDimensions.h) * originalDimensions.w))
-      setPercentage(Math.round((h / originalDimensions.h) * 100))
+    if (lockAR && baseDims.h > 0) {
+      setResizeWidth(Math.round((h / baseDims.h) * baseDims.w))
+      setPercentage(Math.round((h / baseDims.h) * 100))
     }
   }
 
   const handlePercentageChange = (pct: number) => {
     setPercentage(pct)
     setResizeOverridden(true)
-    if (originalDimensions.w > 0) {
-      setResizeWidth(Math.round((originalDimensions.w * pct) / 100))
-      setResizeHeight(Math.round((originalDimensions.h * pct) / 100))
+    if (baseDims.w > 0) {
+      setResizeWidth(Math.round((baseDims.w * pct) / 100))
+      setResizeHeight(Math.round((baseDims.h * pct) / 100))
     }
   }
 
@@ -184,8 +193,8 @@ export default function ImageResizerTool() {
     setResizeWidth(width)
     setResizeHeight(height)
     setResizeOverridden(true)
-    if (originalDimensions.w > 0) {
-      setPercentage(Math.round((width / originalDimensions.w) * 100))
+    if (baseDims.w > 0) {
+      setPercentage(Math.round((width / baseDims.w) * 100))
     }
   }
 
@@ -195,6 +204,45 @@ export default function ImageResizerTool() {
       setCrop(centerAspectCrop(width, height, cropAspect))
     }
   }
+
+  // Whenever the user finishes a crop (or clears it), recompute the effective
+  // base dimensions in *natural* image pixels and snap the resize inputs to
+  // those dims. This guarantees the percentage slider scales the crop, not the
+  // original image, so the cropped shape is never stretched.
+  useEffect(() => {
+    if (!imgRef.current || originalDimensions.w === 0) return
+    const img = imgRef.current
+
+    if (!completedCrop) {
+      // Crop cleared — fall back to original image dimensions.
+      setBaseDims({ w: originalDimensions.w, h: originalDimensions.h })
+      setResizeWidth(originalDimensions.w)
+      setResizeHeight(originalDimensions.h)
+      setPercentage(100)
+      setResizeOverridden(false)
+      return
+    }
+
+    // Convert crop (which may be in % or display px) to natural-image pixels.
+    let bw: number, bh: number
+    if (completedCrop.unit === '%') {
+      bw = Math.round((completedCrop.width / 100) * img.naturalWidth)
+      bh = Math.round((completedCrop.height / 100) * img.naturalHeight)
+    } else {
+      const displayScaleX = img.width / img.naturalWidth || 1
+      const displayScaleY = img.height / img.naturalHeight || 1
+      bw = Math.round(completedCrop.width / displayScaleX)
+      bh = Math.round(completedCrop.height / displayScaleY)
+    }
+
+    if (bw <= 0 || bh <= 0) return
+
+    setBaseDims({ w: bw, h: bh })
+    setResizeWidth(bw)
+    setResizeHeight(bh)
+    setPercentage(100)
+    setResizeOverridden(false)
+  }, [completedCrop, originalDimensions])
 
   const handleCropAspectChange = (val: string) => {
     const ratio = val === 'null' ? undefined : parseFloat(val)
@@ -314,6 +362,7 @@ export default function ImageResizerTool() {
     setCrop(undefined)
     setCompletedCrop(undefined)
     setOriginalDimensions({ w: 0, h: 0 })
+    setBaseDims({ w: 0, h: 0 })
     setResizeWidth(0)
     setResizeHeight(0)
     setPercentage(100)
@@ -568,9 +617,12 @@ export default function ImageResizerTool() {
                     ))}
                     <button
                       onClick={() => {
-                        setResizeWidth(originalDimensions.w)
-                        setResizeHeight(originalDimensions.h)
+                        // Reset to the effective base (crop size when cropped,
+                        // otherwise original) so the cropped shape is preserved.
+                        setResizeWidth(baseDims.w)
+                        setResizeHeight(baseDims.h)
                         setPercentage(100)
+                        setResizeOverridden(false)
                       }}
                       className="flex-1 rounded-md border border-border bg-background py-1.5 text-xs font-medium text-muted-foreground hover:border-primary/50 transition-colors flex items-center justify-center gap-1"
                     >
