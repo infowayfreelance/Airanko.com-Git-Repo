@@ -83,6 +83,12 @@ export default function BackgroundRemoverTool() {
       setStatus('processing')
 
       const blob = await removeBackground(file, {
+        // Use imgly's official CORS-enabled CDN so model assets load reliably
+        publicPath:
+          'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
+        // Smaller, faster model — better for in-browser inference
+        model: 'isnet_quint8',
+        debug: false,
         progress: (key, current, total) => {
           if (total > 0) {
             const ratio = current / total
@@ -100,11 +106,11 @@ export default function BackgroundRemoverTool() {
       setStatus('done')
     } catch (err) {
       console.error('[v0] background-remover error:', err)
-      setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : 'Failed to remove background. Please try a different image.',
-      )
+      const raw = err instanceof Error ? err.message : String(err)
+      const friendly = /failed to fetch|networkerror|load failed/i.test(raw)
+        ? 'Could not download the AI model. Check your internet connection and try again.'
+        : raw || 'Failed to remove background. Please try a different image.'
+      setErrorMsg(friendly)
       setStatus('error')
     }
   }, [])
