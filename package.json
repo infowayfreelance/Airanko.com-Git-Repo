@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
-    "@imgly/background-removal": "^1.7.0",
+    "@huggingface/transformers": "^4.2.0",
     "@radix-ui/react-accordion": "1.2.12",
     "@radix-ui/react-alert-dialog": "1.1.15",
     "@radix-ui/react-aspect-ratio": "1.1.8",
@@ -49,7 +49,6 @@
     "lucide-react": "^0.564.0",
     "next": "16.2.4",
     "next-themes": "^0.4.6",
-    "onnxruntime-web": "1.21.0-dev.20250206-d981b153d3",
     "react": "^19",
     "react-day-picker": "9.13.2",
     "react-dom": "^19",

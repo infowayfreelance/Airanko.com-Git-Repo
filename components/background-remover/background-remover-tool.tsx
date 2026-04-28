@@ -78,25 +78,89 @@ export default function BackgroundRemoverTool() {
 
     try {
       setStatus('loading-model')
-      // Lazy-load the WASM background removal library only on the client
-      const { removeBackground } = await import('@imgly/background-removal')
-      setStatus('processing')
 
-      // Use the library's default configuration. It auto-resolves the IMG.LY
-      // CDN URL using the installed package version and the default `isnet_fp16`
-      // model, which is the most reliable combination.
-      const blob = await removeBackground(file, {
-        debug: false,
-        progress: (key, current, total) => {
-          if (total > 0) {
-            const ratio = current / total
-            // Reserve 0-30% for asset loading, 30-100% for inference
-            const stagePct = key.startsWith('fetch') ? ratio * 30 : 30 + ratio * 70
-            setProgress(Math.min(99, Math.round(stagePct)))
+      // Lazy-load Transformers.js on the client only.
+      const { env, AutoModel, AutoProcessor, RawImage } = await import(
+        '@huggingface/transformers'
+      )
+
+      // Always pull models from the HuggingFace Hub (rock-solid CDN).
+      env.allowLocalModels = false
+      if (env.backends?.onnx?.wasm) {
+        env.backends.onnx.wasm.proxy = false
+      }
+
+      // Load the model + processor (cached after first run via the browser).
+      const modelId = 'briaai/RMBG-1.4'
+      const model = await AutoModel.from_pretrained(modelId, {
+        // RMBG-1.4 uses a custom architecture — declare it so the loader
+        // doesn't reject the config.
+        config: { model_type: 'custom' } as never,
+        progress_callback: (data: { status?: string; progress?: number }) => {
+          if (data?.status === 'progress' && typeof data.progress === 'number') {
+            // Reserve 0-60% for model download, 60-100% for inference.
+            setProgress(Math.min(60, Math.round((data.progress / 100) * 60)))
           }
         },
-        output: { format: 'image/png' },
       })
+      const processor = await AutoProcessor.from_pretrained(modelId, {
+        config: {
+          do_normalize: true,
+          do_pad: false,
+          do_rescale: true,
+          do_resize: true,
+          image_mean: [0.5, 0.5, 0.5],
+          feature_extractor_type: 'ImageFeatureExtractor',
+          image_std: [1, 1, 1],
+          resample: 2,
+          rescale_factor: 0.00392156862745098,
+          size: { width: 1024, height: 1024 },
+        } as never,
+      })
+
+      setStatus('processing')
+      setProgress(70)
+
+      // Run inference.
+      const image = await RawImage.fromURL(objectUrl)
+      const { pixel_values } = await processor(image)
+      const { output } = await model({ input: pixel_values })
+
+      // Build a full-resolution alpha mask from the model output.
+      const maskImage = await RawImage.fromTensor(
+        output[0].mul(255).to('uint8'),
+      ).resize(image.width, image.height)
+
+      setProgress(90)
+
+      // Composite: copy original RGB, replace alpha with mask.
+      const canvas = document.createElement('canvas')
+      canvas.width = image.width
+      canvas.height = image.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas 2D context unavailable')
+
+      const sourceImg = new Image()
+      sourceImg.crossOrigin = 'anonymous'
+      sourceImg.src = objectUrl
+      await new Promise<void>((resolve, reject) => {
+        sourceImg.onload = () => resolve()
+        sourceImg.onerror = () => reject(new Error('Could not load image'))
+      })
+      ctx.drawImage(sourceImg, 0, 0)
+
+      const pixelData = ctx.getImageData(0, 0, image.width, image.height)
+      for (let i = 0; i < maskImage.data.length; i++) {
+        pixelData.data[4 * i + 3] = maskImage.data[i]
+      }
+      ctx.putImageData(pixelData, 0, 0)
+
+      const blob: Blob = await new Promise((resolve, reject) =>
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('Could not encode PNG'))),
+          'image/png',
+        ),
+      )
 
       const resultObjectUrl = URL.createObjectURL(blob)
       setResultUrl(resultObjectUrl)
