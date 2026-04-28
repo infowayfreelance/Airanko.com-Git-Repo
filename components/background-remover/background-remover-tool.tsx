@@ -82,12 +82,10 @@ export default function BackgroundRemoverTool() {
       const { removeBackground } = await import('@imgly/background-removal')
       setStatus('processing')
 
+      // Use the library's default configuration. It auto-resolves the IMG.LY
+      // CDN URL using the installed package version and the default `isnet_fp16`
+      // model, which is the most reliable combination.
       const blob = await removeBackground(file, {
-        // Use imgly's official CORS-enabled CDN so model assets load reliably
-        publicPath:
-          'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
-        // Smaller, faster model — better for in-browser inference
-        model: 'isnet_quint8',
         debug: false,
         progress: (key, current, total) => {
           if (total > 0) {

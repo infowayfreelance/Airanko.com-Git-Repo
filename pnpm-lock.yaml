@@ -13,7 +13,7 @@ importers:
         version: 3.10.0(react-hook-form@7.71.1(react@19.2.4))
       '@imgly/background-removal':
         specifier: ^1.7.0
-        version: 1.7.0(onnxruntime-web@1.21.0)
+        version: 1.7.0(onnxruntime-web@1.21.0-dev.20250206-d981b153d3)
       '@radix-ui/react-accordion':
         specifier: 1.2.12
         version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -128,6 +128,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      onnxruntime-web:
+        specifier: 1.21.0-dev.20250206-d981b153d3
+        version: 1.21.0-dev.20250206-d981b153d3
       react:
         specifier: ^19
         version: 19.2.4
@@ -1609,11 +1612,11 @@ packages:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
     engines: {node: '>=0.10.0'}
 
-  onnxruntime-common@1.21.0:
-    resolution: {integrity: sha512-Q632iLLrtCAVOTO65dh2+mNbQir/QNTVBG3h/QdZBpns7mZ0RYbLRBgGABPbpU9351AgYy7SJf1WaeVwMrBFPQ==}
+  onnxruntime-common@1.21.0-dev.20250206-d981b153d3:
+    resolution: {integrity: sha512-TwaE51xV9q2y8pM61q73rbywJnusw9ivTEHAJ39GVWNZqxCoDBpe/tQkh/w9S+o/g+zS7YeeL0I/2mEWd+dgyA==}
 
-  onnxruntime-web@1.21.0:
-    resolution: {integrity: sha512-adzOe+7uI7lKz6pQNbAsLMQd2Fq5Jhmoxd8LZjJr8m3KvbFyiYyRxRiC57/XXD+jb18voppjeGAjoZmskXG+7A==}
+  onnxruntime-web@1.21.0-dev.20250206-d981b153d3:
+    resolution: {integrity: sha512-esDVQdRic6J44VBMFLumYvcGfioMh80ceLmzF1yheJyuLKq/Th8VT2aj42XWQst+2bcWnAhw4IKmRQaqzU8ugg==}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -1965,11 +1968,11 @@ snapshots:
   '@img/sharp-win32-x64@0.34.5':
     optional: true
 
-  '@imgly/background-removal@1.7.0(onnxruntime-web@1.21.0)':
+  '@imgly/background-removal@1.7.0(onnxruntime-web@1.21.0-dev.20250206-d981b153d3)':
     dependencies:
       lodash-es: 4.18.1
       ndarray: 1.0.19
-      onnxruntime-web: 1.21.0
+      onnxruntime-web: 1.21.0-dev.20250206-d981b153d3
       zod: 3.25.76
 
   '@jridgewell/gen-mapping@0.3.13':
@@ -3106,14 +3109,14 @@ snapshots:
 
   object-assign@4.1.1: {}
 
-  onnxruntime-common@1.21.0: {}
+  onnxruntime-common@1.21.0-dev.20250206-d981b153d3: {}
 
-  onnxruntime-web@1.21.0:
+  onnxruntime-web@1.21.0-dev.20250206-d981b153d3:
     dependencies:
       flatbuffers: 25.9.23
       guid-typescript: 1.0.9
       long: 5.3.2
-      onnxruntime-common: 1.21.0
+      onnxruntime-common: 1.21.0-dev.20250206-d981b153d3
       platform: 1.3.6
       protobufjs: 7.5.6
 
