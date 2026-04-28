@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   description: 'Ai Ranko offers powerful AI-driven SEO tools and image utilities. Resize, crop, convert images and boost your site rankings.',
   keywords: 'AI SEO tools, image resizer, image converter, webp converter, crop image, SEO analyzer',
   generator: 'Ai Ranko',
+  icons: {
+    icon: [{ url: '/ai-ranko-icon.webp', type: 'image/webp' }],
+    shortcut: ['/ai-ranko-icon.webp'],
+    apple: [{ url: '/ai-ranko-icon.webp', type: 'image/webp' }],
+  },
   openGraph: {
     title: 'Ai Ranko – AI-Powered SEO & Image Tools',
     description: 'Free AI-powered SEO and image tools for marketers, developers, and creators.',
