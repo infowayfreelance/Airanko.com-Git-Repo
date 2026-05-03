@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import ImageResizerTool from '@/components/image-resizer/image-resizer-tool'
+import ImageResizerSeoSections from '@/components/image-resizer-seo-sections'
 
 export const metadata: Metadata = {
   title: 'Free Image Resizer, Converter & Compressor Online | AI Ranko',
@@ -94,6 +95,8 @@ export default function ImageResizerPage() {
       <main>
         <ImageResizerTool />
       </main>
+
+      <ImageResizerSeoSections />
 
       {/* Footer */}
       <footer className="border-t border-border bg-card mt-12 px-4 py-8 sm:px-6 lg:px-8">
