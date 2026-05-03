@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import ImageResizerSeoSections from '@/components/image-resizer-seo-sections'
 
 export const metadata: Metadata = {
   title: 'Ai Ranko – Free AI-Powered SEO & Image Tools',
@@ -368,6 +369,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Image Resizer SEO Sections */}
+      <ImageResizerSeoSections />
 
       {/* Footer */}
       <footer className="border-t border-border bg-card px-4 py-10 sm:px-6 lg:px-8">
