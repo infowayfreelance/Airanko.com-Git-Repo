@@ -379,10 +379,10 @@ export default function ImageResizerTool() {
           <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-0">Browser-based</Badge>
         </div>
         <h1 className="font-heading text-3xl font-bold text-foreground sm:text-4xl text-balance">
-          Image Resizer &amp; Converter
+          Free Online Image Resizer, Converter &amp; Compressor
         </h1>
         <p className="mt-2 text-muted-foreground text-pretty">
-          Resize, crop, convert and optimize images — 100% client-side, your files never leave your device.
+          Resize, crop, convert and compress images in seconds with our all-in-one image tool. Optimize images for websites, social media, and SEO with support for PNG, JPEG, WebP, and more. No uploads, no delays — everything runs securely in your browser.
         </p>
       </div>
 
