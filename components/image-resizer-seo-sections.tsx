@@ -316,10 +316,10 @@ export default function ImageResizerSeoSections() {
                     AI Ranko
                   </th>
                   <th className="px-5 py-4 text-center font-heading font-semibold text-muted-foreground w-1/5">
-                    ImageResizer.io
+                    ImageResizer.com
                   </th>
                   <th className="px-5 py-4 text-center font-heading font-semibold text-muted-foreground w-1/5">
-                    Adobe Express
+                    Adobe.com
                   </th>
                 </tr>
               </thead>
