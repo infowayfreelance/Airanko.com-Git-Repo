@@ -320,7 +320,7 @@ export function AiToolsMegaMenu() {
                       className="group flex items-start gap-3 rounded-xl border border-transparent p-3 transition-all hover:border-border hover:bg-muted/40"
                     >
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                        <Icon className="h-4.5 w-4.5" />
+                        <Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
