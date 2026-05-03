@@ -9,6 +9,32 @@ export const metadata: Metadata = {
   description:
     'Resize, crop, convert and compress images instantly. Optimize for web, SEO, and social media. Supports PNG, JPEG, WebP. 100% secure browser-based tool.',
   keywords: 'image resizer, image converter, resize image online, convert to webp, crop image free',
+  openGraph: {
+    title: 'Free Image Resizer, Converter & Compressor Online | AI Ranko',
+    description:
+      'Resize, crop, convert and compress images instantly. Optimize for web, SEO, and social media. Supports PNG, JPEG, WebP. 100% secure browser-based tool.',
+    url: 'https://airanko.com/tools/image-resizer',
+    siteName: 'AI Ranko',
+    images: [
+      {
+        url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+        width: 1200,
+        height: 630,
+        alt: 'Free Image Resizer, Converter & Compressor — AI Ranko',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Free Image Resizer, Converter & Compressor Online | AI Ranko',
+    description:
+      'Resize, crop, convert and compress images instantly. Optimize for web, SEO, and social media. Supports PNG, JPEG, WebP. 100% secure browser-based tool.',
+    images: [
+      'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+    ],
+  },
 }
 
 export default function ImageResizerPage() {
