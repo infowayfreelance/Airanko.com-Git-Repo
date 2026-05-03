@@ -141,7 +141,7 @@ const comparisonRows: {
   },
   {
     feature: 'Batch processing',
-    airanko: 'Coming soon',
+    airanko: 'Separate tool',
     imageResizer: 'Paid only',
     adobe: 'Paid only',
   },
@@ -182,6 +182,11 @@ function ComparisonCell({ value }: { value: boolean | string }) {
           <X className="h-3.5 w-3.5 text-muted-foreground" />
         </span>
       </span>
+    )
+  }
+  if (value === 'Separate tool') {
+    return (
+      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{value}</span>
     )
   }
   return (
