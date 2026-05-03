@@ -1,4 +1,21 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+  title: 'Ai Ranko – Free AI-Powered SEO & Image Tools',
+  description:
+    'Boost your rankings with Ai Ranko — free AI-powered SEO tools and image utilities. Resize, convert & optimize images. Analyze meta tags, track keywords, and grow organic traffic.',
+  openGraph: {
+    title: 'Ai Ranko – Free AI-Powered SEO & Image Tools',
+    description:
+      'Boost your rankings with Ai Ranko — free AI-powered SEO tools and image utilities. Resize, convert & optimize images. Analyze meta tags, track keywords, and grow organic traffic.',
+  },
+  twitter: {
+    title: 'Ai Ranko – Free AI-Powered SEO & Image Tools',
+    description:
+      'Boost your rankings with Ai Ranko — free AI-powered SEO tools and image utilities. Resize, convert & optimize images. Analyze meta tags, track keywords, and grow organic traffic.',
+  },
+}
 import {
   ImageIcon,
   Search,
