@@ -5,9 +5,9 @@ import Navbar from '@/components/navbar'
 import ImageResizerTool from '@/components/image-resizer/image-resizer-tool'
 
 export const metadata: Metadata = {
-  title: 'Free Image Resizer & Converter | Ai Ranko',
+  title: 'Free Image Resizer, Converter & Compressor Online | AI Ranko',
   description:
-    'Resize, crop, convert and optimize images online for free. Supports PNG, JPEG, WebP, GIF. 100% browser-based — your files stay private.',
+    'Resize, crop, convert and compress images instantly. Optimize for web, SEO, and social media. Supports PNG, JPEG, WebP. 100% secure browser-based tool.',
   keywords: 'image resizer, image converter, resize image online, convert to webp, crop image free',
 }
 
