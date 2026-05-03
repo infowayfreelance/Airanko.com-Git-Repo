@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: 'Ai Ranko – AI-Powered SEO & Image Tools',
   description: 'Ai Ranko offers powerful AI-driven SEO tools and image utilities. Resize, crop, convert images and boost your site rankings.',
   keywords: 'AI SEO tools, image resizer, image converter, webp converter, crop image, SEO analyzer',
+  verification: {
+    google: 'J5o5mKfRWfAJK1p9IvClN-usXyPAlXElWaRVcRoDucM',
+  },
   generator: 'Ai Ranko',
   icons: {
     icon: [{ url: '/ai-ranko-icon.webp', type: 'image/webp' }],
