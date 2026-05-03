@@ -85,14 +85,84 @@ const benefits = [
 
 // ─── Section 4: Comparison ────────────────────────────────────────────────
 
-const comparisonRows = [
-  { feature: 'Free to use', airanko: true, others: 'Limited' },
-  { feature: 'No signup required', airanko: true, others: false },
-  { feature: 'Resize, crop, convert & compress', airanko: true, others: 'Separate tools' },
-  { feature: 'WebP support', airanko: true, others: 'Partial' },
-  { feature: 'Social media presets', airanko: true, others: false },
-  { feature: 'Instant processing speed', airanko: true, others: 'Server delay' },
-  { feature: 'Privacy — no server upload', airanko: true, others: false },
+const comparisonRows: {
+  feature: string
+  airanko: boolean | string
+  imageResizer: boolean | string
+  adobe: boolean | string
+}[] = [
+  {
+    feature: 'Free to use',
+    airanko: true,
+    imageResizer: 'Limited',
+    adobe: 'Limited',
+  },
+  {
+    feature: 'No signup required',
+    airanko: true,
+    imageResizer: true,
+    adobe: false,
+  },
+  {
+    feature: 'Resize images',
+    airanko: true,
+    imageResizer: true,
+    adobe: true,
+  },
+  {
+    feature: 'Crop images',
+    airanko: true,
+    imageResizer: true,
+    adobe: true,
+  },
+  {
+    feature: 'Format conversion',
+    airanko: true,
+    imageResizer: 'Partial',
+    adobe: true,
+  },
+  {
+    feature: 'Image compression',
+    airanko: true,
+    imageResizer: true,
+    adobe: false,
+  },
+  {
+    feature: 'WebP support',
+    airanko: true,
+    imageResizer: false,
+    adobe: 'Partial',
+  },
+  {
+    feature: 'Social media presets',
+    airanko: true,
+    imageResizer: false,
+    adobe: true,
+  },
+  {
+    feature: 'Batch processing',
+    airanko: 'Coming soon',
+    imageResizer: 'Paid only',
+    adobe: 'Paid only',
+  },
+  {
+    feature: 'Privacy — no server upload',
+    airanko: true,
+    imageResizer: false,
+    adobe: false,
+  },
+  {
+    feature: 'No watermark',
+    airanko: true,
+    imageResizer: true,
+    adobe: 'Paid only',
+  },
+  {
+    feature: 'Works on all devices',
+    airanko: true,
+    imageResizer: true,
+    adobe: true,
+  },
 ]
 
 function ComparisonCell({ value }: { value: boolean | string }) {
@@ -115,7 +185,7 @@ function ComparisonCell({ value }: { value: boolean | string }) {
     )
   }
   return (
-    <span className="text-sm text-muted-foreground">{value}</span>
+    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{value}</span>
   )
 }
 
@@ -239,15 +309,17 @@ export default function ImageResizerSeoSections() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-background">
-                  <th className="px-5 py-4 text-left font-heading font-semibold text-foreground">
+                  <th className="px-5 py-4 text-left font-heading font-semibold text-foreground w-2/5">
                     Feature
                   </th>
-                  <th className="px-5 py-4 text-center font-heading font-semibold text-primary">
+                  <th className="px-5 py-4 text-center font-heading font-semibold text-primary w-1/5">
                     AI Ranko
                   </th>
-                  <th className="px-5 py-4 text-center font-heading font-semibold text-muted-foreground">
-                    Other Tools
-                    <span className="ml-1 text-xs font-normal">(ImageResizer / Adobe Express)</span>
+                  <th className="px-5 py-4 text-center font-heading font-semibold text-muted-foreground w-1/5">
+                    ImageResizer.io
+                  </th>
+                  <th className="px-5 py-4 text-center font-heading font-semibold text-muted-foreground w-1/5">
+                    Adobe Express
                   </th>
                 </tr>
               </thead>
@@ -257,12 +329,15 @@ export default function ImageResizerSeoSections() {
                     key={row.feature}
                     className={`border-b border-border last:border-0 ${i % 2 === 0 ? 'bg-card' : 'bg-background'}`}
                   >
-                    <td className="px-5 py-3.5 text-foreground font-medium">{row.feature}</td>
+                    <td className="px-5 py-3.5 font-medium text-foreground">{row.feature}</td>
                     <td className="px-5 py-3.5 text-center">
                       <ComparisonCell value={row.airanko} />
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      <ComparisonCell value={row.others} />
+                      <ComparisonCell value={row.imageResizer} />
+                    </td>
+                    <td className="px-5 py-3.5 text-center">
+                      <ComparisonCell value={row.adobe} />
                     </td>
                   </tr>
                 ))}
