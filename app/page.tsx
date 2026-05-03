@@ -56,6 +56,7 @@ const seoTools = [
     href: '#',
     color: 'text-teal-600',
     bg: 'bg-teal-50',
+    comingSoon: true,
   },
   {
     icon: FileText,
@@ -71,11 +72,12 @@ const seoTools = [
     icon: BarChart2,
     label: 'SEO Rank Tracker',
     description: 'Track your keyword rankings daily and monitor your SERP position over time.',
-    badge: 'New',
+    badge: null,
     badgeVariant: 'default' as const,
     href: '#',
     color: 'text-green-600',
     bg: 'bg-green-50',
+    comingSoon: true,
   },
   {
     icon: Link2,
@@ -86,6 +88,7 @@ const seoTools = [
     href: '#',
     color: 'text-rose-600',
     bg: 'bg-rose-50',
+    comingSoon: true,
   },
   {
     icon: Globe,
@@ -96,6 +99,7 @@ const seoTools = [
     href: '#',
     color: 'text-indigo-600',
     bg: 'bg-indigo-50',
+    comingSoon: true,
   },
   {
     icon: ShieldCheck,
@@ -106,6 +110,7 @@ const seoTools = [
     href: '#',
     color: 'text-cyan-600',
     bg: 'bg-cyan-50',
+    comingSoon: true,
   },
   {
     icon: Cpu,
@@ -116,6 +121,7 @@ const seoTools = [
     href: '#',
     color: 'text-violet-600',
     bg: 'bg-violet-50',
+    comingSoon: true,
   },
   {
     icon: Smartphone,
@@ -219,6 +225,48 @@ export default function HomePage() {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {seoTools.map((tool) => {
               const Icon = tool.icon
+
+              const cardContent = (
+                <>
+                  <Badge
+                    variant="outline"
+                    className="absolute right-4 top-4 text-xs border-muted-foreground/30 text-muted-foreground"
+                  >
+                    Coming Soon
+                  </Badge>
+                  {tool.badge && !tool.comingSoon && (
+                    <Badge
+                      variant={tool.badgeVariant}
+                      className="absolute right-4 top-4 text-xs"
+                    >
+                      {tool.badge}
+                    </Badge>
+                  )}
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${tool.bg} ${tool.comingSoon ? 'opacity-50' : ''}`}>
+                    <Icon className={`h-5 w-5 ${tool.color}`} />
+                  </div>
+                  <div>
+                    <h3 className={`font-heading font-semibold leading-snug ${tool.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
+                      {tool.label}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                      {tool.description}
+                    </p>
+                  </div>
+                </>
+              )
+
+              if (tool.comingSoon) {
+                return (
+                  <div
+                    key={tool.label}
+                    className="relative flex flex-col gap-4 rounded-2xl border border-border bg-card/60 p-6 shadow-sm cursor-not-allowed opacity-75"
+                  >
+                    {cardContent}
+                  </div>
+                )
+              }
+
               return (
                 <Link
                   key={tool.label}
