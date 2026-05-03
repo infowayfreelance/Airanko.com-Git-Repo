@@ -37,9 +37,42 @@ export const metadata: Metadata = {
   },
 }
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Free Online Image Resizer, Converter & Compressor',
+  description:
+    'Resize, crop, convert and compress images online. Supports PNG, JPEG, WebP and GIF. Fast, secure and browser-based tool with no uploads required.',
+  url: 'https://airanko.com/tools/image-resizer',
+  applicationCategory: 'MultimediaApplication',
+  operatingSystem: 'All',
+  image: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20Schema%20image-airanko-rf16nYR2GsUsGxjoa14e9AcOoh9RAJ.webp',
+  browserRequirements: 'Requires JavaScript. Works in modern browsers.',
+  featureList: [
+    'Resize images online',
+    'Crop images with aspect ratio',
+    'Convert to PNG, JPEG, WebP, GIF',
+    'Compress images without losing quality',
+    'Resize images for social media presets',
+  ],
+  creator: {
+    '@type': 'Organization',
+    name: 'AI Ranko',
+  },
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+}
+
 export default function ImageResizerPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Navbar />
 
       {/* Breadcrumb */}
