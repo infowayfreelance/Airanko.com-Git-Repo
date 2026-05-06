@@ -5,20 +5,20 @@ import Navbar from '@/components/navbar'
 import LinkExtractorTool from '@/components/link-extractor/link-extractor-tool'
 
 export const metadata: Metadata = {
-  title: 'Free Link Extractor — Extract All Links from Any Website | Ai Ranko',
+  title: 'Free Site-Wide Link Extractor — Crawl & Export Every Link | Ai Ranko',
   description:
-    'Paste any website URL and instantly extract every link on the page. Filter internal, external, nofollow, and file links. Export to CSV or JSON. Free and fast.',
+    'Crawl an entire website and extract every link across all pages, including sitemap entries. Filter internal, external, nofollow, and file links. Export to CSV or JSON.',
   keywords:
-    'link extractor, extract links from website, url extractor, internal external links, nofollow checker, scrape links, seo link audit',
+    'link extractor, website crawler, extract all links, site-wide link audit, sitemap crawler, internal external links, nofollow checker, seo link audit, broken link finder',
   openGraph: {
-    title: 'Free Link Extractor — Extract All Links from Any Website | Ai Ranko',
+    title: 'Free Site-Wide Link Extractor — Crawl & Export Every Link | Ai Ranko',
     description:
-      'Paste any website URL and instantly extract every link on the page. Filter internal, external, nofollow, and file links. Export to CSV or JSON.',
+      'Crawl an entire website and extract every link across all pages, including sitemap entries. Export to CSV or JSON.',
   },
   twitter: {
-    title: 'Free Link Extractor — Extract All Links from Any Website',
+    title: 'Free Site-Wide Link Extractor — Crawl & Export Every Link',
     description:
-      'Paste any website URL and instantly extract every link on the page. Free and fast.',
+      'Crawl any website and extract every link across all pages. Free and fast.',
   },
 }
 

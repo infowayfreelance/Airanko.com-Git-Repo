@@ -93,7 +93,7 @@ const seoTools = [
   {
     icon: Link2,
     label: 'Link Extractor',
-    description: 'Paste any URL and extract every link on the page. Filter, search, and export to CSV or JSON.',
+    description: 'Crawl an entire website and extract every link across all pages, including sitemap entries. Export to CSV or JSON.',
     badge: 'New',
     badgeVariant: 'default' as const,
     href: '/tools/link-extractor',
