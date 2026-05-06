@@ -1,15 +1,11 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Globe,
-  Target,
-  Users,
-  MapPin,
   Sparkles,
   Loader2,
   AlertCircle,
-  Download,
   Printer,
   RefreshCw,
   CheckCircle2,
@@ -17,1138 +13,2356 @@ import {
   Search,
   FileText,
   Wrench,
-  Calendar,
   Link2,
   BarChart3,
   ListChecks,
-  Briefcase,
-  ChevronRight,
   Trophy,
   Lightbulb,
   Building2,
+  ChevronLeft,
+  ChevronRight,
+  Upload,
+  MapPin,
+  Target,
+  Rocket,
+  Smartphone,
+  Monitor,
+  AlertTriangle,
+  ShieldCheck,
+  Zap,
+  XCircle,
+  HelpCircle,
+  DollarSign,
+  Award,
+  Users,
+  PenLine,
+  Plus,
+  X,
+  ArrowRight,
+  ClipboardList,
+  Map as MapIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import type { SeoStrategy } from '@/app/api/seo-strategy/route'
+import type { SiteAnalysis } from '@/app/api/seo-strategy/analyze/route'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type Goal = 'traffic' | 'leads' | 'sales' | 'brand-awareness'
-
 interface FormData {
   websiteUrl: string
   businessName: string
-  industry: string
-  targetAudience: string
-  primaryGoal: Goal
-  location: string
   isLocal: boolean
-  competitor1: string
-  competitor2: string
-  competitor3: string
-  currentChallenges: string
+  gmbUrl: string
+  keywords: string
+  competitors: string[]
+  location: string
+  industry: string
+  notes: string
 }
 
 const initialForm: FormData = {
   websiteUrl: '',
   businessName: '',
-  industry: '',
-  targetAudience: '',
-  primaryGoal: 'traffic',
-  location: '',
   isLocal: false,
-  competitor1: '',
-  competitor2: '',
-  competitor3: '',
-  currentChallenges: '',
+  gmbUrl: '',
+  keywords: '',
+  competitors: ['', '', ''],
+  location: '',
+  industry: '',
+  notes: '',
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-const priorityStyles: Record<string, string> = {
-  critical: 'bg-rose-100 text-rose-700 border-rose-200',
-  high: 'bg-amber-100 text-amber-700 border-amber-200',
-  medium: 'bg-blue-100 text-blue-700 border-blue-200',
-  low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-}
+const STEPS = [
+  { id: 1, title: 'Website', description: 'Your site & business' },
+  { id: 2, title: 'Keywords', description: 'Target keywords list' },
+  { id: 3, title: 'Competitors', description: 'Optional competitors' },
+  { id: 4, title: 'Location', description: 'Optional context' },
+] as const
 
-const intentStyles: Record<string, string> = {
-  informational: 'bg-blue-100 text-blue-700 border-blue-200',
-  navigational: 'bg-violet-100 text-violet-700 border-violet-200',
-  transactional: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  commercial: 'bg-amber-100 text-amber-700 border-amber-200',
-}
-
-const difficultyStyles: Record<string, string> = {
-  low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  medium: 'bg-amber-100 text-amber-700 border-amber-200',
-  high: 'bg-rose-100 text-rose-700 border-rose-200',
-}
+type Phase =
+  | 'idle'
+  | 'analyzing'
+  | 'generating'
+  | 'done'
+  | 'error'
 
 // ---------------------------------------------------------------------------
-// Section wrapper
+// Component
 // ---------------------------------------------------------------------------
-function StrategySection({
-  id,
-  icon: Icon,
-  title,
-  subtitle,
-  children,
-}: {
-  id: string
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-}) {
+export default function SeoStrategyMakerTool() {
+  const [step, setStep] = useState(1)
+  const [form, setForm] = useState<FormData>(initialForm)
+  const [phase, setPhase] = useState<Phase>('idle')
+  const [progressMsg, setProgressMsg] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [analysis, setAnalysis] = useState<SiteAnalysis | null>(null)
+  const [strategy, setStrategy] = useState<SeoStrategy | null>(null)
+  const reportRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (phase === 'done' && reportRef.current) {
+      reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [phase])
+
+  // ---------- Validation ----------
+  const canContinueStep1 = form.websiteUrl.trim() && form.businessName.trim() &&
+    (!form.isLocal || form.gmbUrl.trim())
+  const canContinueStep2 = form.keywords.trim().length > 0
+
+  // ---------- Submit ----------
+  async function handleGenerate() {
+    setError(null)
+    setStrategy(null)
+    setAnalysis(null)
+
+    try {
+      // Phase 1: analyze site
+      setPhase('analyzing')
+      setProgressMsg('Crawling your website and analyzing pages…')
+
+      const analyzeRes = await fetch('/api/seo-strategy/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ websiteUrl: form.websiteUrl }),
+      })
+      const analyzeData = await analyzeRes.json()
+      if (!analyzeRes.ok) {
+        throw new Error(analyzeData.error || 'Failed to analyze website')
+      }
+      const siteAnalysis: SiteAnalysis = analyzeData.analysis
+      setAnalysis(siteAnalysis)
+
+      // Phase 2: generate strategy
+      setPhase('generating')
+      setProgressMsg('Building your custom SEO strategy with AI…')
+
+      const stratRes = await fetch('/api/seo-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          websiteUrl: form.websiteUrl,
+          businessName: form.businessName,
+          gmbUrl: form.gmbUrl,
+          isLocal: form.isLocal,
+          keywords: form.keywords,
+          competitors: form.competitors.filter(Boolean),
+          location: form.location,
+          industry: form.industry,
+          notes: form.notes,
+          analysis: siteAnalysis,
+        }),
+      })
+      const stratData = await stratRes.json()
+      if (!stratRes.ok) {
+        throw new Error(stratData.error || 'Failed to generate strategy')
+      }
+      setStrategy(stratData.strategy)
+      setPhase('done')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong')
+      setPhase('error')
+    }
+  }
+
+  function reset() {
+    setStep(1)
+    setForm(initialForm)
+    setStrategy(null)
+    setAnalysis(null)
+    setError(null)
+    setPhase('idle')
+  }
+
+  // ---------- Render ----------
   return (
-    <section
-      id={id}
-      className="rounded-2xl border border-border bg-card p-6 shadow-sm scroll-mt-24"
-    >
-      <div className="mb-5 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Icon className="h-5 w-5" />
+    <div className="space-y-8">
+      {phase !== 'done' && (
+        <WizardCard
+          step={step}
+          form={form}
+          setForm={setForm}
+          phase={phase}
+          progressMsg={progressMsg}
+          error={error}
+          canContinueStep1={!!canContinueStep1}
+          canContinueStep2={canContinueStep2}
+          onBack={() => setStep((s) => Math.max(1, s - 1))}
+          onNext={() => setStep((s) => Math.min(4, s + 1))}
+          onGenerate={handleGenerate}
+        />
+      )}
+
+      {phase === 'done' && strategy && analysis && (
+        <div ref={reportRef}>
+          <StrategyReport
+            strategy={strategy}
+            analysis={analysis}
+            form={form}
+            onReset={reset}
+          />
         </div>
-        <div>
-          <h2 className="font-heading text-xl font-bold text-foreground">
-            {title}
-          </h2>
-          {subtitle && (
-            <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
-          )}
-        </div>
-      </div>
-      {children}
-    </section>
+      )}
+    </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Main tool
+// Wizard Card
 // ---------------------------------------------------------------------------
-export default function SeoStrategyMakerTool() {
-  const [form, setForm] = useState<FormData>(initialForm)
-  const [strategy, setStrategy] = useState<SeoStrategy | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const reportRef = useRef<HTMLDivElement>(null)
+function WizardCard({
+  step,
+  form,
+  setForm,
+  phase,
+  progressMsg,
+  error,
+  canContinueStep1,
+  canContinueStep2,
+  onBack,
+  onNext,
+  onGenerate,
+}: {
+  step: number
+  form: FormData
+  setForm: (f: FormData | ((prev: FormData) => FormData)) => void
+  phase: Phase
+  progressMsg: string
+  error: string | null
+  canContinueStep1: boolean
+  canContinueStep2: boolean
+  onBack: () => void
+  onNext: () => void
+  onGenerate: () => void
+}) {
+  const isLoading = phase === 'analyzing' || phase === 'generating'
 
-  const update = <K extends keyof FormData>(key: K, value: FormData[K]) => {
-    setForm((f) => ({ ...f, [key]: value }))
-  }
+  return (
+    <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+      {/* Stepper */}
+      <div className="border-b bg-muted/30 p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
+          {STEPS.map((s, idx) => {
+            const isActive = s.id === step
+            const isComplete = s.id < step
+            return (
+              <div key={s.id} className="flex items-center gap-2 sm:gap-4 flex-1">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors ${
+                      isComplete
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : isActive
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-background text-muted-foreground'
+                    }`}
+                  >
+                    {isComplete ? <CheckCircle2 className="h-4 w-4" /> : s.id}
+                  </div>
+                  <div className="hidden sm:block min-w-0">
+                    <div
+                      className={`text-sm font-medium truncate ${
+                        isActive ? 'text-foreground' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {s.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {s.description}
+                    </div>
+                  </div>
+                </div>
+                {idx < STEPS.length - 1 && (
+                  <div
+                    className={`h-px flex-1 ${
+                      isComplete ? 'bg-primary' : 'bg-border'
+                    }`}
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
 
-  const validateForm = (): string | null => {
-    if (!form.websiteUrl.trim()) return 'Website URL is required'
-    if (!form.businessName.trim()) return 'Business name is required'
-    if (!form.industry.trim()) return 'Industry is required'
-    if (!form.targetAudience.trim()) return 'Target audience is required'
-    return null
-  }
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="p-12 sm:p-16 flex flex-col items-center justify-center text-center">
+          <div className="relative">
+            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+            </div>
+            <div className="absolute -inset-2 rounded-full border-2 border-primary/20 animate-pulse" />
+          </div>
+          <h3 className="font-heading text-xl font-semibold mt-6">
+            {phase === 'analyzing' ? 'Analyzing your website' : 'Crafting your strategy'}
+          </h3>
+          <p className="text-muted-foreground mt-2 max-w-md text-pretty">
+            {progressMsg}
+          </p>
+          <div className="mt-6 flex flex-col gap-2 text-sm text-muted-foreground">
+            <ProgressItem
+              done={true}
+              label="Connect to your website"
+            />
+            <ProgressItem
+              done={phase === 'generating'}
+              active={phase === 'analyzing'}
+              label="Crawl pages, parse meta tags, schema, headings, sitemap"
+            />
+            <ProgressItem
+              done={false}
+              active={phase === 'generating'}
+              label="Generate AI-powered strategy & action plan"
+            />
+          </div>
+        </div>
+      )}
 
-  const handleGenerate = async () => {
-    const validationError = validateForm()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
+      {/* Step content */}
+      {!isLoading && (
+        <div className="p-6 sm:p-8">
+          {step === 1 && <Step1 form={form} setForm={setForm} />}
+          {step === 2 && <Step2 form={form} setForm={setForm} />}
+          {step === 3 && <Step3 form={form} setForm={setForm} />}
+          {step === 4 && <Step4 form={form} setForm={setForm} />}
 
-    setError(null)
-    setLoading(true)
-    setStrategy(null)
+          {error && (
+            <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm text-destructive">Error</p>
+                <p className="text-sm text-muted-foreground mt-1">{error}</p>
+              </div>
+            </div>
+          )}
 
-    try {
-      const res = await fetch('/api/seo-strategy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          websiteUrl: form.websiteUrl.trim(),
-          businessName: form.businessName.trim(),
-          industry: form.industry.trim(),
-          targetAudience: form.targetAudience.trim(),
-          primaryGoal: form.primaryGoal,
-          location: form.location.trim(),
-          isLocal: form.isLocal,
-          competitors: [
-            form.competitor1.trim(),
-            form.competitor2.trim(),
-            form.competitor3.trim(),
-          ].filter(Boolean),
-          currentChallenges: form.currentChallenges.trim(),
-        }),
-      })
+          {/* Footer actions */}
+          <div className="mt-8 flex items-center justify-between gap-3 pt-6 border-t">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onBack}
+              disabled={step === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
 
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to generate strategy')
+            <div className="flex items-center gap-2">
+              {step === 3 && (
+                <Button type="button" variant="ghost" onClick={onNext}>
+                  Skip
+                </Button>
+              )}
+              {step === 4 && (
+                <Button type="button" variant="ghost" onClick={onGenerate}>
+                  Skip & Generate
+                </Button>
+              )}
+
+              {step < 4 ? (
+                <Button
+                  type="button"
+                  onClick={onNext}
+                  disabled={
+                    (step === 1 && !canContinueStep1) ||
+                    (step === 2 && !canContinueStep2)
+                  }
+                >
+                  Continue <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              ) : (
+                <Button type="button" onClick={onGenerate}>
+                  <Sparkles className="h-4 w-4 mr-2" /> Generate SEO Strategy
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProgressItem({
+  done,
+  active,
+  label,
+}: {
+  done: boolean
+  active?: boolean
+  label: string
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      {done ? (
+        <CheckCircle2 className="h-4 w-4 text-primary" />
+      ) : active ? (
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+      ) : (
+        <div className="h-4 w-4 rounded-full border-2 border-border" />
+      )}
+      <span
+        className={`text-sm ${active ? 'text-foreground font-medium' : ''}`}
+      >
+        {label}
+      </span>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Step components
+// ---------------------------------------------------------------------------
+function Step1({
+  form,
+  setForm,
+}: {
+  form: FormData
+  setForm: (f: FormData | ((prev: FormData) => FormData)) => void
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-heading text-2xl font-bold flex items-center gap-2">
+          <Globe className="h-6 w-6 text-primary" />
+          Tell us about your website
+        </h2>
+        <p className="text-muted-foreground mt-1">
+          We&apos;ll crawl your site and analyze every page automatically — no
+          manual work needed.
+        </p>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Label htmlFor="websiteUrl" className="mb-2 block">
+            Website URL <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="websiteUrl"
+            type="url"
+            placeholder="https://example.com"
+            value={form.websiteUrl}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, websiteUrl: e.target.value }))
+            }
+          />
+          <p className="text-xs text-muted-foreground mt-1.5">
+            We&apos;ll automatically discover and analyze your internal pages,
+            meta tags, schema markup, sitemap, robots.txt and more.
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="businessName" className="mb-2 block">
+            Business Name <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="businessName"
+            placeholder="Acme Corp"
+            value={form.businessName}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, businessName: e.target.value }))
+            }
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="industry" className="mb-2 block">
+            Industry / Niche{' '}
+            <span className="text-muted-foreground text-xs">(optional)</span>
+          </Label>
+          <Input
+            id="industry"
+            placeholder="e.g. Dental clinic, SaaS, eCommerce"
+            value={form.industry}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, industry: e.target.value }))
+            }
+          />
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <MapPin className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <Label htmlFor="isLocal" className="text-base font-medium">
+                Local business?
+              </Label>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Toggle on if you serve customers from a physical location.
+                We&apos;ll add a full local SEO + NAP consistency audit.
+              </p>
+            </div>
+          </div>
+          <Switch
+            id="isLocal"
+            checked={form.isLocal}
+            onCheckedChange={(v) => setForm((f) => ({ ...f, isLocal: v }))}
+          />
+        </div>
+
+        {form.isLocal && (
+          <div>
+            <Label htmlFor="gmbUrl" className="mb-2 block">
+              Google Business Profile URL{' '}
+              <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="gmbUrl"
+              type="url"
+              placeholder="https://maps.google.com/?cid=..."
+              value={form.gmbUrl}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, gmbUrl: e.target.value }))
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              We&apos;ll extract the NAP (Name, Address, Phone) from your
+              website and flag any inconsistencies with your GMB profile.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Step2({
+  form,
+  setForm,
+}: {
+  form: FormData
+  setForm: (f: FormData | ((prev: FormData) => FormData)) => void
+}) {
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = String(reader.result || '')
+      // If CSV, try to extract first column
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        const lines = text.split(/\r?\n/).filter(Boolean)
+        const keywords = lines
+          .map((l) => {
+            const cell = l.split(',')[0] || ''
+            return cell.replace(/^"|"$/g, '').trim()
+          })
+          .filter((k) => k && k.toLowerCase() !== 'keyword')
+          .join('\n')
+        setForm((f) => ({ ...f, keywords }))
+      } else {
+        setForm((f) => ({ ...f, keywords: text }))
       }
-
-      setStrategy(data.strategy as SeoStrategy)
-
-      // Scroll to the report
-      setTimeout(() => {
-        reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 100)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'An error occurred'
-      setError(msg)
-    } finally {
-      setLoading(false)
     }
+    reader.readAsText(file)
   }
 
-  const handleReset = () => {
-    setForm(initialForm)
-    setStrategy(null)
-    setError(null)
-  }
+  const keywordCount = form.keywords
+    .split(/\r?\n/)
+    .map((k) => k.trim())
+    .filter(Boolean).length
 
-  const handlePrint = () => {
-    window.print()
-  }
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-heading text-2xl font-bold flex items-center gap-2">
+          <Search className="h-6 w-6 text-primary" />
+          Your keyword list
+        </h2>
+        <p className="text-muted-foreground mt-1">
+          Paste keywords from Semrush, Ahrefs, or Google Keyword Planner — one
+          per line. We&apos;ll prioritize them and map each to a target page.
+        </p>
+      </div>
 
-  const handleDownloadJson = () => {
-    if (!strategy) return
-    const blob = new Blob([JSON.stringify(strategy, null, 2)], {
-      type: 'application/json',
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <Label htmlFor="keywords">
+            Keywords <span className="text-destructive">*</span>
+          </Label>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{keywordCount} keywords</Badge>
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".csv,.txt"
+                className="hidden"
+                onChange={onFile}
+              />
+              <span className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                <Upload className="h-3.5 w-3.5" />
+                Upload CSV / TXT
+              </span>
+            </label>
+          </div>
+        </div>
+        <Textarea
+          id="keywords"
+          placeholder={`best dental clinic near me\ncosmetic dentistry pricing\nteeth whitening cost\ndental implants procedure\n...`}
+          value={form.keywords}
+          onChange={(e) => setForm((f) => ({ ...f, keywords: e.target.value }))}
+          rows={14}
+          className="font-mono text-sm"
+        />
+        <p className="text-xs text-muted-foreground mt-1.5">
+          Tip: paste the &quot;Keyword&quot; column from your Semrush/Ahrefs
+          export — we&apos;ll auto-detect CSV format.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function Step3({
+  form,
+  setForm,
+}: {
+  form: FormData
+  setForm: (f: FormData | ((prev: FormData) => FormData)) => void
+}) {
+  function setCompetitor(idx: number, value: string) {
+    setForm((f) => {
+      const next = [...f.competitors]
+      next[idx] = value
+      return { ...f, competitors: next }
     })
+  }
+  function addCompetitor() {
+    if (form.competitors.length >= 4) return
+    setForm((f) => ({ ...f, competitors: [...f.competitors, ''] }))
+  }
+  function removeCompetitor(idx: number) {
+    setForm((f) => ({
+      ...f,
+      competitors: f.competitors.filter((_, i) => i !== idx),
+    }))
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-heading text-2xl font-bold flex items-center gap-2">
+          <Trophy className="h-6 w-6 text-primary" />
+          Your top competitors{' '}
+          <Badge variant="secondary" className="ml-2">
+            Optional
+          </Badge>
+        </h2>
+        <p className="text-muted-foreground mt-1">
+          Add up to 4 competitor websites and we&apos;ll analyze their
+          strengths, weaknesses, and content gaps you can exploit. Skip if
+          you&apos;d like.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {form.competitors.map((c, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center text-sm font-semibold shrink-0">
+              {idx + 1}
+            </div>
+            <Input
+              type="url"
+              placeholder={`https://competitor${idx + 1}.com`}
+              value={c}
+              onChange={(e) => setCompetitor(idx, e.target.value)}
+            />
+            {form.competitors.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => removeCompetitor(idx)}
+                aria-label="Remove competitor"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        ))}
+
+        {form.competitors.length < 4 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addCompetitor}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Add another competitor
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Step4({
+  form,
+  setForm,
+}: {
+  form: FormData
+  setForm: (f: FormData | ((prev: FormData) => FormData)) => void
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-heading text-2xl font-bold flex items-center gap-2">
+          <MapPin className="h-6 w-6 text-primary" />
+          Additional context{' '}
+          <Badge variant="secondary" className="ml-2">
+            Optional
+          </Badge>
+        </h2>
+        <p className="text-muted-foreground mt-1">
+          Anything else that will help us tailor the strategy. All fields are
+          skippable.
+        </p>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-2">
+        <div>
+          <Label htmlFor="location" className="mb-2 block">
+            Primary location / service area
+          </Label>
+          <Input
+            id="location"
+            placeholder="e.g. Karachi, Pakistan"
+            value={form.location}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, location: e.target.value }))
+            }
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <Label htmlFor="notes" className="mb-2 block">
+            Current challenges / goals
+          </Label>
+          <Textarea
+            id="notes"
+            placeholder="e.g. Site is new, struggling to rank for branded terms. Want to dominate local pack within 6 months."
+            value={form.notes}
+            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            rows={5}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Strategy Report
+// ---------------------------------------------------------------------------
+function StrategyReport({
+  strategy,
+  analysis,
+  form,
+  onReset,
+}: {
+  strategy: SeoStrategy
+  analysis: SiteAnalysis
+  form: FormData
+  onReset: () => void
+}) {
+  function downloadJson() {
+    const blob = new Blob(
+      [JSON.stringify({ form, analysis, strategy }, null, 2)],
+      { type: 'application/json' },
+    )
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `seo-strategy-${form.businessName
-      .toLowerCase()
-      .replace(/\s+/g, '-')}.json`
+    a.download = `seo-strategy-${form.businessName.toLowerCase().replace(/\s+/g, '-') || 'report'}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
 
   return (
-    <div className="px-4 pt-8 pb-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="mb-8 text-center print:hidden" data-print-hide>
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-            AI-Powered SEO Strategy Generator
-          </div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground text-balance sm:text-4xl">
-            Build a Complete SEO Strategy in Seconds
-          </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground text-pretty">
-            Get a custom, AI-generated SEO roadmap with keyword research,
-            competitor analysis, content calendar, and a 6-month action plan —
-            all tailored to your business.
-          </p>
+    <div className="space-y-8">
+      {/* Action toolbar (hidden on print) */}
+      <div className="print:hidden flex flex-wrap items-center justify-between gap-3 sticky top-16 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3 -mx-4 px-4 border-b">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="font-medium text-foreground">Strategy ready</span>
+          <span className="hidden sm:inline">— scroll to explore the full report</span>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={downloadJson}>
+            <FileText className="h-4 w-4 mr-1.5" /> JSON
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer className="h-4 w-4 mr-1.5" /> Save as PDF
+          </Button>
+          <Button size="sm" onClick={onReset}>
+            <RefreshCw className="h-4 w-4 mr-1.5" /> New report
+          </Button>
+        </div>
+      </div>
 
-        {/* Form */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8 print:hidden" data-print-hide>
-          <div className="mb-6 flex items-center gap-2">
-            <Briefcase className="h-5 w-5 text-primary" />
-            <h2 className="font-heading text-lg font-semibold text-foreground">
-              Tell us about your business
-            </h2>
+      {/* Cover */}
+      <ReportCover strategy={strategy} analysis={analysis} form={form} />
+
+      {/* Executive Summary */}
+      <ReportSection
+        icon={ClipboardList}
+        title="Executive Summary"
+        kicker="Section 01"
+      >
+        <p className="text-pretty text-base leading-relaxed">
+          {strategy.executiveSummary}
+        </p>
+      </ReportSection>
+
+      {/* Health Score */}
+      <ReportSection
+        icon={Award}
+        title="SEO Health Score"
+        kicker="Section 02"
+      >
+        <HealthScoreCard
+          score={strategy.overallHealthScore}
+          breakdown={strategy.healthScoreBreakdown}
+        />
+      </ReportSection>
+
+      {/* Mobile screenshot */}
+      <ReportSection
+        icon={Smartphone}
+        title="Mobile-Friendliness Preview"
+        kicker="Section 03"
+      >
+        <ScreenshotPreview analysis={analysis} />
+      </ReportSection>
+
+      {/* Critical issues */}
+      <ReportSection
+        icon={AlertTriangle}
+        title="Critical Issues"
+        kicker="Section 04"
+        description="Top problems hurting rankings right now — fix these first."
+      >
+        <CriticalIssuesGrid issues={strategy.criticalIssues} />
+      </ReportSection>
+
+      {/* Quick wins */}
+      <ReportSection
+        icon={Zap}
+        title="Quick Wins (First 30 Days)"
+        kicker="Section 05"
+        description="High-leverage actions you can ship in days, not months."
+      >
+        <QuickWinsGrid wins={strategy.quickWins} />
+      </ReportSection>
+
+      {/* Technical SEO */}
+      <ReportSection
+        icon={Wrench}
+        title="Technical SEO Audit"
+        kicker="Section 06"
+      >
+        <p className="text-muted-foreground mb-6">
+          {strategy.technicalSeoAudit.summary}
+        </p>
+        <TechnicalSummary analysis={analysis} />
+        <div className="mt-6">
+          <TechnicalChecklist items={strategy.technicalSeoAudit.checklist} />
+        </div>
+      </ReportSection>
+
+      {/* On-page audit */}
+      <ReportSection
+        icon={FileText}
+        title="On-Page SEO Audit"
+        kicker="Section 07"
+      >
+        <OnPageAudit audit={strategy.onPageAudit} />
+      </ReportSection>
+
+      {/* Page-by-page audit */}
+      <ReportSection
+        icon={ListChecks}
+        title="Page-by-Page Audit"
+        kicker="Section 08"
+        description="Specific recommendations for each crawled page."
+      >
+        <PageByPageAudit pages={strategy.pageByPageAudit} />
+      </ReportSection>
+
+      {/* Keyword strategy */}
+      <ReportSection
+        icon={Search}
+        title="Keyword Strategy"
+        kicker="Section 09"
+      >
+        <p className="text-muted-foreground mb-6">
+          {strategy.keywordStrategy.summary}
+        </p>
+        <KeywordStrategy data={strategy.keywordStrategy} />
+      </ReportSection>
+
+      {/* Pages to create */}
+      <ReportSection
+        icon={PenLine}
+        title="Pages to Create"
+        kicker="Section 10"
+        description="Content briefs ready to hand to your writers."
+      >
+        <PagesToCreate pages={strategy.pagesToCreate} />
+      </ReportSection>
+
+      {/* Blog ideas */}
+      <ReportSection
+        icon={Lightbulb}
+        title="Blog Content Ideas"
+        kicker="Section 11"
+      >
+        <BlogIdeas ideas={strategy.blogIdeas} />
+      </ReportSection>
+
+      {/* Competitors */}
+      {strategy.competitorAnalysis.length > 0 && (
+        <ReportSection
+          icon={Trophy}
+          title="Competitor Analysis"
+          kicker="Section 12"
+        >
+          <CompetitorAnalysis competitors={strategy.competitorAnalysis} />
+        </ReportSection>
+      )}
+
+      {/* Local SEO */}
+      <ReportSection
+        icon={MapPin}
+        title="Local SEO & NAP Consistency"
+        kicker="Section 13"
+      >
+        <LocalSeoSection data={strategy.localSeo} analysis={analysis} />
+      </ReportSection>
+
+      {/* Off-page strategy */}
+      <ReportSection
+        icon={Link2}
+        title="Off-Page & Backlink Strategy"
+        kicker="Section 14"
+      >
+        <OffPageSection data={strategy.offPageStrategy} />
+      </ReportSection>
+
+      {/* 6-month roadmap */}
+      <ReportSection
+        icon={MapIcon}
+        title="6-Month Roadmap"
+        kicker="Section 15"
+        description="What we'll do each month and what you'll achieve."
+      >
+        <SixMonthRoadmap roadmap={strategy.sixMonthRoadmap} />
+      </ReportSection>
+
+      {/* KPIs */}
+      <ReportSection
+        icon={BarChart3}
+        title="KPI Targets"
+        kicker="Section 16"
+      >
+        <KpiTable kpis={strategy.kpiTargets} />
+      </ReportSection>
+
+      {/* Tool stack */}
+      <ReportSection
+        icon={Wrench}
+        title="Recommended Tool Stack"
+        kicker="Section 17"
+      >
+        <ToolStack stack={strategy.toolStack} />
+      </ReportSection>
+
+      {/* Risk assessment */}
+      <ReportSection
+        icon={ShieldCheck}
+        title="Risk Assessment"
+        kicker="Section 18"
+      >
+        <RiskAssessment risks={strategy.riskAssessment} />
+      </ReportSection>
+
+      {/* Conclusion */}
+      <ReportSection
+        icon={Rocket}
+        title="Conclusion & Next Steps"
+        kicker="Final"
+      >
+        <p className="text-pretty text-base leading-relaxed">
+          {strategy.conclusion}
+        </p>
+        <div className="mt-6 rounded-lg border bg-muted/30 p-5 print:hidden">
+          <p className="text-sm">
+            <strong>Ready to start?</strong> Generate a new report anytime, or
+            export this one as PDF to share with your team.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-1.5" /> Save as PDF
+            </Button>
+            <Button size="sm" onClick={onReset}>
+              <RefreshCw className="h-4 w-4 mr-1.5" /> Build a new strategy
+            </Button>
           </div>
+        </div>
+      </ReportSection>
+    </div>
+  )
+}
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            {/* Website URL */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="websiteUrl" className="text-sm font-medium">
-                Website URL <span className="text-rose-500">*</span>
-              </Label>
-              <div className="relative">
-                <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="websiteUrl"
-                  placeholder="example.com"
-                  value={form.websiteUrl}
-                  onChange={(e) => update('websiteUrl', e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-
-            {/* Business name */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="businessName" className="text-sm font-medium">
-                Business name <span className="text-rose-500">*</span>
-              </Label>
-              <div className="relative">
-                <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="businessName"
-                  placeholder="Acme Inc."
-                  value={form.businessName}
-                  onChange={(e) => update('businessName', e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-
-            {/* Industry */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="industry" className="text-sm font-medium">
-                Industry / Niche <span className="text-rose-500">*</span>
-              </Label>
-              <Input
-                id="industry"
-                placeholder="e.g. SaaS project management, organic skincare"
-                value={form.industry}
-                onChange={(e) => update('industry', e.target.value)}
-              />
-            </div>
-
-            {/* Primary goal */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="primaryGoal" className="text-sm font-medium">
-                Primary goal <span className="text-rose-500">*</span>
-              </Label>
-              <Select
-                value={form.primaryGoal}
-                onValueChange={(v) => update('primaryGoal', v as Goal)}
-              >
-                <SelectTrigger id="primaryGoal">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="traffic">Increase organic traffic</SelectItem>
-                  <SelectItem value="leads">Generate leads</SelectItem>
-                  <SelectItem value="sales">Drive sales / conversions</SelectItem>
-                  <SelectItem value="brand-awareness">Build brand awareness</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Target audience */}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label htmlFor="targetAudience" className="text-sm font-medium">
-                Target audience <span className="text-rose-500">*</span>
-              </Label>
-              <div className="relative">
-                <Users className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Textarea
-                  id="targetAudience"
-                  placeholder="e.g. Small business owners aged 30-50 looking for affordable bookkeeping software"
-                  value={form.targetAudience}
-                  onChange={(e) => update('targetAudience', e.target.value)}
-                  className="pl-9 min-h-[80px]"
-                />
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="location" className="text-sm font-medium">
-                Location (optional)
-              </Label>
-              <div className="relative">
-                <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="location"
-                  placeholder="e.g. New York, USA"
-                  value={form.location}
-                  onChange={(e) => update('location', e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-
-            {/* Local toggle */}
-            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-2.5">
-              <div className="flex flex-col">
-                <Label htmlFor="isLocal" className="text-sm font-medium cursor-pointer">
-                  Local business
-                </Label>
-                <span className="text-xs text-muted-foreground">
-                  Enable local SEO recommendations
-                </span>
-              </div>
-              <Switch
-                id="isLocal"
-                checked={form.isLocal}
-                onCheckedChange={(c) => update('isLocal', c)}
-              />
-            </div>
+// ---------------------------------------------------------------------------
+// Report sub-components
+// ---------------------------------------------------------------------------
+function ReportCover({
+  strategy,
+  analysis,
+  form,
+}: {
+  strategy: SeoStrategy
+  analysis: SiteAnalysis
+  form: FormData
+}) {
+  const today = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  return (
+    <div className="rounded-2xl border bg-gradient-to-br from-primary/5 via-card to-card p-8 sm:p-12 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+      <div className="relative">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+            <Sparkles className="h-5 w-5" />
           </div>
-
-          {/* Competitors */}
-          <div className="mt-6">
-            <Label className="text-sm font-medium flex items-center gap-1.5">
-              <Trophy className="h-4 w-4 text-muted-foreground" />
-              Top competitors (optional, up to 3)
-            </Label>
-            <div className="mt-2 grid gap-3 sm:grid-cols-3">
-              <Input
-                placeholder="competitor1.com"
-                value={form.competitor1}
-                onChange={(e) => update('competitor1', e.target.value)}
-              />
-              <Input
-                placeholder="competitor2.com"
-                value={form.competitor2}
-                onChange={(e) => update('competitor2', e.target.value)}
-              />
-              <Input
-                placeholder="competitor3.com"
-                value={form.competitor3}
-                onChange={(e) => update('competitor3', e.target.value)}
-              />
-            </div>
+          <div className="text-sm font-medium text-muted-foreground">
+            SEO Strategy Report · {today}
           </div>
+        </div>
+        <h1 className="font-heading text-3xl sm:text-5xl font-bold text-balance leading-tight">
+          {form.businessName || analysis.domain}
+        </h1>
+        <p className="mt-3 text-lg text-muted-foreground">
+          <Link2 className="h-4 w-4 inline -mt-0.5 mr-1.5" />
+          {analysis.domain}
+        </p>
+        <p className="mt-6 max-w-3xl text-pretty text-base leading-relaxed text-muted-foreground">
+          A complete, data-driven SEO strategy generated from a live audit of{' '}
+          <strong className="text-foreground">
+            {analysis.totalPagesCrawled} pages
+          </strong>
+          , your provided keyword list, and competitive intelligence — built to
+          deliver measurable rankings, traffic, and conversion growth over the
+          next 6 months.
+        </p>
 
-          {/* Current challenges */}
-          <div className="mt-6 flex flex-col gap-1.5">
-            <Label htmlFor="currentChallenges" className="text-sm font-medium">
-              Current SEO challenges (optional)
-            </Label>
-            <Textarea
-              id="currentChallenges"
-              placeholder="e.g. Low organic traffic, poor rankings for product pages, no backlinks"
-              value={form.currentChallenges}
-              onChange={(e) => update('currentChallenges', e.target.value)}
-              className="min-h-[70px]"
-            />
-          </div>
+        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <CoverStat
+            label="Health Score"
+            value={`${strategy.overallHealthScore}/100`}
+          />
+          <CoverStat
+            label="Pages Audited"
+            value={String(analysis.totalPagesCrawled)}
+          />
+          <CoverStat
+            label="Quick Wins"
+            value={String(strategy.quickWins.length)}
+          />
+          <CoverStat
+            label="Critical Issues"
+            value={String(strategy.criticalIssues.length)}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
-          {/* Error */}
-          {error && (
-            <div className="mt-5 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{error}</span>
+function CoverStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-card/80 backdrop-blur p-4">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="font-heading text-2xl font-bold mt-1">{value}</div>
+    </div>
+  )
+}
+
+function ReportSection({
+  icon: Icon,
+  title,
+  kicker,
+  description,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  kicker?: string
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border bg-card p-6 sm:p-8 print:break-inside-avoid">
+      <div className="flex items-start gap-4 mb-6">
+        <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Icon className="h-5 w-5 text-primary" />
+        </div>
+        <div className="min-w-0">
+          {kicker && (
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+              {kicker}
             </div>
           )}
+          <h2 className="font-heading text-2xl sm:text-3xl font-bold text-balance">
+            {title}
+          </h2>
+          {description && (
+            <p className="text-muted-foreground mt-1.5 text-pretty">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+      <div>{children}</div>
+    </section>
+  )
+}
 
-          {/* Actions */}
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button
-              onClick={handleGenerate}
-              disabled={loading}
-              size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating your strategy...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate SEO Strategy
-                </>
-              )}
-            </Button>
-            {strategy && (
-              <Button onClick={handleReset} variant="outline" size="lg" disabled={loading}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Start over
-              </Button>
-            )}
+function HealthScoreCard({
+  score,
+  breakdown,
+}: {
+  score: number
+  breakdown: SeoStrategy['healthScoreBreakdown']
+}) {
+  const tone = score >= 75 ? 'good' : score >= 50 ? 'warn' : 'bad'
+  const toneColors = {
+    good: 'text-emerald-600 dark:text-emerald-400',
+    warn: 'text-amber-600 dark:text-amber-400',
+    bad: 'text-destructive',
+  }
+  const ringColors = {
+    good: 'stroke-emerald-500',
+    warn: 'stroke-amber-500',
+    bad: 'stroke-destructive',
+  }
+  const radius = 70
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference - (score / 100) * circumference
+
+  const items: { label: string; value: number; key: keyof typeof breakdown }[] = [
+    { label: 'Technical', value: breakdown.technical, key: 'technical' },
+    { label: 'On-Page', value: breakdown.onPage, key: 'onPage' },
+    { label: 'Content', value: breakdown.content, key: 'content' },
+    { label: 'Off-Page', value: breakdown.offPage, key: 'offPage' },
+    { label: 'Local', value: breakdown.local, key: 'local' },
+  ]
+
+  return (
+    <div className="grid gap-8 lg:grid-cols-[auto_1fr] items-center">
+      <div className="flex justify-center">
+        <div className="relative">
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <circle
+              cx="90"
+              cy="90"
+              r={radius}
+              strokeWidth="14"
+              className="stroke-muted"
+              fill="none"
+            />
+            <circle
+              cx="90"
+              cy="90"
+              r={radius}
+              strokeWidth="14"
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              transform="rotate(-90 90 90)"
+              className={ringColors[tone]}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className={`font-heading text-4xl font-bold ${toneColors[tone]}`}>
+              {score}
+            </div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">
+              out of 100
+            </div>
           </div>
         </div>
+      </div>
+      <div className="space-y-3">
+        {items.map((item) => (
+          <div key={item.key}>
+            <div className="flex items-center justify-between text-sm mb-1.5">
+              <span className="font-medium">{item.label}</span>
+              <span className="text-muted-foreground">{item.value}/100</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full"
+                style={{ width: `${item.value}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
-        {/* Loading skeleton */}
-        {loading && (
-          <div className="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-12 text-center print:hidden" data-print-hide>
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <div>
-              <p className="font-heading text-lg font-semibold text-foreground">
-                Crafting your custom SEO strategy
+function ScreenshotPreview({ analysis }: { analysis: SiteAnalysis }) {
+  return (
+    <div className="grid gap-6 md:grid-cols-2">
+      <div className="rounded-xl border overflow-hidden bg-muted/30">
+        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/50">
+          <Smartphone className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Mobile (375px)</span>
+        </div>
+        <div className="p-6 flex justify-center">
+          {/* Using <img> intentionally for external screenshot service */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={analysis.mobileScreenshotUrl}
+            alt={`Mobile screenshot of ${analysis.domain}`}
+            className="rounded-lg border shadow-sm max-w-full h-auto"
+            crossOrigin="anonymous"
+          />
+        </div>
+      </div>
+      <div className="rounded-xl border overflow-hidden bg-muted/30">
+        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/50">
+          <Monitor className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Desktop (1200px)</span>
+        </div>
+        <div className="p-6 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={analysis.desktopScreenshotUrl}
+            alt={`Desktop screenshot of ${analysis.domain}`}
+            className="rounded-lg border shadow-sm max-w-full h-auto"
+            crossOrigin="anonymous"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CriticalIssuesGrid({
+  issues,
+}: {
+  issues: SeoStrategy['criticalIssues']
+}) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {issues.map((iss, i) => (
+        <div
+          key={i}
+          className="rounded-xl border bg-card p-5 print:break-inside-avoid"
+        >
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h3 className="font-semibold text-base text-balance">{iss.title}</h3>
+            <ImpactBadge impact={iss.impact} />
+          </div>
+          <p className="text-sm text-muted-foreground mb-3 text-pretty">
+            {iss.description}
+          </p>
+          <div className="rounded-lg bg-muted/50 p-3 mb-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              How to fix
+            </div>
+            <p className="text-sm text-pretty">{iss.howToFix}</p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Effort:</span>
+            <Badge variant="outline" className="capitalize">
+              {iss.estimatedEffort}
+            </Badge>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ImpactBadge({ impact }: { impact: 'critical' | 'high' | 'medium' }) {
+  const cls = {
+    critical: 'bg-destructive/10 text-destructive border-destructive/30',
+    high: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+    medium: 'bg-primary/10 text-primary border-primary/30',
+  }[impact]
+  return (
+    <span
+      className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${cls}`}
+    >
+      {impact}
+    </span>
+  )
+}
+
+function QuickWinsGrid({ wins }: { wins: SeoStrategy['quickWins'] }) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {wins.map((w, i) => (
+        <div
+          key={i}
+          className="rounded-xl border bg-card p-5 print:break-inside-avoid relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 h-16 w-16 bg-primary/5 rounded-bl-full" />
+          <div className="relative">
+            <Zap className="h-5 w-5 text-primary mb-3" />
+            <h3 className="font-semibold mb-2 text-balance">{w.title}</h3>
+            <p className="text-sm text-muted-foreground mb-3 text-pretty">
+              {w.description}
+            </p>
+            <div className="text-xs font-medium text-primary flex items-start gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{w.expectedImpact}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function TechnicalSummary({ analysis }: { analysis: SiteAnalysis }) {
+  const stats = [
+    {
+      label: 'HTTPS',
+      value: analysis.isHttps ? 'Enabled' : 'NOT enabled',
+      ok: analysis.isHttps,
+    },
+    {
+      label: 'robots.txt',
+      value: analysis.robotsTxt.found ? 'Found' : 'Missing',
+      ok: analysis.robotsTxt.found && !analysis.robotsTxt.disallowsAll,
+    },
+    {
+      label: 'XML Sitemap',
+      value: analysis.sitemapXml.found
+        ? `${analysis.sitemapXml.urlCount} URLs`
+        : 'Missing',
+      ok: analysis.sitemapXml.found,
+    },
+    {
+      label: 'HTML Sitemap',
+      value: analysis.htmlSitemap.found ? 'Found' : 'Missing',
+      ok: analysis.htmlSitemap.found,
+    },
+    {
+      label: 'Avg Load Time',
+      value: `${(analysis.technicalSummary.averageLoadTimeMs / 1000).toFixed(2)}s`,
+      ok: analysis.technicalSummary.averageLoadTimeMs < 2500,
+    },
+    {
+      label: 'Avg Word Count',
+      value: String(analysis.technicalSummary.averageWordCount),
+      ok: analysis.technicalSummary.averageWordCount >= 500,
+    },
+    {
+      label: 'Pages w/ Schema',
+      value: `${analysis.technicalSummary.hasSchema}/${analysis.totalPagesCrawled}`,
+      ok:
+        analysis.technicalSummary.hasSchema /
+          Math.max(1, analysis.totalPagesCrawled) >=
+        0.5,
+    },
+    {
+      label: 'Pages w/ OG Tags',
+      value: `${analysis.technicalSummary.hasOgTags}/${analysis.totalPagesCrawled}`,
+      ok:
+        analysis.technicalSummary.hasOgTags /
+          Math.max(1, analysis.totalPagesCrawled) >=
+        0.5,
+    },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          className="rounded-lg border bg-muted/30 p-3 print:break-inside-avoid"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            {s.ok ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            ) : (
+              <XCircle className="h-4 w-4 text-destructive shrink-0" />
+            )}
+            <div className="text-xs uppercase tracking-wider text-muted-foreground truncate">
+              {s.label}
+            </div>
+          </div>
+          <div className="font-semibold text-sm">{s.value}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function TechnicalChecklist({
+  items,
+}: {
+  items: SeoStrategy['technicalSeoAudit']['checklist']
+}) {
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="divide-y">
+        {items.map((item, i) => (
+          <div key={i} className="p-4 sm:p-5 flex gap-4 print:break-inside-avoid">
+            <div className="shrink-0 mt-0.5">
+              <StatusIcon status={item.status} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <h4 className="font-semibold text-balance">{item.item}</h4>
+                <PriorityBadge priority={item.priority} />
+              </div>
+              <p className="text-sm text-muted-foreground mb-2 text-pretty">
+                <span className="font-medium text-foreground">Finding: </span>
+                {item.finding}
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Analyzing keywords, competitors, and content opportunities. This
-                takes 20-40 seconds.
+              <p className="text-sm text-pretty">
+                <span className="font-medium">Recommendation: </span>
+                {item.recommendation}
               </p>
             </div>
           </div>
-        )}
+        ))}
+      </div>
+    </div>
+  )
+}
 
-        {/* Results */}
-        {strategy && (
-          <div ref={reportRef} className="mt-10 flex flex-col gap-6">
-            {/* Report header */}
-            <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card p-6 sm:p-8">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                    SEO Strategy Report
-                  </p>
-                  <h2 className="mt-1 font-heading text-2xl font-bold text-foreground sm:text-3xl">
-                    {form.businessName}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {form.websiteUrl} · {form.industry}
-                  </p>
-                </div>
-                <div className="hidden gap-2 sm:flex print:hidden" data-print-hide>
-                  <Button onClick={handlePrint} variant="outline" size="sm">
-                    <Printer className="mr-2 h-4 w-4" />
-                    Save as PDF
-                  </Button>
-                  <Button onClick={handleDownloadJson} variant="outline" size="sm">
-                    <Download className="mr-2 h-4 w-4" />
-                    Export JSON
-                  </Button>
-                </div>
-              </div>
+function StatusIcon({
+  status,
+}: {
+  status: 'pass' | 'warning' | 'fail' | 'not-applicable'
+}) {
+  if (status === 'pass') return <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+  if (status === 'warning') return <AlertTriangle className="h-5 w-5 text-amber-500" />
+  if (status === 'fail') return <XCircle className="h-5 w-5 text-destructive" />
+  return <HelpCircle className="h-5 w-5 text-muted-foreground" />
+}
 
-              {/* Mobile actions */}
-              <div className="mt-4 flex gap-2 sm:hidden print:hidden" data-print-hide>
-                <Button onClick={handlePrint} variant="outline" size="sm" className="flex-1">
-                  <Printer className="mr-2 h-4 w-4" />
-                  Save PDF
-                </Button>
-                <Button onClick={handleDownloadJson} variant="outline" size="sm" className="flex-1">
-                  <Download className="mr-2 h-4 w-4" />
-                  JSON
-                </Button>
-              </div>
+function PriorityBadge({
+  priority,
+}: {
+  priority: 'critical' | 'high' | 'medium' | 'low'
+}) {
+  const cls = {
+    critical: 'bg-destructive/10 text-destructive border-destructive/30',
+    high: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+    medium: 'bg-primary/10 text-primary border-primary/30',
+    low: 'bg-muted text-muted-foreground border-border',
+  }[priority]
+  return (
+    <span
+      className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize whitespace-nowrap ${cls}`}
+    >
+      {priority}
+    </span>
+  )
+}
 
-              {/* Executive summary */}
-              <div className="mt-6 rounded-xl border border-border bg-background p-5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Executive Summary
+function OnPageAudit({ audit }: { audit: SeoStrategy['onPageAudit'] }) {
+  const items: { title: string; data: { finding: string; recommendation: string } }[] = [
+    { title: 'Meta Titles', data: audit.metaTitles },
+    { title: 'Meta Descriptions', data: audit.metaDescriptions },
+    { title: 'Heading Structure (H1/H2/H3)', data: audit.headingStructure },
+    { title: 'Open Graph Tags', data: audit.openGraph },
+    { title: 'Twitter Cards', data: audit.twitterCards },
+    { title: 'Internal Linking', data: audit.internalLinking },
+    { title: 'Image Optimization', data: audit.imageOptimization },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <p className="text-muted-foreground">{audit.summary}</p>
+      <div className="grid gap-4 md:grid-cols-2">
+        {items.map((it) => (
+          <div
+            key={it.title}
+            className="rounded-xl border bg-card p-5 print:break-inside-avoid"
+          >
+            <h4 className="font-semibold mb-3 text-balance">{it.title}</h4>
+            <div className="text-sm space-y-2">
+              <p>
+                <span className="font-medium text-muted-foreground">
+                  Finding:{' '}
+                </span>
+                <span className="text-pretty">{it.data.finding}</span>
+              </p>
+              <p>
+                <span className="font-medium text-primary">Recommendation: </span>
+                <span className="text-pretty">{it.data.recommendation}</span>
+              </p>
+            </div>
+          </div>
+        ))}
+        <div className="rounded-xl border bg-card p-5 md:col-span-2 print:break-inside-avoid">
+          <h4 className="font-semibold mb-3">Schema Markup</h4>
+          <p className="text-sm text-muted-foreground mb-2">
+            <span className="font-medium text-foreground">Finding: </span>
+            <span className="text-pretty">{audit.schemaMarkup.finding}</span>
+          </p>
+          <p className="text-sm mb-3">
+            <span className="font-medium text-primary">Recommendation: </span>
+            <span className="text-pretty">{audit.schemaMarkup.recommendation}</span>
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {audit.schemaMarkup.recommendedTypes.map((t) => (
+              <Badge key={t} variant="secondary">
+                {t}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PageByPageAudit({
+  pages,
+}: {
+  pages: SeoStrategy['pageByPageAudit']
+}) {
+  return (
+    <div className="space-y-4">
+      {pages.map((p, i) => (
+        <div
+          key={i}
+          className="rounded-xl border bg-card overflow-hidden print:break-inside-avoid"
+        >
+          <div className="px-5 py-3 border-b bg-muted/30 flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary shrink-0" />
+            <code className="text-sm font-mono truncate">{p.url}</code>
+            <Badge variant="outline" className="ml-auto shrink-0 text-xs">
+              {p.primaryKeyword}
+            </Badge>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Current Title
+                </div>
+                <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
+                  {p.currentTitle || (
+                    <em className="text-muted-foreground">Missing</em>
+                  )}
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-foreground">
-                  {strategy.executiveSummary}
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-primary mb-1.5">
+                  Suggested Title
+                </div>
+                <p className="text-sm bg-primary/5 border border-primary/20 rounded-lg p-3 text-pretty">
+                  {p.suggestedTitle}
                 </p>
               </div>
             </div>
-
-            {/* Quick navigation */}
-            <nav className="flex flex-wrap gap-2 rounded-2xl border border-border bg-card p-3 print:hidden" data-print-hide>
-              {[
-                { id: 'audience', label: 'Audience' },
-                { id: 'keywords', label: 'Keywords' },
-                { id: 'competitors', label: 'Competitors' },
-                { id: 'on-page', label: 'On-Page' },
-                { id: 'technical', label: 'Technical' },
-                { id: 'content', label: 'Content' },
-                { id: 'off-page', label: 'Off-Page' },
-                { id: 'local', label: 'Local' },
-                { id: 'kpis', label: 'KPIs' },
-                { id: 'action', label: 'Action Plan' },
-              ].map((item) => (
-                <a
-                  key={item.id}
-                  href={`#${item.id}`}
-                  className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
-                >
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-
-            {/* 1. Target Audience */}
-            <StrategySection
-              id="audience"
-              icon={Users}
-              title="Target Audience"
-              subtitle="Who you're optimizing for"
-            >
-              <p className="text-sm leading-relaxed text-foreground">
-                {strategy.targetAudience.description}
-              </p>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Demographics
-                  </p>
-                  <ul className="mt-3 flex flex-col gap-2">
-                    {strategy.targetAudience.demographics.map((d, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                        <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        {d}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Pain Points
-                  </p>
-                  <ul className="mt-3 flex flex-col gap-2">
-                    {strategy.targetAudience.painPoints.map((p, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                        <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </StrategySection>
-
-            {/* 2. Keyword Strategy */}
-            <StrategySection
-              id="keywords"
-              icon={Search}
-              title="Keyword Strategy"
-              subtitle="Primary keywords, long-tail variations, and topic clusters"
-            >
-              {/* Primary keywords */}
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <p className="mb-3 text-sm font-semibold text-foreground">
-                  Primary Keywords
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Current Meta Description
+                </div>
+                <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
+                  {p.currentMetaDescription || (
+                    <em className="text-muted-foreground">Missing</em>
+                  )}
                 </p>
-                <div className="overflow-hidden rounded-xl border border-border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/40">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                          Keyword
-                        </th>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                          Intent
-                        </th>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                          Difficulty
-                        </th>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                          Priority
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border bg-background">
-                      {strategy.keywordStrategy.primaryKeywords.map((kw, i) => (
-                        <tr key={i}>
-                          <td className="px-4 py-3 font-medium text-foreground">
-                            {kw.keyword}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className={intentStyles[kw.intent]}>
-                              {kw.intent}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className={difficultyStyles[kw.difficulty]}>
-                              {kw.difficulty}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className={priorityStyles[kw.priority]}>
-                              {kw.priority}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
               </div>
-
-              {/* Long-tail */}
-              <div className="mt-6">
-                <p className="mb-3 text-sm font-semibold text-foreground">
-                  Long-Tail Keywords
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-primary mb-1.5">
+                  Suggested Meta Description
+                </div>
+                <p className="text-sm bg-primary/5 border border-primary/20 rounded-lg p-3 text-pretty">
+                  {p.suggestedMetaDescription}
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {strategy.keywordStrategy.longTailKeywords.map((kw, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5"
-                    >
-                      <span className="text-sm text-foreground">{kw.keyword}</span>
-                      <Badge variant="outline" className={`${intentStyles[kw.intent]} text-[10px]`}>
-                        {kw.intent}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
               </div>
-
-              {/* Content clusters */}
-              <div className="mt-6">
-                <p className="mb-3 text-sm font-semibold text-foreground">
-                  Topic Clusters
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {strategy.keywordStrategy.contentClusters.map((cluster, i) => (
-                    <div
-                      key={i}
-                      className="rounded-xl border border-border bg-background p-4"
-                    >
-                      <p className="font-heading text-sm font-semibold text-foreground">
-                        {cluster.topic}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {cluster.keywords.map((k, ki) => (
-                          <span
-                            key={ki}
-                            className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                          >
-                            {k}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-destructive mb-1.5">
+                  Issues
                 </div>
-              </div>
-            </StrategySection>
-
-            {/* 3. Competitor Analysis */}
-            <StrategySection
-              id="competitors"
-              icon={Trophy}
-              title="Competitor Analysis"
-              subtitle="Strengths, weaknesses, and opportunities to outrank"
-            >
-              <div className="grid gap-4 lg:grid-cols-2">
-                {strategy.competitorAnalysis.map((comp, i) => (
-                  <div
-                    key={i}
-                    className="rounded-xl border border-border bg-background p-5"
-                  >
-                    <div className="mb-4 flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-                        {i + 1}
-                      </div>
-                      <p className="font-heading font-semibold text-foreground">
-                        {comp.name}
-                      </p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
-                          Strengths
-                        </p>
-                        <ul className="mt-2 flex flex-col gap-1.5">
-                          {comp.strengths.map((s, si) => (
-                            <li key={si} className="text-xs leading-relaxed text-foreground">
-                              · {s}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
-                          Weaknesses
-                        </p>
-                        <ul className="mt-2 flex flex-col gap-1.5">
-                          {comp.weaknesses.map((w, wi) => (
-                            <li key={wi} className="text-xs leading-relaxed text-foreground">
-                              · {w}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                          Opportunities
-                        </p>
-                        <ul className="mt-2 flex flex-col gap-1.5">
-                          {comp.opportunities.map((o, oi) => (
-                            <li key={oi} className="text-xs leading-relaxed text-foreground">
-                              · {o}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </StrategySection>
-
-            {/* 4. On-Page SEO */}
-            <StrategySection
-              id="on-page"
-              icon={FileText}
-              title="On-Page SEO"
-              subtitle="Title tags, meta descriptions, headings, and internal linking"
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Title Tag Strategy
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground">
-                    {strategy.onPageSeo.titleTagStrategy}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Meta Description Strategy
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground">
-                    {strategy.onPageSeo.metaDescriptionStrategy}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Heading Structure
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground">
-                    {strategy.onPageSeo.headingStructure}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Internal Linking
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground">
-                    {strategy.onPageSeo.internalLinking}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <p className="mb-3 text-sm font-semibold text-foreground">
-                  Key Recommendations
-                </p>
-                <ul className="grid gap-2 sm:grid-cols-2">
-                  {strategy.onPageSeo.recommendations.map((r, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      {r}
+                <ul className="text-sm space-y-1">
+                  {p.issues.map((iss, j) => (
+                    <li key={j} className="flex items-start gap-1.5">
+                      <XCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-1" />
+                      <span className="text-pretty">{iss}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            </StrategySection>
-
-            {/* 5. Technical SEO */}
-            <StrategySection
-              id="technical"
-              icon={Wrench}
-              title="Technical SEO Checklist"
-              subtitle="Critical technical items prioritized by impact"
-            >
-              <div className="overflow-hidden rounded-xl border border-border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40">
-                    <tr>
-                      <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-1/3">
-                        Item
-                      </th>
-                      <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                        Description
-                      </th>
-                      <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-32">
-                        Priority
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border bg-background">
-                    {strategy.technicalSeo.checklist.map((item, i) => (
-                      <tr key={i}>
-                        <td className="px-4 py-3 font-medium text-foreground align-top">
-                          {item.item}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground align-top">
-                          {item.description}
-                        </td>
-                        <td className="px-4 py-3 align-top">
-                          <Badge variant="outline" className={priorityStyles[item.priority]}>
-                            {item.priority}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </StrategySection>
-
-            {/* 6. Content Strategy */}
-            <StrategySection
-              id="content"
-              icon={Calendar}
-              title="Content Strategy & 12-Week Calendar"
-              subtitle="Content pillars and publishing roadmap"
-            >
-              {/* Pillars */}
               <div>
-                <p className="mb-3 text-sm font-semibold text-foreground">
-                  Content Pillars
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {strategy.contentStrategy.pillars.map((p, i) => (
-                    <div
-                      key={i}
-                      className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary"
+                <div className="text-xs font-semibold uppercase tracking-wider text-emerald-600 mb-1.5">
+                  Recommendations
+                </div>
+                <ul className="text-sm space-y-1">
+                  {p.recommendations.map((r, j) => (
+                    <li key={j} className="flex items-start gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-1" />
+                      <span className="text-pretty">{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function KeywordStrategy({ data }: { data: SeoStrategy['keywordStrategy'] }) {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border overflow-hidden">
+        <div className="px-5 py-3 border-b bg-muted/30 font-semibold text-sm">
+          Primary Keywords
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/20">
+              <tr className="text-left border-b">
+                <th className="px-4 py-2.5 font-medium">Keyword</th>
+                <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Intent</th>
+                <th className="px-4 py-2.5 font-medium hidden md:table-cell">Difficulty</th>
+                <th className="px-4 py-2.5 font-medium">Priority</th>
+                <th className="px-4 py-2.5 font-medium">Target Page</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {data.primaryKeywords.map((k, i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3 font-medium">{k.keyword}</td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <Badge variant="outline" className="capitalize">
+                      {k.intent}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell capitalize text-muted-foreground">
+                    {k.difficulty}
+                  </td>
+                  <td className="px-4 py-3">
+                    <PriorityBadge priority={k.priority} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">
+                      {k.targetPage}
+                    </code>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3">Long-Tail Keywords</h4>
+          <div className="flex flex-wrap gap-1.5">
+            {data.longTailKeywords.map((k, i) => (
+              <Badge key={i} variant="secondary" className="capitalize">
+                {k.keyword}
+                <span className="ml-1.5 text-[10px] text-muted-foreground">
+                  · {k.intent}
+                </span>
+              </Badge>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3">Topic Clusters</h4>
+          <div className="space-y-3">
+            {data.contentClusters.map((c, i) => (
+              <div key={i}>
+                <div className="text-sm font-medium">{c.pillarTopic}</div>
+                <div className="text-xs text-muted-foreground mb-1.5">
+                  Pillar keyword: {c.pillarKeyword}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {c.supportingKeywords.map((sk, j) => (
+                    <span
+                      key={j}
+                      className="text-xs bg-muted/50 rounded px-1.5 py-0.5"
                     >
-                      {p}
-                    </div>
+                      {sk}
+                    </span>
                   ))}
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Publishing frequency: </span>
-                  {strategy.contentStrategy.publishingFrequency}
-                </p>
               </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-              {/* Calendar */}
-              <div className="mt-6">
-                <p className="mb-3 text-sm font-semibold text-foreground">
-                  12-Week Editorial Calendar
-                </p>
-                <div className="overflow-hidden rounded-xl border border-border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/40">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-16">
-                          Week
-                        </th>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-32">
-                          Type
-                        </th>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                          Topic
-                        </th>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                          Target Keyword
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border bg-background">
-                      {strategy.contentStrategy.contentCalendar
-                        .slice()
-                        .sort((a, b) => a.week - b.week)
-                        .map((c, i) => (
-                          <tr key={i}>
-                            <td className="px-4 py-3 font-bold text-primary">
-                              W{c.week}
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge variant="outline" className="text-xs">
-                                {c.contentType}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3 text-foreground">{c.topic}</td>
-                            <td className="px-4 py-3 text-muted-foreground italic">
-                              {c.targetKeyword}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
+function PagesToCreate({ pages }: { pages: SeoStrategy['pagesToCreate'] }) {
+  return (
+    <div className="space-y-4">
+      {pages.map((p, i) => (
+        <div
+          key={i}
+          className="rounded-xl border bg-card p-5 print:break-inside-avoid"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-balance">{p.title}</h3>
+              <code className="text-xs text-muted-foreground font-mono">
+                {p.suggestedUrl}
+              </code>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge variant="secondary" className="capitalize">
+                {p.searchIntent}
+              </Badge>
+              <Badge variant="outline">{p.suggestedWordCount} words</Badge>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Target Keyword
               </div>
-            </StrategySection>
-
-            {/* 7. Off-Page SEO */}
-            <StrategySection
-              id="off-page"
-              icon={Link2}
-              title="Off-Page SEO & Link Building"
-              subtitle="Backlinks, guest posts, and authority building"
-            >
-              <div className="rounded-xl border border-border bg-background p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Backlink Strategy
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-foreground">
-                  {strategy.offPageSeo.backlinkStrategy}
-                </p>
+              <p className="font-medium">{p.targetKeyword}</p>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Purpose
               </div>
+              <p className="text-pretty">{p.purpose}</p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Content Brief (give to your writer)
+            </div>
+            <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
+              {p.contentBrief}
+            </p>
+          </div>
+          <div className="mt-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Key Headings (H2)
+            </div>
+            <ul className="text-sm space-y-1">
+              {p.keyHeadings.map((h, j) => (
+                <li key={j} className="flex items-start gap-1.5">
+                  <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                  <span className="text-pretty">{h}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="mt-3 text-sm">
+            <span className="font-medium text-primary">CTA: </span>
+            <span className="text-pretty">{p.ctaSuggestion}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
-              <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Guest Post Opportunities
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {strategy.offPageSeo.guestPostOpportunities.map((g, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                        <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        {g}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Social Signals
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {strategy.offPageSeo.socialSignals.map((s, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                        <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Directory Listings
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {strategy.offPageSeo.directories.map((d, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                        <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        {d}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+function BlogIdeas({ ideas }: { ideas: SeoStrategy['blogIdeas'] }) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {ideas.map((b, i) => (
+        <div
+          key={i}
+          className="rounded-xl border bg-card p-5 print:break-inside-avoid"
+        >
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <h3 className="font-semibold text-balance">{b.title}</h3>
+            <Badge variant="outline" className="shrink-0">
+              {b.suggestedWordCount}w
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
+            <Search className="h-3.5 w-3.5 shrink-0" />
+            <span className="font-medium text-foreground">{b.targetKeyword}</span>
+            <span>·</span>
+            <span className="capitalize">{b.searchIntent}</span>
+          </div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+            Outline
+          </div>
+          <ol className="text-sm space-y-1 mb-3 list-decimal list-inside marker:text-muted-foreground">
+            {b.outline.map((o, j) => (
+              <li key={j} className="text-pretty">
+                {o}
+              </li>
+            ))}
+          </ol>
+          <p className="text-sm text-muted-foreground text-pretty">
+            {b.contentBrief}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CompetitorAnalysis({
+  competitors,
+}: {
+  competitors: SeoStrategy['competitorAnalysis']
+}) {
+  return (
+    <div className="space-y-4">
+      {competitors.map((c, i) => (
+        <div
+          key={i}
+          className="rounded-xl border bg-card p-5 print:break-inside-avoid"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Building2 className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold">{c.name}</h3>
+              <code className="text-xs text-muted-foreground">{c.url}</code>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-emerald-600 mb-2">
+                Strengths
               </div>
-            </StrategySection>
-
-            {/* 8. Local SEO */}
-            <StrategySection
-              id="local"
-              icon={MapPin}
-              title="Local SEO"
-              subtitle={
-                strategy.localSeo.applicable
-                  ? 'Recommendations for your local business'
-                  : 'Generic local SEO guidance (your business is not location-dependent)'
-              }
-            >
-              {!strategy.localSeo.applicable && (
-                <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    Local SEO has limited impact for your business model. The
-                    items below are still useful for general local visibility.
-                  </span>
-                </div>
-              )}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Recommendations
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {strategy.localSeo.recommendations.map((r, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        {r}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Google Business Profile Tips
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {strategy.localSeo.googleBusinessProfileTips.map((t, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        {t}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </StrategySection>
-
-            {/* 9. KPIs */}
-            <StrategySection
-              id="kpis"
-              icon={BarChart3}
-              title="KPIs & Goal Tracking"
-              subtitle="Measurable targets to track your progress"
-            >
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {strategy.kpis.map((kpi, i) => (
-                  <div
-                    key={i}
-                    className="rounded-xl border border-border bg-background p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                      <Badge variant="outline" className="text-[10px]">
-                        {kpi.timeline}
-                      </Badge>
-                    </div>
-                    <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {kpi.metric}
-                    </p>
-                    <p className="mt-1 font-heading text-lg font-bold text-foreground leading-tight">
-                      {kpi.target}
-                    </p>
-                  </div>
+              <ul className="text-sm space-y-1">
+                {c.strengths.map((s, j) => (
+                  <li key={j} className="flex items-start gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-1 shrink-0" />
+                    <span className="text-pretty">{s}</span>
+                  </li>
                 ))}
+              </ul>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-destructive mb-2">
+                Weaknesses
               </div>
-            </StrategySection>
-
-            {/* 10. Action Plan */}
-            <StrategySection
-              id="action"
-              icon={ListChecks}
-              title="6-Month Action Plan"
-              subtitle="Phased roadmap to execute your strategy"
-            >
-              <div className="grid gap-4 lg:grid-cols-3">
-                {[
-                  {
-                    label: 'Month 1: Foundation',
-                    items: strategy.actionPlan.month1,
-                    color: 'bg-emerald-500',
-                  },
-                  {
-                    label: 'Month 3: Build & Publish',
-                    items: strategy.actionPlan.month3,
-                    color: 'bg-blue-500',
-                  },
-                  {
-                    label: 'Month 6: Scale & Optimize',
-                    items: strategy.actionPlan.month6,
-                    color: 'bg-violet-500',
-                  },
-                ].map((phase, i) => (
-                  <div
-                    key={i}
-                    className="rounded-xl border border-border bg-background p-5"
-                  >
-                    <div className="mb-3 flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 rounded-full ${phase.color}`} />
-                      <p className="font-heading font-semibold text-foreground">
-                        {phase.label}
-                      </p>
-                    </div>
-                    <ul className="flex flex-col gap-2">
-                      {phase.items.map((item, ii) => (
-                        <li
-                          key={ii}
-                          className="flex items-start gap-2 text-sm leading-relaxed text-foreground"
-                        >
-                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-foreground" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+              <ul className="text-sm space-y-1">
+                {c.weaknesses.map((s, j) => (
+                  <li key={j} className="flex items-start gap-1.5">
+                    <XCircle className="h-3.5 w-3.5 text-destructive mt-1 shrink-0" />
+                    <span className="text-pretty">{s}</span>
+                  </li>
                 ))}
+              </ul>
+            </div>
+            <div className="rounded-lg border bg-primary/5 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">
+                Opportunities to outrank
               </div>
-            </StrategySection>
+              <ul className="text-sm space-y-1">
+                {c.opportunitiesToOutrank.map((s, j) => (
+                  <li key={j} className="flex items-start gap-1.5">
+                    <Target className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                    <span className="text-pretty">{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Content gaps
+              </div>
+              <ul className="text-sm space-y-1">
+                {c.contentGaps.map((s, j) => (
+                  <li key={j} className="flex items-start gap-1.5">
+                    <Lightbulb className="h-3.5 w-3.5 text-amber-500 mt-1 shrink-0" />
+                    <span className="text-pretty">{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
-            {/* Disclaimer */}
-            <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground print:hidden" data-print-hide>
-              <p>
-                <strong className="text-foreground">Note:</strong> This strategy
-                is AI-generated based on the information you provided. Always
-                validate keyword data with tools like Google Search Console,
-                Ahrefs, or SEMrush before executing.
+function LocalSeoSection({
+  data,
+  analysis,
+}: {
+  data: SeoStrategy['localSeo']
+  analysis: SiteAnalysis
+}) {
+  if (!data.applicable) {
+    return (
+      <div className="rounded-xl border bg-muted/30 p-6 text-center">
+        <Building2 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+        <p className="text-muted-foreground">
+          This is not a local business, but here are some general guidelines you
+          can apply if you ever expand into a physical location.
+        </p>
+        <ul className="mt-4 text-sm space-y-1 text-left max-w-lg mx-auto">
+          {data.googleBusinessProfileTips.map((t, i) => (
+            <li key={i} className="flex items-start gap-1.5">
+              <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+              <span className="text-pretty">{t}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* NAP audit */}
+      <div className="rounded-xl border bg-card p-5">
+        <h4 className="font-semibold mb-3">NAP Consistency Audit</h4>
+        <div className="grid sm:grid-cols-3 gap-4 mb-4">
+          <NapItem
+            label="Business Name"
+            value={data.napConsistency.websiteNap.name || '—'}
+          />
+          <NapItem
+            label="Phone(s) on site"
+            value={
+              analysis.contactInfo.phones.join(', ') ||
+              data.napConsistency.websiteNap.phones.join(', ') ||
+              '—'
+            }
+          />
+          <NapItem
+            label="Address(es) on site"
+            value={
+              analysis.contactInfo.addresses.join(' / ') ||
+              data.napConsistency.websiteNap.addresses.join(' / ') ||
+              '—'
+            }
+          />
+        </div>
+        {data.napConsistency.issues.length > 0 && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 mb-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-destructive mb-1.5">
+              NAP Issues
+            </div>
+            <ul className="text-sm space-y-1">
+              {data.napConsistency.issues.map((iss, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-1 shrink-0" />
+                  <span className="text-pretty">{iss}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="text-xs font-semibold uppercase tracking-wider text-primary mb-1.5">
+          Recommendations
+        </div>
+        <ul className="text-sm space-y-1">
+          {data.napConsistency.recommendations.map((r, i) => (
+            <li key={i} className="flex items-start gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-1 shrink-0" />
+              <span className="text-pretty">{r}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" /> Google Business Profile
+          </h4>
+          <ul className="text-sm space-y-1.5">
+            {data.googleBusinessProfileTips.map((t, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                <span className="text-pretty">{t}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <ListChecks className="h-4 w-4 text-primary" /> Local Citations
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {data.localCitations.map((c, i) => (
+              <Badge key={i} variant="secondary">
+                {c}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" /> Review Strategy
+          </h4>
+          <p className="text-sm text-pretty">{data.reviewStrategy}</p>
+        </div>
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-primary" /> Local Content Ideas
+          </h4>
+          <ul className="text-sm space-y-1.5">
+            {data.localContentIdeas.map((c, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                <span className="text-pretty">{c}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NapItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-muted/50 p-3">
+      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+        {label}
+      </div>
+      <div className="text-sm font-medium break-words">{value}</div>
+    </div>
+  )
+}
+
+function OffPageSection({
+  data,
+}: {
+  data: SeoStrategy['offPageStrategy']
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-5">
+        <div className="flex items-start gap-3">
+          <DollarSign className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-amber-900 dark:text-amber-200 mb-1">
+              Investment Notice
+            </h4>
+            <p className="text-sm text-amber-900/80 dark:text-amber-200/80 text-pretty">
+              {data.costDisclaimer}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-muted-foreground text-pretty">{data.summary}</p>
+
+      <div className="space-y-3">
+        <h4 className="font-semibold">Backlink Tactics</h4>
+        {data.backlinkTactics.map((t, i) => (
+          <div
+            key={i}
+            className="rounded-xl border bg-card p-5 print:break-inside-avoid"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+              <h5 className="font-semibold text-balance">{t.tactic}</h5>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <CostBadge cost={t.estimatedCost} />
+                <Badge variant="outline" className="capitalize">
+                  {t.difficulty}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={`capitalize ${
+                    t.expectedImpact === 'high'
+                      ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
+                      : ''
+                  }`}
+                >
+                  {t.expectedImpact} impact
+                </Badge>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-2 text-pretty">
+              {t.description}
+            </p>
+            <p className="text-xs text-primary font-medium">
+              Target: {t.monthlyTargetLinks} link{t.monthlyTargetLinks > 1 ? 's' : ''}/month
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3">Guest Post Targets</h4>
+          <ul className="text-sm space-y-1">
+            {data.guestPostTargets.map((g, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                <span className="text-pretty">{g}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3">Digital PR Tactics</h4>
+          <ul className="text-sm space-y-1">
+            {data.digitalPrTactics.map((g, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                <span className="text-pretty">{g}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3">Social Signals</h4>
+          <ul className="text-sm space-y-1">
+            {data.socialSignals.map((g, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                <span className="text-pretty">{g}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CostBadge({
+  cost,
+}: {
+  cost: 'free' | 'low' | 'medium' | 'high' | 'very-high'
+}) {
+  const cls = {
+    free: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+    low: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+    medium: 'bg-primary/10 text-primary border-primary/30',
+    high: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+    'very-high': 'bg-destructive/10 text-destructive border-destructive/30',
+  }[cost]
+  return (
+    <span
+      className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${cls}`}
+    >
+      Cost: {cost.replace('-', ' ')}
+    </span>
+  )
+}
+
+function SixMonthRoadmap({
+  roadmap,
+}: {
+  roadmap: SeoStrategy['sixMonthRoadmap']
+}) {
+  return (
+    <div className="space-y-4">
+      {roadmap.map((m) => (
+        <div
+          key={m.month}
+          className="rounded-xl border bg-card overflow-hidden print:break-inside-avoid"
+        >
+          <div className="flex items-center gap-4 px-5 py-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
+            <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+              <div className="text-center leading-none">
+                <div className="text-[10px] font-semibold uppercase">Month</div>
+                <div className="text-lg font-bold">{m.month}</div>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-balance">{m.theme}</h3>
+              <p className="text-sm text-muted-foreground text-pretty">
+                {m.focus}
               </p>
             </div>
           </div>
-        )}
+          <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
+            <RoadmapColumn
+              title="Key tasks"
+              icon={ListChecks}
+              items={m.keyTasks}
+            />
+            <RoadmapColumn
+              title="Deliverables"
+              icon={FileText}
+              items={m.deliverables}
+            />
+            <RoadmapColumn
+              title="Expected outcomes"
+              icon={TrendingUp}
+              items={m.expectedOutcomes}
+              highlight
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RoadmapColumn({
+  title,
+  icon: Icon,
+  items,
+  highlight,
+}: {
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  items: string[]
+  highlight?: boolean
+}) {
+  return (
+    <div className="p-5">
+      <div
+        className={`flex items-center gap-2 mb-3 ${highlight ? 'text-primary' : ''}`}
+      >
+        <Icon className="h-4 w-4 shrink-0" />
+        <h4 className="font-semibold text-sm uppercase tracking-wider">
+          {title}
+        </h4>
       </div>
+      <ul className="text-sm space-y-1.5">
+        {items.map((it, i) => (
+          <li key={i} className="flex items-start gap-1.5">
+            <ArrowRight
+              className={`h-3.5 w-3.5 mt-1 shrink-0 ${highlight ? 'text-primary' : 'text-muted-foreground'}`}
+            />
+            <span className="text-pretty">{it}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function KpiTable({ kpis }: { kpis: SeoStrategy['kpiTargets'] }) {
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/30">
+            <tr className="text-left border-b">
+              <th className="px-4 py-3 font-medium">Metric</th>
+              <th className="px-4 py-3 font-medium">Baseline</th>
+              <th className="px-4 py-3 font-medium">3 months</th>
+              <th className="px-4 py-3 font-medium">6 months</th>
+              <th className="px-4 py-3 font-medium">12 months</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {kpis.map((k, i) => (
+              <tr key={i}>
+                <td className="px-4 py-3 font-medium">{k.metric}</td>
+                <td className="px-4 py-3 text-muted-foreground">{k.baseline}</td>
+                <td className="px-4 py-3">{k.month3Target}</td>
+                <td className="px-4 py-3 text-primary font-medium">
+                  {k.month6Target}
+                </td>
+                <td className="px-4 py-3 font-semibold">{k.month12Target}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function ToolStack({ stack }: { stack: SeoStrategy['toolStack'] }) {
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <div className="rounded-xl border p-5">
+        <h4 className="font-semibold mb-3 flex items-center gap-2">
+          <Badge variant="secondary">Free</Badge>
+        </h4>
+        <ul className="text-sm space-y-1.5">
+          {stack.free.map((t, i) => (
+            <li key={i} className="flex items-start gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-1 shrink-0" />
+              <span className="text-pretty">{t}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-xl border p-5">
+        <h4 className="font-semibold mb-3 flex items-center gap-2">
+          <Badge>Paid</Badge>
+        </h4>
+        <ul className="text-sm space-y-1.5">
+          {stack.paid.map((t, i) => (
+            <li key={i} className="flex items-start gap-1.5">
+              <DollarSign className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+              <span className="text-pretty">{t}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function RiskAssessment({
+  risks,
+}: {
+  risks: SeoStrategy['riskAssessment']
+}) {
+  return (
+    <div className="space-y-3">
+      {risks.map((r, i) => (
+        <div
+          key={i}
+          className="rounded-xl border bg-card p-5 print:break-inside-avoid"
+        >
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h4 className="font-semibold text-balance">{r.risk}</h4>
+            <Badge
+              variant="outline"
+              className={`capitalize shrink-0 ${
+                r.likelihood === 'high'
+                  ? 'border-destructive/40 text-destructive'
+                  : r.likelihood === 'medium'
+                    ? 'border-amber-500/40 text-amber-700 dark:text-amber-400'
+                    : ''
+              }`}
+            >
+              {r.likelihood} likelihood
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground text-pretty">
+            <span className="font-medium text-foreground">Mitigation: </span>
+            {r.mitigation}
+          </p>
+        </div>
+      ))}
     </div>
   )
 }
