@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import {
   Globe,
@@ -41,6 +42,14 @@ import {
   ArrowRight,
   ClipboardList,
   Map as MapIcon,
+  ImageIcon,
+  ExternalLink,
+  Pencil,
+  Save,
+  Trash2,
+  Eye,
+  EyeOff,
+  Undo2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,6 +57,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import { Spinner } from '@/components/ui/spinner'
 import type { SeoStrategy } from '@/app/api/seo-strategy/route'
 import type { SiteAnalysis } from '@/app/api/seo-strategy/analyze/route'
 
@@ -804,6 +814,42 @@ function StrategyReport({
   form: FormData
   onReset: () => void
 }) {
+  // ----- Edit mode state -----
+  const [editMode, setEditMode] = useState(false)
+  const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set())
+  const [customNotes, setCustomNotes] = useState<
+    { id: string; title: string; body: string }[]
+  >([])
+
+  function toggleSection(id: string) {
+    setHiddenSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function restoreAll() {
+    setHiddenSections(new Set())
+    setCustomNotes([])
+  }
+
+  function addCustomNote() {
+    setCustomNotes((prev) => [
+      ...prev,
+      {
+        id: `note-${Date.now()}`,
+        title: 'Custom Note',
+        body: 'Click to edit this section. Add your own notes, observations, or extra strategy details here.',
+      },
+    ])
+  }
+
+  function deleteCustomNote(id: string) {
+    setCustomNotes((prev) => prev.filter((n) => n.id !== id))
+  }
+
   function downloadJson() {
     const blob = new Blob(
       [JSON.stringify({ form, analysis, strategy }, null, 2)],
@@ -817,238 +863,341 @@ function StrategyReport({
     URL.revokeObjectURL(url)
   }
 
+  const sectionProps = (id: string) => ({
+    sectionId: id,
+    editMode,
+    hidden: hiddenSections.has(id),
+    onDelete: () => toggleSection(id),
+  })
+
   return (
     <div className="space-y-8">
       {/* Action toolbar (hidden on print) */}
-      <div className="print:hidden flex flex-wrap items-center justify-between gap-3 sticky top-16 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3 -mx-4 px-4 border-b">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="font-medium text-foreground">Strategy ready</span>
-          <span className="hidden sm:inline">— scroll to explore the full report</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={downloadJson}>
-            <FileText className="h-4 w-4 mr-1.5" /> JSON
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="h-4 w-4 mr-1.5" /> Save as PDF
-          </Button>
-          <Button size="sm" onClick={onReset}>
-            <RefreshCw className="h-4 w-4 mr-1.5" /> New report
-          </Button>
-        </div>
-      </div>
-
-      {/* Cover */}
-      <ReportCover strategy={strategy} analysis={analysis} form={form} />
-
-      {/* Executive Summary */}
-      <ReportSection
-        icon={ClipboardList}
-        title="Executive Summary"
-        kicker="Section 01"
-      >
-        <p className="text-pretty text-base leading-relaxed">
-          {strategy.executiveSummary}
-        </p>
-      </ReportSection>
-
-      {/* Health Score */}
-      <ReportSection
-        icon={Award}
-        title="SEO Health Score"
-        kicker="Section 02"
-      >
-        <HealthScoreCard
-          score={strategy.overallHealthScore}
-          breakdown={strategy.healthScoreBreakdown}
-        />
-      </ReportSection>
-
-      {/* Mobile screenshot */}
-      <ReportSection
-        icon={Smartphone}
-        title="Mobile-Friendliness Preview"
-        kicker="Section 03"
-      >
-        <ScreenshotPreview analysis={analysis} />
-      </ReportSection>
-
-      {/* Critical issues */}
-      <ReportSection
-        icon={AlertTriangle}
-        title="Critical Issues"
-        kicker="Section 04"
-        description="Top problems hurting rankings right now — fix these first."
-      >
-        <CriticalIssuesGrid issues={strategy.criticalIssues} />
-      </ReportSection>
-
-      {/* Quick wins */}
-      <ReportSection
-        icon={Zap}
-        title="Quick Wins (First 30 Days)"
-        kicker="Section 05"
-        description="High-leverage actions you can ship in days, not months."
-      >
-        <QuickWinsGrid wins={strategy.quickWins} />
-      </ReportSection>
-
-      {/* Technical SEO */}
-      <ReportSection
-        icon={Wrench}
-        title="Technical SEO Audit"
-        kicker="Section 06"
-      >
-        <p className="text-muted-foreground mb-6">
-          {strategy.technicalSeoAudit.summary}
-        </p>
-        <TechnicalSummary analysis={analysis} />
-        <div className="mt-6">
-          <TechnicalChecklist items={strategy.technicalSeoAudit.checklist} />
-        </div>
-      </ReportSection>
-
-      {/* On-page audit */}
-      <ReportSection
-        icon={FileText}
-        title="On-Page SEO Audit"
-        kicker="Section 07"
-      >
-        <OnPageAudit audit={strategy.onPageAudit} />
-      </ReportSection>
-
-      {/* Page-by-page audit */}
-      <ReportSection
-        icon={ListChecks}
-        title="Page-by-Page Audit"
-        kicker="Section 08"
-        description="Specific recommendations for each crawled page."
-      >
-        <PageByPageAudit pages={strategy.pageByPageAudit} />
-      </ReportSection>
-
-      {/* Keyword strategy */}
-      <ReportSection
-        icon={Search}
-        title="Keyword Strategy"
-        kicker="Section 09"
-      >
-        <p className="text-muted-foreground mb-6">
-          {strategy.keywordStrategy.summary}
-        </p>
-        <KeywordStrategy data={strategy.keywordStrategy} />
-      </ReportSection>
-
-      {/* Pages to create */}
-      <ReportSection
-        icon={PenLine}
-        title="Pages to Create"
-        kicker="Section 10"
-        description="Content briefs ready to hand to your writers."
-      >
-        <PagesToCreate pages={strategy.pagesToCreate} />
-      </ReportSection>
-
-      {/* Blog ideas */}
-      <ReportSection
-        icon={Lightbulb}
-        title="Blog Content Ideas"
-        kicker="Section 11"
-      >
-        <BlogIdeas ideas={strategy.blogIdeas} />
-      </ReportSection>
-
-      {/* Competitors */}
-      {strategy.competitorAnalysis.length > 0 && (
-        <ReportSection
-          icon={Trophy}
-          title="Competitor Analysis"
-          kicker="Section 12"
-        >
-          <CompetitorAnalysis competitors={strategy.competitorAnalysis} />
-        </ReportSection>
-      )}
-
-      {/* Local SEO */}
-      <ReportSection
-        icon={MapPin}
-        title="Local SEO & NAP Consistency"
-        kicker="Section 13"
-      >
-        <LocalSeoSection data={strategy.localSeo} analysis={analysis} />
-      </ReportSection>
-
-      {/* Off-page strategy */}
-      <ReportSection
-        icon={Link2}
-        title="Off-Page & Backlink Strategy"
-        kicker="Section 14"
-      >
-        <OffPageSection data={strategy.offPageStrategy} />
-      </ReportSection>
-
-      {/* 6-month roadmap */}
-      <ReportSection
-        icon={MapIcon}
-        title="6-Month Roadmap"
-        kicker="Section 15"
-        description="What we'll do each month and what you'll achieve."
-      >
-        <SixMonthRoadmap roadmap={strategy.sixMonthRoadmap} />
-      </ReportSection>
-
-      {/* KPIs */}
-      <ReportSection
-        icon={BarChart3}
-        title="KPI Targets"
-        kicker="Section 16"
-      >
-        <KpiTable kpis={strategy.kpiTargets} />
-      </ReportSection>
-
-      {/* Tool stack */}
-      <ReportSection
-        icon={Wrench}
-        title="Recommended Tool Stack"
-        kicker="Section 17"
-      >
-        <ToolStack stack={strategy.toolStack} />
-      </ReportSection>
-
-      {/* Risk assessment */}
-      <ReportSection
-        icon={ShieldCheck}
-        title="Risk Assessment"
-        kicker="Section 18"
-      >
-        <RiskAssessment risks={strategy.riskAssessment} />
-      </ReportSection>
-
-      {/* Conclusion */}
-      <ReportSection
-        icon={Rocket}
-        title="Conclusion & Next Steps"
-        kicker="Final"
-      >
-        <p className="text-pretty text-base leading-relaxed">
-          {strategy.conclusion}
-        </p>
-        <div className="mt-6 rounded-lg border bg-muted/30 p-5 print:hidden">
-          <p className="text-sm">
-            <strong>Ready to start?</strong> Generate a new report anytime, or
-            export this one as PDF to share with your team.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
+      <div className="print:hidden sticky top-16 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3 -mx-4 px-4 border-b">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="font-medium text-foreground">
+              {editMode ? 'Edit mode' : 'Strategy ready'}
+            </span>
+            <span className="hidden sm:inline">
+              {editMode
+                ? '— click any text to edit, or remove sections you don\u2019t need'
+                : '— scroll to explore the full report'}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={editMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setEditMode((v) => !v)}
+            >
+              {editMode ? (
+                <>
+                  <Save className="h-4 w-4 mr-1.5" /> Done editing
+                </>
+              ) : (
+                <>
+                  <Pencil className="h-4 w-4 mr-1.5" /> Edit report
+                </>
+              )}
+            </Button>
+            {editMode && (hiddenSections.size > 0 || customNotes.length > 0) && (
+              <Button variant="outline" size="sm" onClick={restoreAll}>
+                <Undo2 className="h-4 w-4 mr-1.5" /> Restore all
+              </Button>
+            )}
+            {editMode && (
+              <Button variant="outline" size="sm" onClick={addCustomNote}>
+                <Plus className="h-4 w-4 mr-1.5" /> Add section
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={downloadJson}>
+              <FileText className="h-4 w-4 mr-1.5" /> JSON
+            </Button>
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="h-4 w-4 mr-1.5" /> Save as PDF
             </Button>
             <Button size="sm" onClick={onReset}>
-              <RefreshCw className="h-4 w-4 mr-1.5" /> Build a new strategy
+              <RefreshCw className="h-4 w-4 mr-1.5" /> New report
             </Button>
           </div>
         </div>
-      </ReportSection>
+        {editMode && hiddenSections.size > 0 && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <EyeOff className="h-3.5 w-3.5" />
+            {hiddenSections.size} section{hiddenSections.size > 1 ? 's' : ''} hidden — won&apos;t appear in PDF
+          </div>
+        )}
+      </div>
+
+      {/* Editable report body — entire report becomes inline-editable when editMode is on */}
+      <div
+        contentEditable={editMode}
+        suppressContentEditableWarning
+        spellCheck={editMode}
+        className={`space-y-8 outline-none ${
+          editMode
+            ? 'rounded-lg ring-2 ring-primary/40 ring-offset-4 ring-offset-background focus-within:ring-primary'
+            : ''
+        }`}
+      >
+        {/* Cover */}
+        <ReportCover strategy={strategy} analysis={analysis} form={form} />
+
+        {/* Executive Summary */}
+        <ReportSection
+          {...sectionProps('exec-summary')}
+          icon={ClipboardList}
+          title="Executive Summary"
+          kicker="Section 01"
+        >
+          <p className="text-pretty text-base leading-relaxed">
+            {strategy.executiveSummary}
+          </p>
+        </ReportSection>
+
+        {/* Health Score */}
+        <ReportSection
+          {...sectionProps('health-score')}
+          icon={Award}
+          title="SEO Health Score"
+          kicker="Section 02"
+        >
+          <HealthScoreCard
+            score={strategy.overallHealthScore}
+            breakdown={strategy.healthScoreBreakdown}
+          />
+        </ReportSection>
+
+        {/* Mobile screenshot */}
+        <ReportSection
+          {...sectionProps('screenshots')}
+          icon={Smartphone}
+          title="Mobile-Friendliness Preview"
+          kicker="Section 03"
+        >
+          <ScreenshotPreview analysis={analysis} />
+        </ReportSection>
+
+        {/* Critical issues */}
+        <ReportSection
+          {...sectionProps('critical-issues')}
+          icon={AlertTriangle}
+          title="Critical Issues"
+          kicker="Section 04"
+          description="Top problems hurting rankings right now — fix these first."
+        >
+          <CriticalIssuesGrid issues={strategy.criticalIssues} />
+        </ReportSection>
+
+        {/* Quick wins */}
+        <ReportSection
+          {...sectionProps('quick-wins')}
+          icon={Zap}
+          title="Quick Wins (First 30 Days)"
+          kicker="Section 05"
+          description="High-leverage actions you can ship in days, not months."
+        >
+          <QuickWinsGrid wins={strategy.quickWins} />
+        </ReportSection>
+
+        {/* Technical SEO */}
+        <ReportSection
+          {...sectionProps('technical')}
+          icon={Wrench}
+          title="Technical SEO Audit"
+          kicker="Section 06"
+        >
+          <p className="text-muted-foreground mb-6">
+            {strategy.technicalSeoAudit.summary}
+          </p>
+          <TechnicalSummary analysis={analysis} />
+          <div className="mt-6">
+            <TechnicalChecklist items={strategy.technicalSeoAudit.checklist} />
+          </div>
+        </ReportSection>
+
+        {/* On-page audit */}
+        <ReportSection
+          {...sectionProps('on-page')}
+          icon={FileText}
+          title="On-Page SEO Audit"
+          kicker="Section 07"
+        >
+          <OnPageAudit audit={strategy.onPageAudit} />
+        </ReportSection>
+
+        {/* Page-by-page audit */}
+        <ReportSection
+          {...sectionProps('page-by-page')}
+          icon={ListChecks}
+          title="Page-by-Page Audit"
+          kicker="Section 08"
+          description="Specific recommendations for each crawled page."
+        >
+          <PageByPageAudit pages={strategy.pageByPageAudit} />
+        </ReportSection>
+
+        {/* Keyword strategy */}
+        <ReportSection
+          {...sectionProps('keywords')}
+          icon={Search}
+          title="Keyword Strategy"
+          kicker="Section 09"
+        >
+          <p className="text-muted-foreground mb-6">
+            {strategy.keywordStrategy.summary}
+          </p>
+          <KeywordStrategy data={strategy.keywordStrategy} />
+        </ReportSection>
+
+        {/* Pages to create */}
+        <ReportSection
+          {...sectionProps('pages-to-create')}
+          icon={PenLine}
+          title="Pages to Create"
+          kicker="Section 10"
+          description="Content briefs ready to hand to your writers."
+        >
+          <PagesToCreate pages={strategy.pagesToCreate} />
+        </ReportSection>
+
+        {/* Blog ideas */}
+        <ReportSection
+          {...sectionProps('blog-ideas')}
+          icon={Lightbulb}
+          title="Blog Content Ideas"
+          kicker="Section 11"
+        >
+          <BlogIdeas ideas={strategy.blogIdeas} />
+        </ReportSection>
+
+        {/* Competitors */}
+        {strategy.competitorAnalysis.length > 0 && (
+          <ReportSection
+            {...sectionProps('competitors')}
+            icon={Trophy}
+            title="Competitor Analysis"
+            kicker="Section 12"
+          >
+            <CompetitorAnalysis competitors={strategy.competitorAnalysis} />
+          </ReportSection>
+        )}
+
+        {/* Local SEO */}
+        <ReportSection
+          {...sectionProps('local-seo')}
+          icon={MapPin}
+          title="Local SEO & NAP Consistency"
+          kicker="Section 13"
+        >
+          <LocalSeoSection data={strategy.localSeo} analysis={analysis} />
+        </ReportSection>
+
+        {/* Off-page strategy */}
+        <ReportSection
+          {...sectionProps('off-page')}
+          icon={Link2}
+          title="Off-Page & Backlink Strategy"
+          kicker="Section 14"
+        >
+          <OffPageSection data={strategy.offPageStrategy} />
+        </ReportSection>
+
+        {/* 6-month roadmap */}
+        <ReportSection
+          {...sectionProps('roadmap')}
+          icon={MapIcon}
+          title="6-Month Roadmap"
+          kicker="Section 15"
+          description="What we'll do each month and what you'll achieve."
+        >
+          <SixMonthRoadmap roadmap={strategy.sixMonthRoadmap} />
+        </ReportSection>
+
+        {/* KPIs */}
+        <ReportSection
+          {...sectionProps('kpis')}
+          icon={BarChart3}
+          title="KPI Targets"
+          kicker="Section 16"
+        >
+          <KpiTable kpis={strategy.kpiTargets} />
+        </ReportSection>
+
+        {/* Tool stack */}
+        <ReportSection
+          {...sectionProps('tools')}
+          icon={Wrench}
+          title="Recommended Tool Stack"
+          kicker="Section 17"
+        >
+          <ToolStack stack={strategy.toolStack} />
+        </ReportSection>
+
+        {/* Risk assessment */}
+        <ReportSection
+          {...sectionProps('risks')}
+          icon={ShieldCheck}
+          title="Risk Assessment"
+          kicker="Section 18"
+        >
+          <RiskAssessment risks={strategy.riskAssessment} />
+        </ReportSection>
+
+        {/* Custom user-added notes */}
+        {customNotes.map((note, idx) => (
+          <ReportSection
+            key={note.id}
+            sectionId={note.id}
+            editMode={editMode}
+            hidden={hiddenSections.has(note.id)}
+            onDelete={() => deleteCustomNote(note.id)}
+            icon={PenLine}
+            title={note.title}
+            kicker={`Custom note ${idx + 1}`}
+            isCustom
+          >
+            <p className="text-pretty text-base leading-relaxed whitespace-pre-wrap">
+              {note.body}
+            </p>
+          </ReportSection>
+        ))}
+
+        {/* Conclusion */}
+        <ReportSection
+          {...sectionProps('conclusion')}
+          icon={Rocket}
+          title="Conclusion & Next Steps"
+          kicker="Final"
+        >
+          <p className="text-pretty text-base leading-relaxed">
+            {strategy.conclusion}
+          </p>
+          <div
+            className="mt-6 rounded-lg border bg-muted/30 p-5 print:hidden"
+            contentEditable={false}
+          >
+            <p className="text-sm">
+              <strong>Ready to start?</strong> Generate a new report anytime,
+              or export this one as PDF to share with your team.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+              >
+                <Printer className="h-4 w-4 mr-1.5" /> Save as PDF
+              </Button>
+              <Button size="sm" onClick={onReset}>
+                <RefreshCw className="h-4 w-4 mr-1.5" /> Build a new strategy
+              </Button>
+            </div>
+          </div>
+        </ReportSection>
+      </div>
     </div>
   )
 }
@@ -1139,22 +1288,105 @@ function ReportSection({
   kicker,
   description,
   children,
+  sectionId,
+  editMode = false,
+  hidden = false,
+  onDelete,
+  isCustom = false,
 }: {
   icon: React.ComponentType<{ className?: string }>
   title: string
   kicker?: string
   description?: string
   children: React.ReactNode
+  sectionId?: string
+  editMode?: boolean
+  hidden?: boolean
+  onDelete?: () => void
+  isCustom?: boolean
 }) {
+  // When hidden:
+  // - In edit mode: show a placeholder so the user can restore it
+  // - Otherwise (and on print): hide completely
+  if (hidden && !editMode) {
+    return null
+  }
+
+  if (hidden && editMode) {
+    return (
+      <section
+        className="rounded-2xl border-2 border-dashed bg-muted/30 p-5 print:hidden flex items-center justify-between gap-4"
+        contentEditable={false}
+      >
+        <div className="flex items-center gap-3 text-sm text-muted-foreground min-w-0">
+          <EyeOff className="h-4 w-4 shrink-0" />
+          <span className="truncate">
+            <span className="font-medium text-foreground">{title}</span> hidden
+            from report
+          </span>
+        </div>
+        {onDelete && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDelete}
+            className="shrink-0"
+          >
+            <Eye className="h-3.5 w-3.5 mr-1.5" /> Show
+          </Button>
+        )}
+      </section>
+    )
+  }
+
   return (
-    <section className="rounded-2xl border bg-card p-6 sm:p-8 print:break-inside-avoid">
+    <section
+      data-section-id={sectionId}
+      className={`relative rounded-2xl border bg-card p-6 sm:p-8 print:break-inside-avoid ${
+        editMode
+          ? 'ring-1 ring-transparent hover:ring-primary/30 transition-shadow'
+          : ''
+      } ${isCustom ? 'border-primary/40 bg-primary/[0.02]' : ''}`}
+    >
+      {editMode && onDelete && (
+        <div
+          className="absolute top-3 right-3 print:hidden flex items-center gap-1 z-10"
+          contentEditable={false}
+        >
+          {isCustom && (
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-primary bg-primary/10 px-2 py-1 rounded">
+              Custom
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 bg-card hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+            onClick={onDelete}
+            title={isCustom ? 'Delete custom section' : 'Hide section'}
+            aria-label={isCustom ? 'Delete custom section' : 'Hide section'}
+          >
+            {isCustom ? (
+              <Trash2 className="h-4 w-4" />
+            ) : (
+              <X className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      )}
       <div className="flex items-start gap-4 mb-6">
-        <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+        <div
+          className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"
+          contentEditable={false}
+        >
           <Icon className="h-5 w-5 text-primary" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {kicker && (
-            <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            <div
+              className="text-xs uppercase tracking-wider text-muted-foreground font-medium"
+              contentEditable={false}
+            >
               {kicker}
             </div>
           )}
@@ -1262,36 +1494,140 @@ function HealthScoreCard({
 function ScreenshotPreview({ analysis }: { analysis: SiteAnalysis }) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      <div className="rounded-xl border overflow-hidden bg-muted/30">
-        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/50">
-          <Smartphone className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Mobile (375px)</span>
+      <ScreenshotFrame
+        label="Mobile (414px)"
+        icon={Smartphone}
+        src={analysis.mobileScreenshotUrl}
+        alt={`Mobile screenshot of ${analysis.domain}`}
+        domain={analysis.domain}
+        finalUrl={analysis.finalUrl}
+      />
+      <ScreenshotFrame
+        label="Desktop (1280px)"
+        icon={Monitor}
+        src={analysis.desktopScreenshotUrl}
+        alt={`Desktop screenshot of ${analysis.domain}`}
+        domain={analysis.domain}
+        finalUrl={analysis.finalUrl}
+      />
+    </div>
+  )
+}
+
+function ScreenshotFrame({
+  label,
+  icon: Icon,
+  src,
+  alt,
+  domain,
+  finalUrl,
+}: {
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  src: string
+  alt: string
+  domain: string
+  finalUrl: string
+}) {
+  // Cache-bust attempts — mshots returns a placeholder (1x1 or "loading" image)
+  // until the screenshot is generated, so we retry up to 4 times with a delay.
+  const [attempt, setAttempt] = React.useState(0)
+  const [status, setStatus] = React.useState<'loading' | 'ready' | 'failed'>(
+    'loading',
+  )
+  const maxAttempts = 5
+
+  React.useEffect(() => {
+    if (status === 'loading' && attempt < maxAttempts) {
+      const t = setTimeout(
+        () => setAttempt((a) => a + 1),
+        // First retry quick, then back off
+        attempt === 0 ? 2500 : 4000,
+      )
+      return () => clearTimeout(t)
+    }
+  }, [status, attempt])
+
+  const cacheBustedSrc = `${src}${src.includes('?') ? '&' : '?'}r=${attempt}`
+
+  return (
+    <div className="rounded-xl border overflow-hidden bg-muted/30">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-muted/50">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-medium truncate">{label}</span>
         </div>
-        <div className="p-6 flex justify-center">
-          {/* Using <img> intentionally for external screenshot service */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={analysis.mobileScreenshotUrl}
-            alt={`Mobile screenshot of ${analysis.domain}`}
-            className="rounded-lg border shadow-sm max-w-full h-auto"
-            crossOrigin="anonymous"
-          />
-        </div>
+        <a
+          href={finalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 shrink-0"
+        >
+          {domain}
+          <ExternalLink className="h-3 w-3" />
+        </a>
       </div>
-      <div className="rounded-xl border overflow-hidden bg-muted/30">
-        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/50">
-          <Monitor className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Desktop (1200px)</span>
-        </div>
-        <div className="p-6 flex justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+      <div className="p-6 flex items-center justify-center min-h-[280px] relative">
+        {status === 'loading' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/30">
+            <Spinner className="h-6 w-6 text-primary" />
+            <span className="text-xs text-muted-foreground">
+              Capturing preview…
+            </span>
+          </div>
+        )}
+        {status === 'failed' ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-sm text-muted-foreground max-w-xs">
+              Preview unavailable. The site may block screenshot services.
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setStatus('loading')
+                setAttempt(0)
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry
+            </Button>
+          </div>
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={analysis.desktopScreenshotUrl}
-            alt={`Desktop screenshot of ${analysis.domain}`}
-            className="rounded-lg border shadow-sm max-w-full h-auto"
-            crossOrigin="anonymous"
+            key={attempt}
+            src={cacheBustedSrc}
+            alt={alt}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            className={`rounded-lg border shadow-sm max-w-full h-auto transition-opacity duration-300 ${
+              status === 'ready' ? 'opacity-100' : 'opacity-0'
+            }`}
+            onLoad={(e) => {
+              const img = e.currentTarget
+              // mshots returns a tiny placeholder while rendering — keep retrying
+              if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+                if (attempt >= maxAttempts - 1) {
+                  setStatus('failed')
+                } else {
+                  setStatus('loading')
+                }
+                return
+              }
+              setStatus('ready')
+            }}
+            onError={() => {
+              if (attempt >= maxAttempts - 1) {
+                setStatus('failed')
+              } else {
+                setStatus('loading')
+              }
+            }}
           />
-        </div>
+        )}
       </div>
     </div>
   )

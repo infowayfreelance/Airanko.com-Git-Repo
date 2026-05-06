@@ -543,7 +543,7 @@ export async function POST(req: Request) {
       ),
     }
 
-    const cleanUrl = finalUrl.replace(/^https?:\/\//, '')
+    const encodedUrl = encodeURIComponent(finalUrl)
 
     const analysis: SiteAnalysis = {
       inputUrl: websiteUrl,
@@ -556,9 +556,9 @@ export async function POST(req: Request) {
       robotsTxt,
       sitemapXml,
       htmlSitemap,
-      // thum.io free screenshot service — no API key required
-      mobileScreenshotUrl: `https://image.thum.io/get/width/420/mobile/maxAge/24/${cleanUrl}`,
-      desktopScreenshotUrl: `https://image.thum.io/get/width/1200/maxAge/24/${cleanUrl}`,
+      // WordPress mshots — free, no API key, no CORS issues, served from public CDN
+      mobileScreenshotUrl: `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=414&h=896`,
+      desktopScreenshotUrl: `https://s.wordpress.com/mshots/v1/${encodedUrl}?w=1280&h=800`,
       contactInfo: {
         phones: Array.from(allPhones).slice(0, 5),
         emails: Array.from(allEmails).slice(0, 5),
