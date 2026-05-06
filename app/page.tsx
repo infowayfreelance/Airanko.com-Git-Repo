@@ -91,6 +91,16 @@ const seoTools = [
     comingSoon: true,
   },
   {
+    icon: Link2,
+    label: 'Link Extractor',
+    description: 'Paste any URL and extract every link on the page. Filter, search, and export to CSV or JSON.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/link-extractor',
+    color: 'text-primary',
+    bg: 'bg-primary/10',
+  },
+  {
     icon: Globe,
     label: 'Site Audit Tool',
     description: 'Run a full technical SEO audit to find and fix issues impacting your rankings.',

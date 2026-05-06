@@ -97,9 +97,10 @@ const categories: Category[] = [
       },
       {
         icon: Link2,
-        label: 'Backlink Checker',
-        description: 'Analyze your backlink profile.',
-        href: '#',
+        label: 'Link Extractor',
+        description: 'Extract all links from any URL.',
+        href: '/tools/link-extractor',
+        badge: 'New',
       },
       {
         icon: Globe,
