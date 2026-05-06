@@ -1,4 +1,5 @@
 import { generateText, Output } from 'ai'
+import { openai } from '@ai-sdk/openai'
 import * as z from 'zod'
 
 // ---------------------------------------------------------------------------
@@ -225,7 +226,7 @@ REQUIREMENTS
 - Competitor analysis must be specific to the named competitors when provided.`
 
     const { output } = await generateText({
-      model: 'openai/gpt-5-mini',
+      model: openai('gpt-4o-mini'),
       output: Output.object({ schema: strategySchema }),
       prompt,
     })
