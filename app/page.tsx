@@ -31,6 +31,7 @@ import {
   Zap,
   Smartphone,
   Images,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +45,16 @@ const seoTools = [
     badge: 'Popular',
     badgeVariant: 'default' as const,
     href: '/tools/image-resizer',
+    color: 'text-primary',
+    bg: 'bg-primary/10',
+  },
+  {
+    icon: Sparkles,
+    label: 'SEO Strategy Maker',
+    description: 'Generate a complete custom SEO strategy with keywords, competitors, content calendar & 6-month action plan.',
+    badge: 'AI Powered',
+    badgeVariant: 'secondary' as const,
+    href: '/tools/seo-strategy-maker',
     color: 'text-primary',
     bg: 'bg-primary/10',
   },

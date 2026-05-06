@@ -82,24 +82,24 @@ const categories: Category[] = [
     description: 'Rank higher with smart insights',
     tools: [
       {
-        icon: Search,
-        label: 'Keyword Research',
-        description: 'Find high-volume, low-competition keywords.',
-        href: '#',
+        icon: Sparkles,
+        label: 'SEO Strategy Maker',
+        description: 'Full AI-generated SEO plan & roadmap.',
+        href: '/tools/seo-strategy-maker',
         badge: 'AI',
-      },
-      {
-        icon: BarChart2,
-        label: 'SEO Rank Tracker',
-        description: 'Monitor SERP positions daily.',
-        href: '#',
-        badge: 'New',
       },
       {
         icon: Link2,
         label: 'Link Extractor',
         description: 'Extract all links from any URL.',
         href: '/tools/link-extractor',
+        badge: 'New',
+      },
+      {
+        icon: BarChart2,
+        label: 'SEO Rank Tracker',
+        description: 'Monitor SERP positions daily.',
+        href: '#',
         badge: 'New',
       },
       {
