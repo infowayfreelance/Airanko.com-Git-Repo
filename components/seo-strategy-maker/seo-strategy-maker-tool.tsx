@@ -182,33 +182,59 @@ export default function SeoStrategyMakerTool() {
 
   // ---------- Render ----------
   return (
-    <div className="space-y-8">
-      {phase !== 'done' && (
-        <WizardCard
-          step={step}
-          form={form}
-          setForm={setForm}
-          phase={phase}
-          progressMsg={progressMsg}
-          error={error}
-          canContinueStep1={!!canContinueStep1}
-          canContinueStep2={canContinueStep2}
-          onBack={() => setStep((s) => Math.max(1, s - 1))}
-          onNext={() => setStep((s) => Math.min(4, s + 1))}
-          onGenerate={handleGenerate}
-        />
-      )}
+    <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12 print:p-0">
+      <div
+        className={`mx-auto space-y-8 ${
+          phase === 'done' ? 'max-w-6xl' : 'max-w-3xl'
+        } print:max-w-none`}
+      >
+        {phase !== 'done' && (
+          <>
+            {/* Hero header above wizard */}
+            <div className="text-center print:hidden" data-print-hide>
+              <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                </span>
+                AI-Powered SEO Strategy Generator
+              </div>
+              <h1 className="mt-4 font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+                Build a complete SEO strategy in minutes
+              </h1>
+              <p className="mt-3 text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
+                Crawl your site, analyze competitors, and generate a client-ready
+                6-month roadmap with keywords, content briefs, and technical fixes.
+              </p>
+            </div>
 
-      {phase === 'done' && strategy && analysis && (
-        <div ref={reportRef}>
-          <StrategyReport
-            strategy={strategy}
-            analysis={analysis}
-            form={form}
-            onReset={reset}
-          />
-        </div>
-      )}
+            <WizardCard
+              step={step}
+              form={form}
+              setForm={setForm}
+              phase={phase}
+              progressMsg={progressMsg}
+              error={error}
+              canContinueStep1={!!canContinueStep1}
+              canContinueStep2={canContinueStep2}
+              onBack={() => setStep((s) => Math.max(1, s - 1))}
+              onNext={() => setStep((s) => Math.min(4, s + 1))}
+              onGenerate={handleGenerate}
+            />
+          </>
+        )}
+
+        {phase === 'done' && strategy && analysis && (
+          <div ref={reportRef}>
+            <StrategyReport
+              strategy={strategy}
+              analysis={analysis}
+              form={form}
+              onReset={reset}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
