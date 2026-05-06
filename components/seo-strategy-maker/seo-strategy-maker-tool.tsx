@@ -61,6 +61,47 @@ import { Spinner } from '@/components/ui/spinner'
 import type { SeoStrategy } from '@/app/api/seo-strategy/route'
 import type { SiteAnalysis } from '@/app/api/seo-strategy/analyze/route'
 
+/**
+ * Defensive response parser. When an API route times out or throws an
+ * unhandled error, Next.js may return an HTML error page. Calling
+ * `response.json()` on that body produces the cryptic
+ *   `Unexpected token 'A', "An error o"... is not valid JSON`
+ * error. This helper reads the body as text first so we can:
+ *   - Return JSON when the body is JSON
+ *   - Return a clean { error } object when it is HTML or anything else
+ */
+async function safeReadJson(
+  response: Response,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actionLabel: string,
+): Promise<any> {
+  const text = await response.text()
+  if (!text) {
+    return {
+      error: `The server returned an empty response while trying to ${actionLabel}. Please try again.`,
+    }
+  }
+  try {
+    return JSON.parse(text)
+  } catch {
+    // The response wasn't JSON — almost always an HTML error page.
+    const looksLikeHtml = /^\s*<(?:!doctype|html|body|head)/i.test(text)
+    if (looksLikeHtml) {
+      const isTimeout =
+        response.status === 504 ||
+        /timeout|timed out|gateway/i.test(text)
+      return {
+        error: isTimeout
+          ? `The request timed out while trying to ${actionLabel}. The AI took too long to respond — please try again.`
+          : `The server returned an unexpected error (status ${response.status}) while trying to ${actionLabel}. Please try again.`,
+      }
+    }
+    return {
+      error: `Could not ${actionLabel}: ${text.slice(0, 200)}`,
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -142,7 +183,7 @@ export default function SeoStrategyMakerTool() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ websiteUrl: form.websiteUrl }),
       })
-      const analyzeData = await analyzeRes.json()
+      const analyzeData = await safeReadJson(analyzeRes, 'analyze the website')
       if (!analyzeRes.ok) {
         throw new Error(analyzeData.error || 'Failed to analyze website')
       }
@@ -169,7 +210,7 @@ export default function SeoStrategyMakerTool() {
           analysis: siteAnalysis,
         }),
       })
-      const stratData = await stratRes.json()
+      const stratData = await safeReadJson(stratRes, 'generate the strategy')
       if (!stratRes.ok) {
         throw new Error(stratData.error || 'Failed to generate strategy')
       }
