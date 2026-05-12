@@ -118,8 +118,8 @@ const categories: Category[] = [
       {
         icon: PenLine,
         label: 'AI Content Writer',
-        description: 'Generate SEO-optimized articles.',
-        href: '#',
+        description: 'Google-ready articles with E-E-A-T signals.',
+        href: '/tools/content-writer',
         badge: 'AI',
       },
       {
@@ -353,19 +353,19 @@ export function AiToolsMegaMenu() {
               <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-border bg-gradient-to-r from-primary/5 via-accent/5 to-transparent p-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Sparkles className="h-4 w-4" />
+                    <PenLine className="h-4 w-4" />
                   </div>
                   <div>
                     <p className="font-heading text-sm font-semibold text-foreground">
-                      New: AI Content Optimizer
+                      New: AI Content Writer
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Match search intent and rank faster with one click.
+                      Tuned for Google&apos;s 2025 E-E-A-T &amp; Helpful Content updates.
                     </p>
                   </div>
                 </div>
                 <Link
-                  href="#"
+                  href="/tools/content-writer"
                   onClick={() => setOpen(false)}
                   className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >

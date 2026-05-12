@@ -32,6 +32,7 @@ import {
   Smartphone,
   Images,
   Sparkles,
+  PenLine,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -134,14 +135,24 @@ const seoTools = [
     comingSoon: true,
   },
   {
+    icon: PenLine,
+    label: 'AI Content Writer',
+    description: 'Generate SEO articles with E-E-A-T scoring, AI Overview hooks, FAQ schema, and a publish-ready checklist.',
+    badge: 'AI Powered',
+    badgeVariant: 'secondary' as const,
+    href: '/tools/content-writer',
+    color: 'text-primary',
+    bg: 'bg-primary/10',
+  },
+  {
     icon: Cpu,
     label: 'AI Content Optimizer',
-    description: 'Optimize your content with AI suggestions to match search intent and rank faster.',
+    description: 'Optimize existing content with AI suggestions to match search intent and rank faster.',
     badge: 'AI Powered',
     badgeVariant: 'secondary' as const,
     href: '#',
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
+    color: 'text-teal-600',
+    bg: 'bg-teal-50',
     comingSoon: true,
   },
   {
