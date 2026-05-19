@@ -6,7 +6,7 @@ import BackgroundRemoverTool from '@/components/background-remover/background-re
 import BackgroundRemoverSeoSections from '@/components/background-remover-seo-sections'
 
 export const metadata: Metadata = {
-  title: 'Free AI Background Remover Online — No Signup, No Watermark | AI Ranko',
+  title: 'Free AI Background Remover Online. No Signup, No Watermark',
   description:
     'Remove image backgrounds instantly with AI. Runs 100% in your browser — no uploads, no signup, no watermark. Supports PNG, JPG, and WebP. Free forever.',
   keywords:
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     canonical: 'https://airanko.com/tools/background-remover',
   },
   openGraph: {
-    title: 'Free AI Background Remover Online — No Signup, No Watermark | AI Ranko',
+    title: 'Free AI Background Remover Online. No Signup, No Watermark',
     description:
       'Remove image backgrounds instantly with AI. Runs 100% in your browser — no uploads, no signup, no watermark. Supports PNG, JPG, and WebP. Free forever.',
     url: 'https://airanko.com/tools/background-remover',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Free AI Background Remover Online — No Signup, No Watermark | AI Ranko',
+    title: 'Free AI Background Remover Online. No Signup, No Watermark',
     description:
       'Remove image backgrounds instantly with AI. Runs 100% in your browser — no uploads, no signup, no watermark. Supports PNG, JPG, and WebP. Free forever.',
     images: [
