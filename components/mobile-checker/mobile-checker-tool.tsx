@@ -156,11 +156,11 @@ export default function MobileCheckerTool() {
                   <Smartphone className="h-4.5 w-4.5 text-primary" />
                 </div>
                 <h1 className="font-heading text-xl font-bold text-foreground">
-                  Mobile Friendliness Checker
+                  Free Mobile Friendliness Checker — Test Any Website Instantly
                 </h1>
               </div>
               <p className="mt-1 text-sm text-muted-foreground ml-11">
-                Preview any website in real mobile, tablet, or desktop device sizes.
+                See exactly how any website looks on iPhone, Android, tablet, or desktop — in real device screen sizes. No installs, no sign-up. Just enter a URL and get an instant mobile preview, free.
               </p>
             </div>
             <div className="flex items-center gap-2 ml-11 sm:ml-0">
