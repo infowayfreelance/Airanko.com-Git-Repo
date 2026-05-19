@@ -236,11 +236,10 @@ export default function BackgroundRemoverTool() {
             100% Free · Runs in Your Browser
           </div>
           <h1 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-            Background Remover
+            Free AI Background Remover — Instant, Private &amp; 100% Free
           </h1>
           <p className="mt-3 leading-relaxed text-muted-foreground text-pretty">
-            Remove the background from any image in seconds. Your image never
-            leaves your device — everything runs locally with on-device AI.
+            Remove any image background in seconds using on-device AI — no account, no fees, no watermark. Your image never leaves your device, so your files stay 100% private and secure.
           </p>
         </div>
 
@@ -282,10 +281,10 @@ export default function BackgroundRemoverTool() {
             </div>
             <div>
               <p className="font-heading text-lg font-semibold text-foreground">
-                Drop an image here or click to upload
+                Drop your image here or click to browse
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                PNG, JPG, or WebP — up to 10MB recommended
+                PNG, JPG, or WebP supported (up to 10MB recommended)
               </p>
             </div>
 
