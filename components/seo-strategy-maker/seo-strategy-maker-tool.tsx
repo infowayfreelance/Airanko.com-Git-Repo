@@ -251,11 +251,13 @@ export default function SeoStrategyMakerTool() {
                 AI-Powered SEO Strategy Generator
               </div>
               <h1 className="mt-4 font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-                Build a complete SEO strategy in minutes
+                AI SEO Strategy Maker — Free Custom SEO Plan Generator
               </h1>
               <p className="mt-3 text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Crawl your site, analyze competitors, and generate a client-ready
-                6-month roadmap with keywords, content briefs, and technical fixes.
+                Enter your website URL and let AI do the heavy lifting. Ai Ranko crawls your site, analyzes competitors, and builds a complete SEO strategy — keywords, content calendar, technical fixes, and a 6-month action plan.
+              </p>
+              <p className="mt-2 text-sm font-medium text-primary">
+                No guesswork. No agencies. No cost.
               </p>
             </div>
 
