@@ -506,59 +506,6 @@ export default function BackgroundRemoverTool() {
             </aside>
           </div>
         )}
-
-        {/* How it works */}
-        <section className="mt-16">
-          <h2 className="font-heading text-2xl font-bold text-balance">
-            How it works
-          </h2>
-          <p className="mt-2 text-muted-foreground text-pretty">
-            Three steps. No accounts, no fees, no uploads.
-          </p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                step: '1',
-                title: 'Upload your image',
-                desc: 'Drag and drop a PNG, JPG, or WebP file straight from your device.',
-                icon: Upload,
-              },
-              {
-                step: '2',
-                title: 'AI does the work',
-                desc: 'An on-device AI model isolates the subject and erases the background instantly.',
-                icon: Sparkles,
-              },
-              {
-                step: '3',
-                title: 'Download or restyle',
-                desc: 'Pick a backdrop color or keep it transparent, then download the PNG.',
-                icon: ImageIcon,
-              },
-            ].map((item) => {
-              const Icon = item.icon
-              return (
-                <div
-                  key={item.step}
-                  className="rounded-2xl border border-border bg-card p-5"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 font-heading text-sm font-bold text-primary">
-                      {item.step}
-                    </span>
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <h3 className="mt-3 font-heading font-semibold text-foreground">
-                    {item.title}
-                  </h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                    {item.desc}
-                  </p>
-                </div>
-              )
-            })}
-          </div>
-        </section>
       </div>
     </div>
   )
