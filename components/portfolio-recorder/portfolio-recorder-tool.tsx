@@ -18,6 +18,7 @@ import {
   Film,
   Wand2,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react'
 
 // ─── Device presets ──────────────────────────────────────────────────────────
@@ -26,52 +27,57 @@ type DeviceId = 'desktop' | 'tablet' | 'mobile'
 
 const devices: Record<
   DeviceId,
-  { label: string; icon: typeof Monitor; width: number; height: number; rounded: string }
+  { label: string; icon: typeof Monitor; width: number; height: number }
 > = {
-  desktop: { label: 'Desktop', icon: Monitor, width: 1280, height: 720, rounded: 'rounded-lg' },
-  tablet: { label: 'Tablet', icon: Tablet, width: 820, height: 1080, rounded: 'rounded-2xl' },
-  mobile: { label: 'Mobile', icon: Smartphone, width: 390, height: 780, rounded: 'rounded-[2rem]' },
+  desktop: { label: 'Desktop', icon: Monitor, width: 1280, height: 720 },
+  tablet:  { label: 'Tablet',  icon: Tablet,  width: 820,  height: 1080 },
+  mobile:  { label: 'Mobile',  icon: Smartphone, width: 390, height: 780 },
 }
 
-// Approximate full-page heights to scroll through
 const pageLengths: Record<string, { label: string; multiplier: number }> = {
-  short: { label: 'Short', multiplier: 1.8 },
-  medium: { label: 'Medium', multiplier: 3 },
-  long: { label: 'Long', multiplier: 4.5 },
-  full: { label: 'Extra long', multiplier: 6.5 },
+  short:  { label: 'Short',      multiplier: 1.8 },
+  medium: { label: 'Medium',     multiplier: 3   },
+  long:   { label: 'Long',       multiplier: 4.5 },
+  full:   { label: 'Extra long', multiplier: 6.5 },
 }
 
 type Easing = 'smooth' | 'linear'
-type Stage = 'idle' | 'countdown' | 'recording' | 'processing' | 'done'
+type Stage  = 'idle' | 'preloading' | 'countdown' | 'recording' | 'processing' | 'done'
 
 function easeInOut(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
 }
 
 export default function PortfolioRecorderTool() {
-  const [url, setUrl] = useState('')
-  const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
-  const [device, setDevice] = useState<DeviceId>('desktop')
-  const [duration, setDuration] = useState(20)
-  const [pageLength, setPageLength] = useState<keyof typeof pageLengths>('medium')
-  const [easing, setEasing] = useState<Easing>('smooth')
-  const [stage, setStage] = useState<Stage>('idle')
-  const [countdown, setCountdown] = useState(3)
-  const [elapsed, setElapsed] = useState(0)
-  const [recordedUrl, setRecordedUrl] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [iframeError, setIframeError] = useState(false)
+  const [url, setUrl]                     = useState('')
+  const [loadedUrl, setLoadedUrl]         = useState<string | null>(null)
+  const [device, setDevice]               = useState<DeviceId>('desktop')
+  const [duration, setDuration]           = useState(20)
+  const [pageLength, setPageLength]       = useState<keyof typeof pageLengths>('medium')
+  const [easing, setEasing]               = useState<Easing>('smooth')
+  const [stage, setStage]                 = useState<Stage>('idle')
+  const [countdown, setCountdown]         = useState(3)
+  const [elapsed, setElapsed]             = useState(0)
+  const [preloadProgress, setPreloadProgress] = useState(0)
+  const [recordedUrl, setRecordedUrl]     = useState<string | null>(null)
+  const [error, setError]                 = useState<string | null>(null)
+  const [iframeError, setIframeError]     = useState(false)
 
-  const viewportRef = useRef<HTMLDivElement>(null)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const rafRef = useRef<number | null>(null)
-  const startTimeRef = useRef<number>(0)
+  const viewportRef       = useRef<HTMLDivElement>(null)
+  const iframeRef         = useRef<HTMLIFrameElement>(null)
+  const mediaRecorderRef  = useRef<MediaRecorder | null>(null)
+  const streamRef         = useRef<MediaStream | null>(null)
+  const chunksRef         = useRef<Blob[]>([])
+  const rafRef            = useRef<number | null>(null)
+  const cropRafRef        = useRef<number | null>(null)
+  const startTimeRef      = useRef<number>(0)
 
-  const dev = devices[device]
+  const dev         = devices[device]
   const scrollHeight = Math.round(dev.height * pageLengths[pageLength].multiplier)
+  const maxScroll    = scrollHeight - dev.height
+
+  const previewMaxWidth = device === 'desktop' ? 760 : device === 'tablet' ? 460 : 320
+  const scale = Math.min(1, previewMaxWidth / dev.width)
 
   function validateUrl(input: string) {
     try {
@@ -94,88 +100,157 @@ export default function PortfolioRecorderTool() {
     setUrl(valid)
     setLoadedUrl(valid)
     setStage('idle')
+    if (iframeRef.current) iframeRef.current.style.transform = 'translateY(0px)'
   }
 
-  const cleanupStream = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    rafRef.current = null
+  const cleanupAll = useCallback(() => {
+    if (rafRef.current)    { cancelAnimationFrame(rafRef.current);    rafRef.current    = null }
+    if (cropRafRef.current){ cancelAnimationFrame(cropRafRef.current); cropRafRef.current = null }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
       streamRef.current = null
     }
   }, [])
 
-  // Smooth scroll animation driving the iframe translateY
+  // ── Phase 1: pre-load by slowly scrolling the iframe top→bottom, then reset ──
+  function runPreload(): Promise<void> {
+    return new Promise((resolve) => {
+      // Spend ~2.5 s scrolling down so lazy-loaded content has time to render
+      const preloadDur = Math.max(2500, duration * 250)
+      const startTime  = performance.now()
+
+      const tick = () => {
+        const t     = Math.min((performance.now() - startTime) / preloadDur, 1)
+        const eased = easeInOut(t)
+        if (iframeRef.current) {
+          iframeRef.current.style.transform = `translateY(${-eased * maxScroll}px)`
+        }
+        setPreloadProgress(Math.round(t * 85))
+        if (t < 1) {
+          requestAnimationFrame(tick)
+        } else {
+          // Snap back to top
+          setTimeout(() => {
+            if (iframeRef.current) iframeRef.current.style.transform = 'translateY(0px)'
+            setPreloadProgress(100)
+            resolve()
+          }, 400)
+        }
+      }
+      requestAnimationFrame(tick)
+    })
+  }
+
+  // ── Phase 3: scroll animation during recording ────────────────────────────
   const animateScroll = useCallback(() => {
-    const maxScroll = scrollHeight - dev.height
     const tick = () => {
-      const now = performance.now()
-      const t = Math.min((now - startTimeRef.current) / (duration * 1000), 1)
+      const t     = Math.min((performance.now() - startTimeRef.current) / (duration * 1000), 1)
       const eased = easing === 'smooth' ? easeInOut(t) : t
       if (iframeRef.current) {
         iframeRef.current.style.transform = `translateY(${-eased * maxScroll}px)`
       }
       setElapsed(t * duration)
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick)
-      }
+      if (t < 1) rafRef.current = requestAnimationFrame(tick)
     }
     startTimeRef.current = performance.now()
     rafRef.current = requestAnimationFrame(tick)
-  }, [scrollHeight, dev.height, duration, easing])
+  }, [maxScroll, duration, easing])
 
   async function beginRecording() {
     if (!loadedUrl) return
     setError(null)
 
-    // Request screen/tab capture
+    // ── Phase 1: Pre-load ────────────────────────────────────────────────────
+    setStage('preloading')
+    setPreloadProgress(0)
+    await runPreload()
+
+    // ── Phase 2: Request screen capture ─────────────────────────────────────
+    // preferCurrentTab (Chrome 107+) pre-selects this tab so the user just
+    // clicks one "Share" button without having to pick a tab.
     let stream: MediaStream
     try {
       stream = await (navigator.mediaDevices as MediaDevices).getDisplayMedia({
         video: {
           frameRate: 30,
-          // @ts-expect-error preferCurrentTab is supported in Chromium
+          // @ts-expect-error Chrome-only hint
           preferCurrentTab: true,
         },
         audio: false,
       })
-    } catch (err) {
+    } catch {
       setError(
-        'Screen capture was cancelled or blocked. When prompted, choose "This Tab" and allow sharing to record your video.'
+        'Screen capture was cancelled. Click "Start Recording" again, then click "Share" when the browser asks.'
       )
+      setStage('idle')
       return
     }
 
     streamRef.current = stream
-    chunksRef.current = []
 
+    // Feed the captured stream into a hidden video element
+    const feedVideo   = document.createElement('video')
+    feedVideo.srcObject = stream
+    feedVideo.muted   = true
+    await feedVideo.play()
+
+    // Wait for dimensions to be known
+    await new Promise<void>((res) => {
+      if (feedVideo.videoWidth > 0) { res(); return }
+      feedVideo.onloadedmetadata = () => res()
+      setTimeout(res, 400)
+    })
+
+    // ── Build a canvas that crops to the exact viewport div on screen ────────
+    // getBoundingClientRect() gives us the visual rect in CSS pixels after
+    // CSS transforms (scale) are applied.  Multiply by devicePixelRatio to
+    // convert to the physical pixels that the captured stream operates in.
+    const canvas  = document.createElement('canvas')
+    canvas.width  = dev.width
+    canvas.height = dev.height
+    const ctx     = canvas.getContext('2d')!
+
+    const rect = viewportRef.current!.getBoundingClientRect()
+    const dpr  = window.devicePixelRatio || 1
+    const sx   = Math.round(rect.left   * dpr)
+    const sy   = Math.round(rect.top    * dpr)
+    const sw   = Math.round(rect.width  * dpr)   // visual width  = dev.width  * scale * dpr
+    const sh   = Math.round(rect.height * dpr)   // visual height = dev.height * scale * dpr
+
+    function drawFrame() {
+      // Crop from the screen capture stream, scale up to full device resolution
+      ctx.drawImage(feedVideo, sx, sy, sw, sh, 0, 0, dev.width, dev.height)
+    }
+
+    const canvasStream = canvas.captureStream(30)
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : 'video/webm'
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 })
+
+    chunksRef.current = []
+    const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 8_000_000 })
     mediaRecorderRef.current = recorder
 
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data)
-    }
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' })
-      setRecordedUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return URL.createObjectURL(blob)
-      })
-      cleanupStream()
+      setRecordedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
+      cleanupAll()
+      if (cropRafRef.current) { cancelAnimationFrame(cropRafRef.current); cropRafRef.current = null }
+      feedVideo.pause()
+      feedVideo.srcObject = null
       setStage('done')
     }
 
-    // If the user stops sharing from the browser UI, finalize gracefully
+    // Gracefully handle the user clicking "Stop sharing" in the browser UI
     stream.getVideoTracks()[0].addEventListener('ended', () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        if (cropRafRef.current) { cancelAnimationFrame(cropRafRef.current); cropRafRef.current = null }
         mediaRecorderRef.current.stop()
       }
     })
 
-    // Countdown, then record
+    // ── Phase 3: 3-2-1 countdown, then record ───────────────────────────────
     setStage('countdown')
     setCountdown(3)
     let c = 3
@@ -186,13 +261,23 @@ export default function PortfolioRecorderTool() {
         clearInterval(countdownTimer)
         setStage('recording')
         setElapsed(0)
-        // Reset scroll to top
         if (iframeRef.current) iframeRef.current.style.transform = 'translateY(0px)'
-        recorder.start()
+        recorder.start(100)
+
+        // Crop-draw loop: at each animation frame, copy the screen capture
+        // cropped to the viewport div onto the canvas
+        const drawLoop = () => {
+          drawFrame()
+          cropRafRef.current = requestAnimationFrame(drawLoop)
+        }
+        cropRafRef.current = requestAnimationFrame(drawLoop)
+
         animateScroll()
-        // Stop after duration
+
+        // Auto-stop after the chosen duration
         setTimeout(() => {
           if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            if (cropRafRef.current) { cancelAnimationFrame(cropRafRef.current); cropRafRef.current = null }
             setStage('processing')
             mediaRecorderRef.current.stop()
           }
@@ -202,6 +287,8 @@ export default function PortfolioRecorderTool() {
   }
 
   function stopEarly() {
+    if (cropRafRef.current) { cancelAnimationFrame(cropRafRef.current); cropRafRef.current = null }
+    if (rafRef.current)     { cancelAnimationFrame(rafRef.current);     rafRef.current     = null }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       setStage('processing')
       mediaRecorderRef.current.stop()
@@ -209,31 +296,29 @@ export default function PortfolioRecorderTool() {
   }
 
   function resetAll() {
-    cleanupStream()
+    cleanupAll()
     if (recordedUrl) URL.revokeObjectURL(recordedUrl)
     setRecordedUrl(null)
     setStage('idle')
     setElapsed(0)
+    setPreloadProgress(0)
     if (iframeRef.current) iframeRef.current.style.transform = 'translateY(0px)'
   }
 
   useEffect(() => {
     return () => {
-      cleanupStream()
+      cleanupAll()
       if (recordedUrl) URL.revokeObjectURL(recordedUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Scale the device frame to fit the preview column
-  const previewMaxWidth = device === 'desktop' ? 760 : device === 'tablet' ? 460 : 320
-  const scale = Math.min(1, previewMaxWidth / dev.width)
-
-  const recording = stage === 'recording' || stage === 'countdown' || stage === 'processing'
+  const isActive = stage !== 'idle' && stage !== 'done'
 
   return (
     <section className="px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
+
         {/* Heading */}
         <div className="mx-auto mb-8 max-w-2xl text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
@@ -249,6 +334,7 @@ export default function PortfolioRecorderTool() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+
           {/* ── Preview column ── */}
           <div className="order-2 lg:order-1">
             <div className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
@@ -266,18 +352,17 @@ export default function PortfolioRecorderTool() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
+
                   {/* Status bar */}
                   <div className="mb-4 flex w-full items-center justify-between">
                     <div className="flex items-center gap-2 text-sm">
                       <dev.icon className="h-4 w-4 text-primary" />
                       <span className="font-medium text-foreground">{dev.label}</span>
-                      <span className="text-muted-foreground">
-                        {dev.width}×{dev.height}
-                      </span>
+                      <span className="text-muted-foreground">{dev.width}×{dev.height}</span>
                     </div>
-                    {recording && (
+                    {stage === 'recording' && (
                       <div className="flex items-center gap-2">
-                        <span className="flex h-2.5 w-2.5 items-center justify-center">
+                        <span className="relative flex h-2.5 w-2.5 items-center justify-center">
                           <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-red-500/60" />
                           <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
                         </span>
@@ -293,6 +378,7 @@ export default function PortfolioRecorderTool() {
                     className="relative"
                     style={{ width: dev.width * scale, height: dev.height * scale }}
                   >
+                    {/* Viewport: rendered at full device size, scaled down visually */}
                     <div
                       className="absolute left-0 top-0 origin-top-left overflow-hidden bg-white shadow-xl ring-1 ring-border"
                       style={{
@@ -330,6 +416,25 @@ export default function PortfolioRecorderTool() {
                           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                         />
                       )}
+
+                      {/* Pre-loading overlay */}
+                      {stage === 'preloading' && (
+                        <div className="absolute inset-0 z-30 flex items-center justify-center bg-foreground/50 backdrop-blur-sm">
+                          <div className="flex flex-col items-center gap-3 px-6 text-center text-white">
+                            <Loader2 className="h-8 w-8 animate-spin" />
+                            <p className="font-heading text-sm font-semibold">Pre-loading page…</p>
+                            <div className="h-1.5 w-36 overflow-hidden rounded-full bg-white/30">
+                              <div
+                                className="h-full rounded-full bg-white transition-[width] duration-200"
+                                style={{ width: `${preloadProgress}%` }}
+                              />
+                            </div>
+                            <p className="text-[11px] opacity-75">
+                              Scrolling to trigger lazy content
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Countdown overlay */}
@@ -342,8 +447,8 @@ export default function PortfolioRecorderTool() {
                     )}
                   </div>
 
-                  {/* Progress bar */}
-                  {recording && (
+                  {/* Progress bar (recording only) */}
+                  {stage === 'recording' && (
                     <div className="mt-4 h-1.5 w-full max-w-[420px] overflow-hidden rounded-full bg-muted">
                       <div
                         className="h-full rounded-full bg-primary transition-[width] duration-100"
@@ -355,7 +460,7 @@ export default function PortfolioRecorderTool() {
               )}
             </div>
 
-            {/* Recorded video preview */}
+            {/* Recorded video */}
             {stage === 'done' && recordedUrl && (
               <div className="mt-6 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
                 <div className="mb-4 flex items-center gap-2">
@@ -394,6 +499,7 @@ export default function PortfolioRecorderTool() {
 
           {/* ── Controls column ── */}
           <div className="order-1 space-y-5 lg:order-2">
+
             {/* URL input */}
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <label htmlFor="rec-url" className="block text-sm font-medium text-foreground">
@@ -406,19 +512,16 @@ export default function PortfolioRecorderTool() {
                     id="rec-url"
                     type="url"
                     value={url}
-                    onChange={(e) => {
-                      setUrl(e.target.value)
-                      if (error) setError(null)
-                    }}
+                    onChange={(e) => { setUrl(e.target.value); if (error) setError(null) }}
                     onKeyDown={(e) => e.key === 'Enter' && loadSite()}
                     placeholder="https://yourapp.com"
-                    disabled={recording}
+                    disabled={isActive}
                     className="w-full rounded-xl border border-border bg-background px-9 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
                   />
                 </div>
                 <button
                   onClick={loadSite}
-                  disabled={recording}
+                  disabled={isActive}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
                 >
                   Load
@@ -437,14 +540,14 @@ export default function PortfolioRecorderTool() {
               <p className="text-sm font-medium text-foreground">Device view</p>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {(Object.keys(devices) as DeviceId[]).map((id) => {
-                  const D = devices[id]
+                  const D    = devices[id]
                   const Icon = D.icon
                   const active = device === id
                   return (
                     <button
                       key={id}
                       onClick={() => setDevice(id)}
-                      disabled={recording}
+                      disabled={isActive}
                       className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-xs font-medium transition-all disabled:opacity-60 ${
                         active
                           ? 'border-primary bg-primary/10 text-primary'
@@ -476,7 +579,7 @@ export default function PortfolioRecorderTool() {
                 max={60}
                 step={1}
                 value={duration}
-                disabled={recording}
+                disabled={isActive}
                 onChange={(e) => setDuration(Number(e.target.value))}
                 className="mt-3 w-full accent-primary disabled:opacity-60"
               />
@@ -489,7 +592,7 @@ export default function PortfolioRecorderTool() {
                   <button
                     key={d}
                     onClick={() => setDuration(d)}
-                    disabled={recording}
+                    disabled={isActive}
                     className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60 ${
                       duration === d
                         ? 'bg-primary text-primary-foreground'
@@ -515,7 +618,7 @@ export default function PortfolioRecorderTool() {
                     <button
                       key={id}
                       onClick={() => setPageLength(id)}
-                      disabled={recording}
+                      disabled={isActive}
                       className={`rounded-xl border px-3 py-2 text-xs font-medium transition-all disabled:opacity-60 ${
                         active
                           ? 'border-primary bg-primary/10 text-primary'
@@ -536,13 +639,13 @@ export default function PortfolioRecorderTool() {
                 {([
                   { id: 'smooth' as Easing, label: 'Smooth (ease)' },
                   { id: 'linear' as Easing, label: 'Constant' },
-                ]).map((opt) => {
+                ] as const).map((opt) => {
                   const active = easing === opt.id
                   return (
                     <button
                       key={opt.id}
                       onClick={() => setEasing(opt.id)}
-                      disabled={recording}
+                      disabled={isActive}
                       className={`rounded-xl border px-3 py-2 text-xs font-medium transition-all disabled:opacity-60 ${
                         active
                           ? 'border-primary bg-primary/10 text-primary'
@@ -567,6 +670,11 @@ export default function PortfolioRecorderTool() {
                   <Square className="h-4 w-4 fill-current" />
                   {stage === 'processing' ? 'Processing…' : 'Stop & Save'}
                 </button>
+              ) : stage === 'preloading' ? (
+                <div className="flex w-full items-center justify-center gap-2 rounded-xl bg-muted px-5 py-3 text-sm font-semibold text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Pre-loading page… {preloadProgress}%
+                </div>
               ) : (
                 <button
                   onClick={beginRecording}
@@ -574,12 +682,13 @@ export default function PortfolioRecorderTool() {
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Video className="h-4 w-4" />
-                  Start Recording
+                  {stage === 'countdown' ? 'Starting…' : 'Start Recording'}
                 </button>
               )}
               <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
                 <Wand2 className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-                When prompted, choose <strong className="font-semibold text-foreground">&quot;This Tab&quot;</strong> and allow sharing. The page will auto-scroll and stop on its own.
+                The page pre-loads automatically before recording. When your browser asks, click{' '}
+                <strong className="font-semibold text-foreground">&quot;Share&quot;</strong> — only the website area will be captured in the video.
               </p>
             </div>
           </div>
