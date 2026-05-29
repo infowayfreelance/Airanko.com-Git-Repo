@@ -165,18 +165,26 @@ export default function PortfolioRecorderTool() {
     setPreloadProgress(0)
     await runPreload()
 
+    // Make sure the device frame is scrolled fully into view before we map
+    // crop coordinates, so the rect we read matches what the tab captures.
+    viewportRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior })
+    await new Promise((r) => setTimeout(r, 150))
+
     // ── Phase 2: Request screen capture ─────────────────────────────────────
-    // preferCurrentTab (Chrome 107+) pre-selects this tab so the user just
-    // clicks one "Share" button without having to pick a tab.
+    // preferCurrentTab + selfBrowserSurface make Chrome show a minimal
+    // "Share this tab?" prompt (no full-screen / window / tab picker).
     let stream: MediaStream
     try {
       stream = await (navigator.mediaDevices as MediaDevices).getDisplayMedia({
         video: {
           frameRate: 30,
-          // @ts-expect-error Chrome-only hint
-          preferCurrentTab: true,
         },
         audio: false,
+        // @ts-expect-error Chrome-only hints to skip the surface picker
+        preferCurrentTab: true,
+        selfBrowserSurface: 'include',
+        surfaceSwitching: 'exclude',
+        monitorTypeSurfaces: 'exclude',
       })
     } catch {
       setError(
@@ -201,24 +209,34 @@ export default function PortfolioRecorderTool() {
       setTimeout(res, 400)
     })
 
-    // ── Build a canvas that crops to the exact viewport div on screen ────────
-    // getBoundingClientRect() gives us the visual rect in CSS pixels after
-    // CSS transforms (scale) are applied.  Multiply by devicePixelRatio to
-    // convert to the physical pixels that the captured stream operates in.
+    // ── Build an HD canvas that crops to the exact viewport div on screen ────
+    // A tab-capture surface maps 1:1 to the CSS layout viewport
+    // (window.innerWidth/Height), NOT to physical pixels. So the conversion
+    // factor from on-screen CSS coords to capture pixels is
+    // videoWidth / window.innerWidth (and the same for height).
     const canvas  = document.createElement('canvas')
-    canvas.width  = dev.width
+    canvas.width  = dev.width   // 1280 desktop → 720p+ HD output
     canvas.height = dev.height
     const ctx     = canvas.getContext('2d')!
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
 
-    const rect = viewportRef.current!.getBoundingClientRect()
-    const dpr  = window.devicePixelRatio || 1
-    const sx   = Math.round(rect.left   * dpr)
-    const sy   = Math.round(rect.top    * dpr)
-    const sw   = Math.round(rect.width  * dpr)   // visual width  = dev.width  * scale * dpr
-    const sh   = Math.round(rect.height * dpr)   // visual height = dev.height * scale * dpr
+    const capW = feedVideo.videoWidth
+    const capH = feedVideo.videoHeight
+    const scaleX = capW / window.innerWidth
+    const scaleY = capH / window.innerHeight
+
+    let sx = 0, sy = 0, sw = capW, sh = capH
+    function computeCrop() {
+      const rect = viewportRef.current!.getBoundingClientRect()
+      sx = Math.max(0, Math.round(rect.left   * scaleX))
+      sy = Math.max(0, Math.round(rect.top    * scaleY))
+      sw = Math.min(capW - sx, Math.round(rect.width  * scaleX))
+      sh = Math.min(capH - sy, Math.round(rect.height * scaleY))
+    }
+    computeCrop()
 
     function drawFrame() {
-      // Crop from the screen capture stream, scale up to full device resolution
       ctx.drawImage(feedVideo, sx, sy, sw, sh, 0, 0, dev.width, dev.height)
     }
 
@@ -228,7 +246,7 @@ export default function PortfolioRecorderTool() {
       : 'video/webm'
 
     chunksRef.current = []
-    const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 8_000_000 })
+    const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 12_000_000 })
     mediaRecorderRef.current = recorder
 
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
@@ -262,6 +280,7 @@ export default function PortfolioRecorderTool() {
         setStage('recording')
         setElapsed(0)
         if (iframeRef.current) iframeRef.current.style.transform = 'translateY(0px)'
+        computeCrop() // re-measure in case layout shifted during countdown
         recorder.start(100)
 
         // Crop-draw loop: at each animation frame, copy the screen capture
