@@ -18,6 +18,7 @@ import {
   PenLine,
   Languages,
   Mic,
+  Video,
   Wand2,
   ArrowRight,
   TrendingUp,
@@ -169,6 +170,13 @@ const categories: Category[] = [
         description: 'Transcribe audio with high accuracy.',
         href: '#',
         badge: 'AI',
+      },
+      {
+        icon: Video,
+        label: 'Portfolio Video Recorder',
+        description: 'Turn any URL into a smooth demo video.',
+        href: '/tools/portfolio-recorder',
+        badge: 'New',
       },
       {
         icon: TrendingUp,
