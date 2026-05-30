@@ -144,13 +144,12 @@ const seoTools = [
   {
     icon: Cpu,
     label: 'AI Content Optimizer',
-    description: 'Optimize existing content with AI suggestions to match search intent and rank faster.',
-    badge: 'AI Powered',
-    badgeVariant: 'secondary' as const,
-    href: '#',
+    description: 'Audit any article against Google\'s 2024 E-E-A-T + Helpful Content rules. Get scores, missing LSI keywords, heading rewrites & fixes.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/content-optimizer',
     color: 'text-teal-600',
     bg: 'bg-teal-50',
-    comingSoon: true,
   },
   {
     icon: Smartphone,

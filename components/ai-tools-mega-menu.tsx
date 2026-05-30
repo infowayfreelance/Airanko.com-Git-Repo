@@ -134,8 +134,8 @@ const categories: Category[] = [
       {
         icon: Cpu,
         label: 'AI Content Optimizer',
-        description: 'Match search intent automatically.',
-        href: '#',
+        description: 'Google E-E-A-T + Helpful Content audit.',
+        href: '/tools/content-optimizer',
         badge: 'AI',
       },
       {
