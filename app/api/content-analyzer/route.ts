@@ -1,70 +1,54 @@
-import { generateText, Output, NoObjectGeneratedError } from 'ai'
+import { generateText } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { NextRequest, NextResponse } from 'next/server'
 import * as z from 'zod'
 
 export const maxDuration = 60
 
-// ---------------------------------------------------------------------------
-// Schema — keep permissive (no .min/.max on arrays/numbers per AI SDK rules)
-// ---------------------------------------------------------------------------
+// ── Schema (for validation only — not passed to SDK structured output) ────────
 const analysisSchema = z.object({
-  aiScore: z
-    .number()
-    .int()
-    .describe('0-100: likelihood content is AI-generated. 100 = clearly AI, 0 = clearly human'),
-  humanScore: z
-    .number()
-    .int()
-    .describe('0-100: how authentic and human the writing feels. 100 = clearly human'),
-  readabilityScore: z
-    .number()
-    .int()
-    .describe('0-100 Flesch Reading Ease equivalent. 70+ = easy, 50-70 = standard, <50 = difficult'),
-  readabilityGrade: z.string().describe('US school grade level e.g. Grade 8'),
-  readabilityLabel: z.enum(['Very Easy', 'Easy', 'Standard', 'Difficult', 'Very Difficult']),
-  overallQuality: z.number().int().describe('0-100 overall content quality score'),
-  wordCount: z.number().int().describe('actual word count of the text'),
-  sentenceCount: z.number().int().describe('actual sentence count'),
-  avgWordsPerSentence: z.number().describe('average words per sentence, rounded to 1 decimal'),
+  aiScore: z.number(),
+  humanScore: z.number(),
+  readabilityScore: z.number(),
+  readabilityGrade: z.string(),
+  readabilityLabel: z.string(),
+  overallQuality: z.number(),
+  wordCount: z.number(),
+  sentenceCount: z.number(),
+  avgWordsPerSentence: z.number(),
   grammarIssues: z.array(
     z.object({
-      original: z
-        .string()
-        .describe('EXACT text from the passage containing the error — copy it verbatim'),
-      correction: z.string().describe('corrected version of that text'),
-      explanation: z.string().describe('brief 1-sentence explanation of the error'),
-      type: z.enum(['grammar', 'spelling', 'punctuation', 'style']),
+      original: z.string(),
+      correction: z.string(),
+      explanation: z.string(),
+      type: z.string(),
     }),
   ),
   wordSuggestions: z.array(
     z.object({
-      original: z
-        .string()
-        .describe(
-          'EXACT weak/overused word or phrase from the passage — copy it verbatim as it appears',
-        ),
-      alternatives: z
-        .array(z.string())
-        .describe('exactly 3 stronger, more precise alternatives'),
-      reason: z.string().describe('1 sentence explaining why this word is weak'),
+      original: z.string(),
+      alternatives: z.array(z.string()),
+      reason: z.string(),
     }),
   ),
-  aiSignals: z
-    .array(z.string())
-    .describe(
-      'specific patterns in THIS text that suggest AI authorship — be concrete, reference actual phrases or structures',
-    ),
-  humanSignals: z
-    .array(z.string())
-    .describe('patterns in THIS text that suggest authentic human authorship'),
-  improvementTips: z
-    .array(z.string())
-    .describe('actionable tips to improve this specific content'),
-  summary: z.string().describe('2-3 sentence overall assessment of the content'),
+  aiSignals: z.array(z.string()),
+  humanSignals: z.array(z.string()),
+  improvementTips: z.array(z.string()),
+  summary: z.string(),
 })
 
 export type ContentAnalysis = z.infer<typeof analysisSchema>
+
+// Extract the first JSON object from a string (handles markdown code fences)
+function extractJson(text: string): unknown {
+  // Strip markdown fences
+  const stripped = text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim()
+  // Find first { ... } block
+  const start = stripped.indexOf('{')
+  const end = stripped.lastIndexOf('}')
+  if (start === -1 || end === -1) throw new Error('No JSON object found in response')
+  return JSON.parse(stripped.slice(start, end + 1))
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -91,64 +75,78 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { output: result } = await generateText({
-      model: openai('gpt-4o-mini'),
-      output: Output.object({ schema: analysisSchema }),
-      maxOutputTokens: 4000,
-      system: `You are an expert content analyst with deep expertise in:
+    const systemPrompt = `You are an expert content analyst. You MUST respond with ONLY a valid JSON object — no markdown, no explanation, no code fences. Just the raw JSON.
 
-1. AI CONTENT DETECTION: Identify patterns that reveal AI-generated text:
-   - Formulaic transitions ("Furthermore", "In conclusion", "It is worth noting", "It is important to")
-   - Perfect paragraph symmetry and uniform structure
-   - Generic, non-specific claims without concrete examples or data
-   - Repetitive sentence patterns (all start with subject+verb)
-   - Excessive hedging ("may", "might", "could potentially", "it is possible that")
-   - Overuse of em-dashes and colons for stylistic effect
-   - Lack of personal voice, opinions, or unique perspective
-   - "Not only... but also" and similar parallel constructions
+Analyze content for:
+1. AI CONTENT DETECTION: formulaic transitions ("Furthermore", "In conclusion", "It is worth noting"), perfect paragraph symmetry, generic claims without examples, repetitive sentence patterns, excessive hedging, overuse of em-dashes, lack of personal voice.
+2. GRAMMAR & STYLE: subject-verb agreement, wrong tenses, misplaced modifiers, run-ons, incorrect punctuation, redundant phrases. The "original" field must be EXACT text from the passage.
+3. READABILITY: based on sentence length and vocabulary complexity. Grade 6-8 is ideal for web content.
+4. WORD CHOICE: identify weak/vague words (very, really, good, bad, things, stuff, nice, great, important, basically, literally) and suggest 3 stronger alternatives. The "original" field must be EXACT text from the passage.
 
-2. GRAMMAR & STYLE: Identify real errors (not stylistic choices):
-   - Subject-verb agreement errors
-   - Wrong tense usage
-   - Misplaced modifiers
-   - Run-on sentences or fragments
-   - Incorrect punctuation
-   - Redundant phrases ("very unique", "completely destroyed")
-   - Return the EXACT text snippet from the passage as the 'original' field
+Return at most 10 grammar issues and 12 word suggestions.`
 
-3. READABILITY: Calculate based on sentence length and vocabulary complexity.
-   - Grade 6-8 is ideal for web content
-   - Long sentences (20+ words) reduce readability
-   - Complex vocabulary raises the grade level
+    const userPrompt = `Analyze this content and return ONLY a JSON object with this exact structure:
+{
+  "aiScore": <0-100, higher = more AI-generated>,
+  "humanScore": <0-100, higher = more human>,
+  "readabilityScore": <0-100 Flesch Reading Ease>,
+  "readabilityGrade": "<e.g. Grade 8>",
+  "readabilityLabel": "<Very Easy|Easy|Standard|Difficult|Very Difficult>",
+  "overallQuality": <0-100>,
+  "wordCount": <integer>,
+  "sentenceCount": <integer>,
+  "avgWordsPerSentence": <number>,
+  "grammarIssues": [
+    { "original": "<exact text from passage>", "correction": "<corrected>", "explanation": "<1 sentence>", "type": "<grammar|spelling|punctuation|style>" }
+  ],
+  "wordSuggestions": [
+    { "original": "<exact weak word from passage>", "alternatives": ["<alt1>","<alt2>","<alt3>"], "reason": "<1 sentence>" }
+  ],
+  "aiSignals": ["<specific AI pattern found in this text>"],
+  "humanSignals": ["<human writing pattern found>"],
+  "improvementTips": ["<actionable tip>"],
+  "summary": "<2-3 sentence overall assessment>"
+}
 
-4. WORD CHOICE: Target these weak/overused words and suggest precise alternatives:
-   - Intensifiers: very, really, quite, rather, extremely, basically, literally
-   - Vague nouns: things, stuff, aspects, elements, factors, areas, issues
-   - Weak adjectives: good, bad, big, small, nice, great, important, interesting
-   - Filler phrases: "in terms of", "with regard to", "it should be noted that"
-   - Return the EXACT word or phrase from the passage as the 'original' field
-
-IMPORTANT: Return at most 10 grammar issues and 12 word suggestions. Focus on the most impactful ones. The 'original' fields MUST match text that actually appears in the passage — do not paraphrase or modify.`,
-      prompt: `Analyze this content thoroughly and return a complete JSON analysis:
-
+TEXT TO ANALYZE:
 ---
 ${trimmed}
 ---
 
-Return the full JSON analysis object. For grammarIssues and wordSuggestions, the 'original' field must be an EXACT copy of text from the passage above.`,
+Respond with ONLY the JSON object. No markdown. No explanation.`
+
+    const { text: rawText } = await generateText({
+      model: openai('gpt-4o-mini'),
+      system: systemPrompt,
+      prompt: userPrompt,
+      maxOutputTokens: 4000,
     })
 
-    return NextResponse.json(result)
-  } catch (err) {
-    console.error('[content-analyzer]', err)
-    if (err instanceof NoObjectGeneratedError) {
+    // Parse and validate the JSON
+    let parsed: unknown
+    try {
+      parsed = extractJson(rawText)
+    } catch {
+      console.error('[content-analyzer] JSON parse failed. Raw:', rawText.slice(0, 300))
       return NextResponse.json(
-        { error: 'The AI did not return a valid analysis. Please try again with shorter text.' },
+        { error: 'The AI returned an unexpected format. Please try again.' },
         { status: 500 },
       )
     }
+
+    const validated = analysisSchema.safeParse(parsed)
+    if (!validated.success) {
+      console.error('[content-analyzer] Schema validation failed:', validated.error.issues)
+      // Return the raw parsed data anyway — better than failing
+      return NextResponse.json(parsed)
+    }
+
+    return NextResponse.json(validated.data)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[content-analyzer] Error:', message)
     return NextResponse.json(
-      { error: 'Analysis failed. Please try again.' },
+      { error: `Analysis failed: ${message}` },
       { status: 500 },
     )
   }
