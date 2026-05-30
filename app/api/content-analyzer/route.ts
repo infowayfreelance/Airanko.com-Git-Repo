@@ -75,13 +75,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { text: rawText } = await generateText({
-      model: openai('gpt-4o-mini'),
-      maxTokens: 4000,
-      messages: [
-        {
-          role: 'system',
-          content: `You are an expert content analyst. You MUST respond with ONLY a valid JSON object — no markdown, no explanation, no code fences. Just the raw JSON.
+    const systemPrompt = `You are an expert content analyst. You MUST respond with ONLY a valid JSON object — no markdown, no explanation, no code fences. Just the raw JSON.
 
 Analyze content for:
 1. AI CONTENT DETECTION: formulaic transitions ("Furthermore", "In conclusion", "It is worth noting"), perfect paragraph symmetry, generic claims without examples, repetitive sentence patterns, excessive hedging, overuse of em-dashes, lack of personal voice.
@@ -89,11 +83,9 @@ Analyze content for:
 3. READABILITY: based on sentence length and vocabulary complexity. Grade 6-8 is ideal for web content.
 4. WORD CHOICE: identify weak/vague words (very, really, good, bad, things, stuff, nice, great, important, basically, literally) and suggest 3 stronger alternatives. The "original" field must be EXACT text from the passage.
 
-Return at most 10 grammar issues and 12 word suggestions.`,
-        },
-        {
-          role: 'user',
-          content: `Analyze this content and return ONLY a JSON object with this exact structure:
+Return at most 10 grammar issues and 12 word suggestions.`
+
+    const userPrompt = `Analyze this content and return ONLY a JSON object with this exact structure:
 {
   "aiScore": <0-100, higher = more AI-generated>,
   "humanScore": <0-100, higher = more human>,
@@ -121,9 +113,13 @@ TEXT TO ANALYZE:
 ${trimmed}
 ---
 
-Respond with ONLY the JSON object. No markdown. No explanation.`,
-        },
-      ],
+Respond with ONLY the JSON object. No markdown. No explanation.`
+
+    const { text: rawText } = await generateText({
+      model: openai('gpt-4o-mini'),
+      system: systemPrompt,
+      prompt: userPrompt,
+      maxOutputTokens: 4000,
     })
 
     // Parse and validate the JSON
