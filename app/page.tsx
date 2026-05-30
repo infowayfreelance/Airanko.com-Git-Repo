@@ -62,13 +62,12 @@ const seoTools = [
   {
     icon: Search,
     label: 'Keyword Research Tool',
-    description: 'Discover high-volume, low-competition keywords to rank higher on search engines.',
-    badge: 'AI Powered',
-    badgeVariant: 'secondary' as const,
-    href: '#',
+    description: 'Pull real keywords from Google Autocomplete, then auto-cluster by intent and difficulty with AI.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/keyword-research',
     color: 'text-teal-600',
     bg: 'bg-teal-50',
-    comingSoon: true,
   },
   {
     icon: FileText,
