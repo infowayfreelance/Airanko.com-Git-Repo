@@ -90,6 +90,13 @@ const categories: Category[] = [
         badge: 'AI',
       },
       {
+        icon: Search,
+        label: 'Keyword Research Tool',
+        description: 'Real Google keywords + AI clustering.',
+        href: '/tools/keyword-research',
+        badge: 'New',
+      },
+      {
         icon: Link2,
         label: 'Link Extractor',
         description: 'Extract all links from any URL.',
