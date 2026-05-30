@@ -7,7 +7,6 @@ import {
   ImageIcon,
   Search,
   FileText,
-  BarChart2,
   Link2,
   Globe,
   ShieldCheck,
@@ -101,13 +100,6 @@ const categories: Category[] = [
         label: 'Link Extractor',
         description: 'Extract all links from any URL.',
         href: '/tools/link-extractor',
-        badge: 'New',
-      },
-      {
-        icon: BarChart2,
-        label: 'SEO Rank Tracker',
-        description: 'Monitor SERP positions daily.',
-        href: '#',
         badge: 'New',
       },
       {
