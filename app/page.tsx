@@ -114,13 +114,12 @@ const seoTools = [
   {
     icon: Globe,
     label: 'Site Audit Tool',
-    description: 'Run a full technical SEO audit to find and fix issues impacting your rankings.',
-    badge: null,
-    badgeVariant: 'secondary' as const,
-    href: '#',
+    description: 'Crawl up to 15 pages, run 25+ real SEO/perf/accessibility checks, get AI step-by-step fixes.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/site-audit',
     color: 'text-indigo-600',
     bg: 'bg-indigo-50',
-    comingSoon: true,
   },
   {
     icon: ShieldCheck,
