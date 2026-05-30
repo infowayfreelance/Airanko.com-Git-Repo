@@ -93,17 +93,6 @@ const seoTools = [
   },
   {
     icon: Link2,
-    label: 'Backlink Checker',
-    description: "Analyze your website's backlink profile and discover new link building opportunities.",
-    badge: null,
-    badgeVariant: 'secondary' as const,
-    href: '#',
-    color: 'text-rose-600',
-    bg: 'bg-rose-50',
-    comingSoon: true,
-  },
-  {
-    icon: Link2,
     label: 'Link Extractor',
     description: 'Crawl an entire website and extract every link across all pages, including sitemap entries. Export to CSV or JSON.',
     badge: 'New',
