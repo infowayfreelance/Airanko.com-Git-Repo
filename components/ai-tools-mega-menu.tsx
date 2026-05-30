@@ -133,9 +133,10 @@ const categories: Category[] = [
       },
       {
         icon: ShieldCheck,
-        label: 'Plagiarism Checker',
-        description: 'Verify content originality.',
-        href: '#',
+        label: 'AI Content Detector',
+        description: 'Detect AI text, fix grammar & readability.',
+        href: '/tools/plagiarism-checker',
+        badge: 'New',
       },
       {
         icon: Languages,
