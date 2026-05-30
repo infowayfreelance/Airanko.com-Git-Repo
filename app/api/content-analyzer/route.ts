@@ -1,4 +1,4 @@
-import { generateText, Output } from 'ai'
+import { generateText, Output, NoObjectGeneratedError } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import { NextRequest, NextResponse } from 'next/server'
 import * as z from 'zod'
@@ -91,9 +91,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { experimental_output: result } = await generateText({
+    const { output: result } = await generateText({
       model: openai('gpt-4o-mini'),
-      experimental_output: Output.object({ schema: analysisSchema }),
+      output: Output.object({ schema: analysisSchema }),
+      maxOutputTokens: 4000,
       system: `You are an expert content analyst with deep expertise in:
 
 1. AI CONTENT DETECTION: Identify patterns that reveal AI-generated text:
@@ -140,6 +141,12 @@ Return the full JSON analysis object. For grammarIssues and wordSuggestions, the
     return NextResponse.json(result)
   } catch (err) {
     console.error('[content-analyzer]', err)
+    if (err instanceof NoObjectGeneratedError) {
+      return NextResponse.json(
+        { error: 'The AI did not return a valid analysis. Please try again with shorter text.' },
+        { status: 500 },
+      )
+    }
     return NextResponse.json(
       { error: 'Analysis failed. Please try again.' },
       { status: 500 },
