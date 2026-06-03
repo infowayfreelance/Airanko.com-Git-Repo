@@ -130,6 +130,7 @@ export default function HtmlSitemapPage() {
               {[
                 { href: '/',          label: 'Homepage',     description: 'Free AI-powered SEO & image tools' },
                 { href: '/#tools',    label: 'All Tools',    description: 'Browse the full tool grid' },
+                { href: '/blog',      label: 'Blog',         description: 'SEO, AI, and mobile UX guides' },
                 { href: '/sitemap',   label: 'HTML Sitemap', description: 'You are here' },
               ].map((p) => (
                 <li key={p.label}>

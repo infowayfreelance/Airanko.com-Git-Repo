@@ -26,6 +26,11 @@ const tools: { slug: string; priority: number; changeFrequency: MetadataRoute.Si
   { slug: 'logo-generator',      priority: 0.7, changeFrequency: 'monthly' },
 ]
 
+// ── Blog posts ─────────────────────────────────────────────────────────────
+const blogPosts: { slug: string; priority: number }[] = [
+  { slug: 'top-10-mobile-friendly-websites', priority: 0.8 },
+]
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date()
 
@@ -42,6 +47,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.5,
     },
+    {
+      url: `${BASE_URL}/blog`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
+    ...blogPosts.map((p) => ({
+      url: `${BASE_URL}/blog/${p.slug}`,
+      lastModified,
+      changeFrequency: 'monthly' as const,
+      priority: p.priority,
+    })),
     ...tools.map((t) => ({
       url: `${BASE_URL}/tools/${t.slug}`,
       lastModified,
