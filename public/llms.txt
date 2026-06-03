@@ -1,0 +1,47 @@
+# Ai Ranko
+
+> Ai Ranko is a free suite of AI-powered SEO and image tools for marketers, developers, content creators, and small businesses. Every tool is free, requires no signup, and follows Google's 2024 Search Quality Rater Guidelines (E-E-A-T) and Helpful Content System.
+
+All tools run either fully in the browser (image tools, privacy-first) or via a backend powered by GPT-4o for AI analysis. Real data sources include Google Autocomplete, YouTube Autocomplete, Wikipedia OpenSearch, and live website crawling — never fake or mocked data.
+
+## SEO AI Tools
+
+- [SEO Strategy Maker](https://airanko.com/tools/seo-strategy-maker): Crawls your site and generates a complete AI-powered SEO strategy with keyword research, competitor analysis, content calendar, technical checklist, and a 6-month month-by-month roadmap.
+- [Site Audit Tool](https://airanko.com/tools/site-audit): Real-crawl SEO audit. Fetches up to 15 pages of your site, runs 25+ checks across SEO, performance, accessibility, mobile, technical, and content categories. Returns per-issue fix instructions written by GPT-4o.
+- [Keyword Research Tool](https://airanko.com/tools/keyword-research): Pulls 150+ real keyword ideas from Google Autocomplete (with a-z alphabet expansion), YouTube, and Wikipedia. Then AI clusters them by intent, scores difficulty, identifies quick wins, and generates 10-15 detailed content briefs.
+- [Bulk Meta & OG Checker](https://airanko.com/tools/meta-checker): Audit meta title, meta description, Open Graph, and Twitter Card tags for one URL or many at once.
+- [Link Extractor](https://airanko.com/tools/link-extractor): Crawl any website and extract every link from all pages, including sitemap entries. Export to CSV or JSON.
+- [Mobile Friendliness Checker](https://airanko.com/tools/mobile-checker): Preview any website in real mobile (iPhone SE/14/Pro Max, Galaxy S23, Pixel 7), tablet (iPad Mini/Pro), and desktop view.
+
+## AI Content Tools
+
+- [AI Content Writer](https://airanko.com/tools/content-writer): Generate SEO articles tuned for Google's 2024 E-E-A-T signals, AI Overview hooks, FAQ schema, and a publish-ready checklist.
+- [AI Content Optimizer](https://airanko.com/tools/content-optimizer): Audits existing content against Google's 2024 Search Quality Rater Guidelines and Helpful Content System. Returns 7 scores (E-E-A-T, Helpful Content, Keyword Optimization, Structure, Search Intent, On-Page SEO, Overall), 8-15 issues with fixes, heading rewrites, missing topics, missing LSI keywords, and AI-generated title + meta + slug + schema recommendation.
+- [AI Content Detector & Grammar Checker](https://airanko.com/tools/plagiarism-checker): Detects AI-written text with AI% and Human% scores, fixes grammar errors with exact corrections, calculates readability (Flesch Reading Ease + grade level), and suggests 3 stronger alternatives for every weak word.
+
+## Image AI Tools
+
+- [Image Resizer & Converter](https://airanko.com/tools/image-resizer): Resize, crop, convert, and optimize images to WebP, PNG, JPEG. Runs fully in your browser.
+- [Bulk Image Resizer](https://airanko.com/tools/bulk-image-resizer): Process unlimited images at once with global settings or per-image tweaks. 100% in-browser, files never leave your device.
+- [AI Background Remover](https://airanko.com/tools/background-remover): Removes image backgrounds with on-device AI (no upload). Private and free.
+- [AI Logo Generator](https://airanko.com/tools/logo-generator): Generate logo concepts and export in multiple formats.
+
+## Utilities
+
+- [Portfolio Video Recorder](https://airanko.com/tools/portfolio-recorder): Turn any URL into a smooth scrolling demo video for portfolio, case study, or social post. 10-60 second customizable duration with HD output.
+
+## About
+
+- Homepage: https://airanko.com
+- HTML Sitemap: https://airanko.com/sitemap
+- XML Sitemap: https://airanko.com/sitemap.xml
+
+## Key facts
+
+- 14 free tools, no signup required, no watermark
+- Privacy-first: image tools never upload files to a server
+- AI tools powered by GPT-4o via OpenAI API
+- Real data sources only — no fake or mocked metrics
+- Built on Next.js 14 App Router, deployed on Vercel
+- Follows Google Search Quality Rater Guidelines (2024) and Helpful Content System
+- Each tool page includes JSON-LD structured data (SoftwareApplication, FAQPage, BreadcrumbList)
