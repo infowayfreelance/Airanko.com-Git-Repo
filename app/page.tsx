@@ -164,9 +164,68 @@ const features = [
   'Export to any format in one click',
 ]
 
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Ai Ranko',
+  url: 'https://airanko.com',
+  logo: 'https://airanko.com/images/ai-ranko-logo.webp',
+  description: 'Free AI-powered SEO and image tools for marketers, developers, and creators.',
+  sameAs: [],
+}
+
+const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Ai Ranko',
+  url: 'https://airanko.com',
+  description: 'Free AI-powered SEO and image tools — no signup required.',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: 'https://airanko.com/sitemap?q={search_term_string}',
+    'query-input': 'required name=search_term_string',
+  },
+}
+
+const itemListJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Free SEO & AI Tools by Ai Ranko',
+  description: 'Complete list of free, AI-powered SEO and image tools available on Ai Ranko.',
+  numberOfItems: 14,
+  itemListElement: [
+    { '@type': 'ListItem', position: 1,  name: 'SEO Strategy Maker',                     url: 'https://airanko.com/tools/seo-strategy-maker' },
+    { '@type': 'ListItem', position: 2,  name: 'Site Audit Tool',                        url: 'https://airanko.com/tools/site-audit' },
+    { '@type': 'ListItem', position: 3,  name: 'AI Content Optimizer',                   url: 'https://airanko.com/tools/content-optimizer' },
+    { '@type': 'ListItem', position: 4,  name: 'Keyword Research Tool',                  url: 'https://airanko.com/tools/keyword-research' },
+    { '@type': 'ListItem', position: 5,  name: 'AI Content Writer',                      url: 'https://airanko.com/tools/content-writer' },
+    { '@type': 'ListItem', position: 6,  name: 'AI Content Detector & Grammar Checker', url: 'https://airanko.com/tools/plagiarism-checker' },
+    { '@type': 'ListItem', position: 7,  name: 'Bulk Meta & OG Checker',                 url: 'https://airanko.com/tools/meta-checker' },
+    { '@type': 'ListItem', position: 8,  name: 'Link Extractor',                         url: 'https://airanko.com/tools/link-extractor' },
+    { '@type': 'ListItem', position: 9,  name: 'Mobile Friendliness Checker',            url: 'https://airanko.com/tools/mobile-checker' },
+    { '@type': 'ListItem', position: 10, name: 'Image Resizer & Converter',              url: 'https://airanko.com/tools/image-resizer' },
+    { '@type': 'ListItem', position: 11, name: 'Bulk Image Resizer',                     url: 'https://airanko.com/tools/bulk-image-resizer' },
+    { '@type': 'ListItem', position: 12, name: 'AI Background Remover',                  url: 'https://airanko.com/tools/background-remover' },
+    { '@type': 'ListItem', position: 13, name: 'AI Logo Generator',                      url: 'https://airanko.com/tools/logo-generator' },
+    { '@type': 'ListItem', position: 14, name: 'Portfolio Video Recorder',               url: 'https://airanko.com/tools/portfolio-recorder' },
+  ],
+}
+
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+      />
       <Navbar />
 
       {/* Hero */}
