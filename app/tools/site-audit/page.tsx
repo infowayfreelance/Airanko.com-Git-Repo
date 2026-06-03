@@ -230,6 +230,7 @@ export default function SiteAuditPage() {
             &copy; {new Date().getFullYear()} Ai Ranko. Audit data is fetched on-demand and never stored.
           </p>
           <nav className="flex gap-4 text-sm text-muted-foreground">
+            <Link href="/sitemap" className="hover:text-foreground transition-colors">Sitemap</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Contact</Link>

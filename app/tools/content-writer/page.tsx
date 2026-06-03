@@ -237,6 +237,7 @@ export default function ContentWriterPage() {
             always fact-check and add your real expertise before publishing.
           </p>
           <nav className="flex gap-4 text-sm text-muted-foreground">
+            <Link href="/sitemap" className="transition-colors hover:text-foreground">Sitemap</Link>
             <Link href="#" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="#" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="#" className="transition-colors hover:text-foreground">Contact</Link>
