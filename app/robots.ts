@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next'
 
+const BASE_URL = 'https://airanko.com'
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
@@ -10,5 +12,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/tools-list'],
       },
     ],
+    sitemap: `${BASE_URL}/sitemap.xml`,
+    host: BASE_URL,
   }
 }
