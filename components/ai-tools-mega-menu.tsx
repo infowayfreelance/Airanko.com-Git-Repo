@@ -21,6 +21,7 @@ import {
   Wand2,
   ArrowRight,
   TrendingUp,
+  Map,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -107,6 +108,13 @@ const categories: Category[] = [
         label: 'Site Audit Tool',
         description: 'Find technical SEO issues fast.',
         href: '/tools/site-audit',
+        badge: 'New',
+      },
+      {
+        icon: Map,
+        label: 'HTML Sitemap Generator',
+        description: 'Generate styled HTML sitemap from any URL.',
+        href: '/tools/html-sitemap-generator',
         badge: 'New',
       },
     ],

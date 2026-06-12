@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   ChevronRight, Zap, Search, FileText, Globe, ShieldCheck, Cpu, Smartphone,
-  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye,
+  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 
@@ -44,6 +44,7 @@ const sections: Section[] = [
       { href: '/tools/meta-checker',       label: 'Bulk Meta & OG Checker', description: 'Audit meta tags, Open Graph, and Twitter Card for one URL or many.', icon: FileText },
       { href: '/tools/link-extractor',     label: 'Link Extractor',      description: 'Crawl any website and extract every link with sitemap entries — export to CSV/JSON.', icon: Link2 },
       { href: '/tools/mobile-checker',     label: 'Mobile Friendliness Checker', description: 'Preview any website in real mobile, tablet, and desktop view.', icon: Smartphone },
+      { href: '/tools/html-sitemap-generator', label: 'HTML Sitemap Generator',  description: 'Generate styled HTML sitemap from any URL — live preview + 5 export formats.', icon: Map },
     ],
   },
   {
