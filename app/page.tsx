@@ -33,6 +33,7 @@ import {
   Sparkles,
   PenLine,
   Map,
+  Bot,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -120,6 +121,16 @@ const seoTools = [
     bg: 'bg-cyan-50',
   },
   {
+    icon: Bot,
+    label: 'AI Code Detector',
+    description: 'Analyze any website, GitHub repo, or pasted code with 8 real audits — inline code, CSS, HTML, JS, copywriting, security, images, metadata.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/ai-code-detector',
+    color: 'text-violet-600',
+    bg: 'bg-violet-50',
+  },
+  {
     icon: PenLine,
     label: 'AI Content Writer',
     description: 'Generate SEO articles with E-E-A-T scoring, AI Overview hooks, FAQ schema, and a publish-ready checklist.',
@@ -203,7 +214,7 @@ const itemListJsonLd = {
   '@type': 'ItemList',
   name: 'Free SEO & AI Tools by Ai Ranko',
   description: 'Complete list of free, AI-powered SEO and image tools available on Ai Ranko.',
-  numberOfItems: 15,
+  numberOfItems: 16,
   itemListElement: [
     { '@type': 'ListItem', position: 1,  name: 'SEO Strategy Maker',                     url: 'https://airanko.com/tools/seo-strategy-maker' },
     { '@type': 'ListItem', position: 2,  name: 'Site Audit Tool',                        url: 'https://airanko.com/tools/site-audit' },
@@ -220,6 +231,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 13, name: 'AI Logo Generator',                      url: 'https://airanko.com/tools/logo-generator' },
     { '@type': 'ListItem', position: 14, name: 'Portfolio Video Recorder',               url: 'https://airanko.com/tools/portfolio-recorder' },
     { '@type': 'ListItem', position: 15, name: 'HTML Sitemap Generator',                 url: 'https://airanko.com/tools/html-sitemap-generator' },
+    { '@type': 'ListItem', position: 16, name: 'AI Code Detector',                       url: 'https://airanko.com/tools/ai-code-detector' },
   ],
 }
 
