@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Map,
   Bot,
+  FileCode2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -118,6 +119,13 @@ const categories: Category[] = [
         href: '/tools/html-sitemap-generator',
         badge: 'New',
       },
+      {
+        icon: FileCode2,
+        label: 'XML Sitemap Generator',
+        description: 'Crawl any site and export a sitemap.xml.',
+        href: '/tools/xml-sitemap-generator',
+        badge: 'New',
+      },
     ],
   },
   {
@@ -148,9 +156,9 @@ const categories: Category[] = [
       },
       {
         icon: Bot,
-        label: 'AI Code Detector',
-        description: 'Detect AI-generated code in any site or repo.',
-        href: '/tools/ai-code-detector',
+        label: 'Vibe Code Detector',
+        description: 'Detect v0, Bolt, Lovable & vibe-coded sites.',
+        href: '/tools/vibe-code-detector',
         badge: 'New',
       },
       {

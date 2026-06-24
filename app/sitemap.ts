@@ -13,7 +13,8 @@ const tools: { slug: string; priority: number; changeFrequency: MetadataRoute.Si
   { slug: 'content-writer',      priority: 0.9, changeFrequency: 'monthly' },
   { slug: 'plagiarism-checker',  priority: 0.9, changeFrequency: 'monthly' },
   { slug: 'html-sitemap-generator', priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'ai-code-detector',    priority: 0.9, changeFrequency: 'monthly' },
+  { slug: 'vibe-code-detector',  priority: 0.9, changeFrequency: 'monthly' },
+  { slug: 'xml-sitemap-generator', priority: 0.9, changeFrequency: 'monthly' },
 
   // Specialized SEO + utility tools
   { slug: 'meta-checker',        priority: 0.8, changeFrequency: 'monthly' },

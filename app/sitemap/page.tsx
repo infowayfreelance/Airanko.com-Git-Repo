@@ -2,14 +2,14 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   ChevronRight, Zap, Search, FileText, Globe, ShieldCheck, Cpu, Smartphone,
-  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map, Bot,
+  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map, Bot, FileCode2,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 
 export const metadata: Metadata = {
   title: 'HTML Sitemap — All Tools & Pages | Ai Ranko',
   description:
-    'Complete list of every page and free SEO + AI tool on Ai Ranko, organized by category. Find what you need fast.',
+    'Complete list of every page and free SEO + AI tool on Ai Ranko, organized by category. Find what you need fast. 17 free tools, no signup.',
   alternates: { canonical: 'https://airanko.com/sitemap' },
   openGraph: {
     title: 'HTML Sitemap — All Tools & Pages | Ai Ranko',
@@ -45,6 +45,7 @@ const sections: Section[] = [
       { href: '/tools/link-extractor',     label: 'Link Extractor',      description: 'Crawl any website and extract every link with sitemap entries — export to CSV/JSON.', icon: Link2 },
       { href: '/tools/mobile-checker',     label: 'Mobile Friendliness Checker', description: 'Preview any website in real mobile, tablet, and desktop view.', icon: Smartphone },
       { href: '/tools/html-sitemap-generator', label: 'HTML Sitemap Generator',  description: 'Generate styled HTML sitemap from any URL — live preview + 5 export formats.', icon: Map },
+      { href: '/tools/xml-sitemap-generator',  label: 'XML Sitemap Generator',   description: 'Crawl any site and generate a Google-ready sitemap.xml — up to 500 URLs, changefreq, priority & image tags.', icon: FileCode2 },
     ],
   },
   {
@@ -54,7 +55,7 @@ const sections: Section[] = [
       { href: '/tools/content-writer',      label: 'AI Content Writer',           description: 'Generate SEO articles with E-E-A-T scoring, AI Overview hooks, and FAQ schema.', icon: PenLine },
       { href: '/tools/content-optimizer',   label: 'AI Content Optimizer',        description: 'Audit existing content against Google 2024 E-E-A-T + Helpful Content rules.', icon: Cpu },
       { href: '/tools/plagiarism-checker',  label: 'AI Content Detector & Grammar Checker', description: 'Detect AI text, fix grammar, check readability, get word replacements.', icon: ShieldCheck },
-      { href: '/tools/ai-code-detector',    label: 'AI Code Detector',                       description: 'Detect AI-generated code in URLs, GitHub repos, or pasted source.', icon: Bot },
+      { href: '/tools/vibe-code-detector',  label: 'Vibe Code Detector',                     description: 'Detect vibe-coded sites built with v0, Bolt, Lovable, Cursor or Replit.', icon: Bot },
     ],
   },
   {
