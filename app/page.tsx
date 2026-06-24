@@ -123,11 +123,11 @@ const seoTools = [
   },
   {
     icon: Bot,
-    label: 'AI Code Detector',
-    description: 'Analyze any website, GitHub repo, or pasted code with 8 real audits — inline code, CSS, HTML, JS, copywriting, security, images, metadata.',
+    label: 'Vibe Code Detector',
+    description: 'Detect vibe-coded sites built with v0, Bolt, Lovable, Cursor or Replit. 8 real audits — utility soup, AI-style comments, generator tags & more.',
     badge: 'New',
     badgeVariant: 'default' as const,
-    href: '/tools/ai-code-detector',
+    href: '/tools/vibe-code-detector',
     color: 'text-violet-600',
     bg: 'bg-violet-50',
   },
@@ -242,7 +242,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 13, name: 'AI Logo Generator',                      url: 'https://airanko.com/tools/logo-generator' },
     { '@type': 'ListItem', position: 14, name: 'Portfolio Video Recorder',               url: 'https://airanko.com/tools/portfolio-recorder' },
     { '@type': 'ListItem', position: 15, name: 'HTML Sitemap Generator',                 url: 'https://airanko.com/tools/html-sitemap-generator' },
-    { '@type': 'ListItem', position: 16, name: 'AI Code Detector',                       url: 'https://airanko.com/tools/ai-code-detector' },
+    { '@type': 'ListItem', position: 16, name: 'Vibe Code Detector',                     url: 'https://airanko.com/tools/vibe-code-detector' },
     { '@type': 'ListItem', position: 17, name: 'XML Sitemap Generator',                  url: 'https://airanko.com/tools/xml-sitemap-generator' },
   ],
 }

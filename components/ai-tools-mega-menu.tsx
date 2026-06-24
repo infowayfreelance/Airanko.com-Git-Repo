@@ -156,9 +156,9 @@ const categories: Category[] = [
       },
       {
         icon: Bot,
-        label: 'AI Code Detector',
-        description: 'Detect AI-generated code in any site or repo.',
-        href: '/tools/ai-code-detector',
+        label: 'Vibe Code Detector',
+        description: 'Detect v0, Bolt, Lovable & vibe-coded sites.',
+        href: '/tools/vibe-code-detector',
         badge: 'New',
       },
       {
