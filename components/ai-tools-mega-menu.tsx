@@ -22,6 +22,7 @@ import {
   ArrowRight,
   TrendingUp,
   Map,
+  Bot,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -143,6 +144,13 @@ const categories: Category[] = [
         label: 'AI Content Detector',
         description: 'Detect AI text, fix grammar & readability.',
         href: '/tools/plagiarism-checker',
+        badge: 'New',
+      },
+      {
+        icon: Bot,
+        label: 'AI Code Detector',
+        description: 'Detect AI-generated code in any site or repo.',
+        href: '/tools/ai-code-detector',
         badge: 'New',
       },
       {

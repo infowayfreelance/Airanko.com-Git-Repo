@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   ChevronRight, Zap, Search, FileText, Globe, ShieldCheck, Cpu, Smartphone,
-  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map,
+  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map, Bot,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 
@@ -54,6 +54,7 @@ const sections: Section[] = [
       { href: '/tools/content-writer',      label: 'AI Content Writer',           description: 'Generate SEO articles with E-E-A-T scoring, AI Overview hooks, and FAQ schema.', icon: PenLine },
       { href: '/tools/content-optimizer',   label: 'AI Content Optimizer',        description: 'Audit existing content against Google 2024 E-E-A-T + Helpful Content rules.', icon: Cpu },
       { href: '/tools/plagiarism-checker',  label: 'AI Content Detector & Grammar Checker', description: 'Detect AI text, fix grammar, check readability, get word replacements.', icon: ShieldCheck },
+      { href: '/tools/ai-code-detector',    label: 'AI Code Detector',                       description: 'Detect AI-generated code in URLs, GitHub repos, or pasted source.', icon: Bot },
     ],
   },
   {
