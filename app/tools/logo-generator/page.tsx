@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: 'Minimalist Logo Generator – Ai Ranko',
   description:
     'Create a clean, minimalist logo for your brand in seconds. Customize shapes, fonts, colors, and layouts — download as SVG or PNG for free.',
+  alternates: { canonical: 'https://airanko.com/tools/logo-generator' },
 }
 
 export default function LogoGeneratorPage() {
