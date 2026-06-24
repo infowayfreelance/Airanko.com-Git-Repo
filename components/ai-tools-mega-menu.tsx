@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Map,
   Bot,
+  FileCode2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -116,6 +117,13 @@ const categories: Category[] = [
         label: 'HTML Sitemap Generator',
         description: 'Generate styled HTML sitemap from any URL.',
         href: '/tools/html-sitemap-generator',
+        badge: 'New',
+      },
+      {
+        icon: FileCode2,
+        label: 'XML Sitemap Generator',
+        description: 'Crawl any site and export a sitemap.xml.',
+        href: '/tools/xml-sitemap-generator',
         badge: 'New',
       },
     ],

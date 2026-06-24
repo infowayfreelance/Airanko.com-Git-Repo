@@ -34,6 +34,7 @@ import {
   PenLine,
   Map,
   Bot,
+  FileCode2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -170,6 +171,16 @@ const seoTools = [
     color: 'text-teal-600',
     bg: 'bg-teal-50',
   },
+  {
+    icon: FileCode2,
+    label: 'XML Sitemap Generator',
+    description: 'Crawl any site and generate a Google-ready sitemap.xml — up to 500 URLs, changefreq, priority, lastmod & image tags.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/xml-sitemap-generator',
+    color: 'text-orange-600',
+    bg: 'bg-orange-50',
+  },
 ]
 
 const stats = [
@@ -214,7 +225,7 @@ const itemListJsonLd = {
   '@type': 'ItemList',
   name: 'Free SEO & AI Tools by Ai Ranko',
   description: 'Complete list of free, AI-powered SEO and image tools available on Ai Ranko.',
-  numberOfItems: 16,
+  numberOfItems: 17,
   itemListElement: [
     { '@type': 'ListItem', position: 1,  name: 'SEO Strategy Maker',                     url: 'https://airanko.com/tools/seo-strategy-maker' },
     { '@type': 'ListItem', position: 2,  name: 'Site Audit Tool',                        url: 'https://airanko.com/tools/site-audit' },
@@ -232,6 +243,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 14, name: 'Portfolio Video Recorder',               url: 'https://airanko.com/tools/portfolio-recorder' },
     { '@type': 'ListItem', position: 15, name: 'HTML Sitemap Generator',                 url: 'https://airanko.com/tools/html-sitemap-generator' },
     { '@type': 'ListItem', position: 16, name: 'AI Code Detector',                       url: 'https://airanko.com/tools/ai-code-detector' },
+    { '@type': 'ListItem', position: 17, name: 'XML Sitemap Generator',                  url: 'https://airanko.com/tools/xml-sitemap-generator' },
   ],
 }
 

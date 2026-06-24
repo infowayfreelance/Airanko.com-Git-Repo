@@ -14,6 +14,7 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 - [Mobile Friendliness Checker](https://airanko.com/tools/mobile-checker): Preview any website in real mobile (iPhone SE/14/Pro Max, Galaxy S23, Pixel 7), tablet (iPad Mini/Pro), and desktop view.
 - [HTML Sitemap Generator](https://airanko.com/tools/html-sitemap-generator): Generate a beautiful, customizable HTML sitemap from any URL. Reads sitemap.xml first or falls back to crawling. Includes 5 layouts (tree, cards, list, columns, compact), 4 themes (modern, minimal, classic, dark) with custom accent colors, live iframe preview, and 5 export formats (standalone HTML, HTML snippet, Markdown, JSON, plain text). Up to 100 pages per generation with configurable crawl depth.
 - [AI Code Detector](https://airanko.com/tools/ai-code-detector): Detect AI-generated code patterns in any website, GitHub repository, or pasted source. Three input modes plus 8 real measurement-based audits — inline code, CSS quality, HTML structure, JavaScript patterns, copywriting signals, security headers (URL mode), image quality, and metadata. Every score derives from real counts, not model probabilities. Full JSON export.
+- [XML Sitemap Generator](https://airanko.com/tools/xml-sitemap-generator): Generate a valid sitemap.xml from any website. Reads existing sitemap.xml or sitemap index files first; falls back to real-crawl up to 500 pages at 1–4 depth levels. Full options: changefreq, priority (0.1–1.0), lastmod dates, image:image extensions, URL exclude patterns. Download as .xml or copy to clipboard.
 
 ## AI Content Tools
 
@@ -45,7 +46,7 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 
 ## Key facts
 
-- 14 free tools, no signup required, no watermark
+- 17 free tools, no signup required, no watermark
 - Privacy-first: image tools never upload files to a server
 - AI tools powered by GPT-4o via OpenAI API
 - Real data sources only — no fake or mocked metrics
