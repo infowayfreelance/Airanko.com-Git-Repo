@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap, Scale, Info, AlertTriangle } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 
 export const metadata: Metadata = {
   title: 'Terms and Conditions | Ai Ranko',
@@ -15,15 +16,6 @@ export const metadata: Metadata = {
     siteName: 'Ai Ranko',
     type: 'website',
   },
-}
-
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Ai Ranko',              item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Terms and Conditions',  item: 'https://airanko.com/terms-and-conditions' },
-  ],
 }
 
 const sections = [
@@ -47,8 +39,8 @@ const sections = [
 export default function TermsAndConditionsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <Navbar />
+      <BreadcrumbSchema items={[{ name: 'Terms and Conditions', href: '/terms-and-conditions' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">

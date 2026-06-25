@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import MetaCheckerTool from '@/components/meta-checker/meta-checker-tool'
 import MetaCheckerSeoSections from '@/components/meta-checker-seo-sections'
 
@@ -161,21 +163,6 @@ const faqJsonLd = {
   ],
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'AI Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://airanko.com/#tools' },
-    {
-      '@type': 'ListItem',
-      position: 3,
-      name: 'Meta & OG Checker',
-      item: 'https://airanko.com/tools/meta-checker',
-    },
-  ],
-}
-
 export default function MetaCheckerPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -186,12 +173,9 @@ export default function MetaCheckerPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <Navbar />
+      />      <Navbar />
+      <ToolSchema name="Bulk Meta & OG Checker" slug="meta-checker" description="Audit meta title, meta description, Open Graph and Twitter Card tags for one URL or many at once." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Meta Checker', href: '/tools/meta-checker' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">

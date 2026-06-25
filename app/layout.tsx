@@ -42,6 +42,45 @@ export const metadata: Metadata = {
   },
 }
 
+const globalJsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': 'https://airanko.com/#organization',
+      name: 'Ai Ranko',
+      url: 'https://airanko.com',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://airanko.com/images/ai-ranko-logo.webp',
+      },
+      sameAs: [],
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        email: 'support@airanko.com',
+        availableLanguage: 'English',
+      },
+    },
+    {
+      '@type': 'WebSite',
+      '@id': 'https://airanko.com/#website',
+      url: 'https://airanko.com',
+      name: 'Ai Ranko',
+      description: 'Free AI-powered SEO and image tools for marketers, developers, and creators.',
+      publisher: { '@id': 'https://airanko.com/#organization' },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: 'https://airanko.com/tools/{search_term_string}',
+        },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ],
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,6 +88,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} bg-background`}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(globalJsonLd) }}
+        />
+      </head>
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

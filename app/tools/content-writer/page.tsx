@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import ContentWriterTool from '@/components/content-writer/content-writer-tool'
 import ContentWriterSeoSections from '@/components/content-writer-seo-sections'
 
@@ -162,21 +164,6 @@ const faqJsonLd = {
   ],
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'AI Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://airanko.com/#tools' },
-    {
-      '@type': 'ListItem',
-      position: 3,
-      name: 'AI Content Writer',
-      item: 'https://airanko.com/tools/content-writer',
-    },
-  ],
-}
-
 export default function ContentWriterPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -187,12 +174,9 @@ export default function ContentWriterPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <Navbar />
+      />      <Navbar />
+      <ToolSchema name="AI Content Writer" slug="content-writer" description="Generate SEO articles tuned for Google E-E-A-T, AI Overview hooks, FAQ schema, and a publish-ready checklist." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Content Writer', href: '/tools/content-writer' }]} />
 
       {/* Breadcrumb */}
       <div

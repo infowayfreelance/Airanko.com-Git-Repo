@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import LinkExtractorTool from '@/components/link-extractor/link-extractor-tool'
 import LinkExtractorSeoSections from '@/components/link-extractor-seo-sections'
 
@@ -161,21 +163,6 @@ const faqJsonLd = {
   ],
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'AI Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://airanko.com/#tools' },
-    {
-      '@type': 'ListItem',
-      position: 3,
-      name: 'Link Extractor',
-      item: 'https://airanko.com/tools/link-extractor',
-    },
-  ],
-}
-
 export default function LinkExtractorPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -186,12 +173,9 @@ export default function LinkExtractorPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <Navbar />
+      />      <Navbar />
+      <ToolSchema name="Link Extractor" slug="link-extractor" description="Crawl any website and extract every link from all pages, including sitemap entries. Export to CSV or JSON." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Link Extractor', href: '/tools/link-extractor' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">
