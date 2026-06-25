@@ -137,6 +137,8 @@ export default function HtmlSitemapPage() {
                 { href: '/sitemap',   label: 'HTML Sitemap', description: 'You are here' },
                 { href: '/privacy-policy',       label: 'Privacy Policy',       description: 'How we collect, use, and protect your data' },
                 { href: '/terms-and-conditions', label: 'Terms and Conditions', description: 'Rules, rights, and responsibilities' },
+                { href: '/cookie-policy',        label: 'Cookie Policy',        description: 'How we use cookies and how to control them' },
+                { href: '/contact',              label: 'Contact',              description: 'Get in touch with the Ai Ranko team' },
               ].map((p) => (
                 <li key={p.label}>
                   <Link href={p.href} className="flex items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/40 hover:bg-muted/30">

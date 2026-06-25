@@ -232,7 +232,7 @@ export default function MobileCheckerPage() {
             <Link href="/sitemap" className="hover:text-foreground transition-colors">Sitemap</Link>
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Contact</Link>
+            <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
           </nav>
         </div>
       </footer>

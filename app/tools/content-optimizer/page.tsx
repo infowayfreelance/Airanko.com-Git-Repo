@@ -124,7 +124,7 @@ export default function ContentOptimizerPage() {
             <Link href="/sitemap" className="transition-colors hover:text-foreground">Sitemap</Link>
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
-            <Link href="#" className="transition-colors hover:text-foreground">Contact</Link>
+            <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
           </nav>
         </div>
       </footer>
