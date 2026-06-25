@@ -135,6 +135,8 @@ export default function HtmlSitemapPage() {
                 { href: '/#tools',    label: 'All Tools',    description: 'Browse the full tool grid' },
                 { href: '/blog',      label: 'Blog',         description: 'SEO, AI, and mobile UX guides' },
                 { href: '/sitemap',   label: 'HTML Sitemap', description: 'You are here' },
+                { href: '/privacy-policy',       label: 'Privacy Policy',       description: 'How we collect, use, and protect your data' },
+                { href: '/terms-and-conditions', label: 'Terms and Conditions', description: 'Rules, rights, and responsibilities' },
               ].map((p) => (
                 <li key={p.label}>
                   <Link href={p.href} className="flex items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/40 hover:bg-muted/30">

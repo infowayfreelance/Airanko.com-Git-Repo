@@ -168,8 +168,8 @@ export default function XmlSitemapGeneratorPage() {
           <nav className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <Link href="/blog" className="hover:text-foreground transition-colors">Blog</Link>
             <Link href="/sitemap" className="hover:text-foreground transition-colors">Sitemap</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Contact</Link>
           </nav>
         </div>
