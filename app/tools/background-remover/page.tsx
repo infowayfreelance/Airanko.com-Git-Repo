@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import BackgroundRemoverTool from '@/components/background-remover/background-remover-tool'
 import BackgroundRemoverSeoSections from '@/components/background-remover-seo-sections'
 
@@ -120,21 +122,6 @@ const faqJsonLd = {
   ],
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'AI Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://airanko.com/#tools' },
-    {
-      '@type': 'ListItem',
-      position: 3,
-      name: 'Background Remover',
-      item: 'https://airanko.com/tools/background-remover',
-    },
-  ],
-}
-
 export default function BackgroundRemoverPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -145,12 +132,9 @@ export default function BackgroundRemoverPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <Navbar />
+      />      <Navbar />
+      <ToolSchema name="AI Background Remover" slug="background-remover" description="Remove image backgrounds with on-device AI. Private, free, and zero upload." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Background Remover', href: '/tools/background-remover' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">

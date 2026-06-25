@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import BulkImageResizerTool from '@/components/bulk-image-resizer/bulk-image-resizer-tool'
 import BulkImageResizerSeoSections from '@/components/bulk-image-resizer-seo-sections'
 
@@ -121,16 +123,6 @@ const faqJsonLd = {
   ],
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'AI Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://airanko.com/#tools' },
-    { '@type': 'ListItem', position: 3, name: 'Bulk Image Resizer', item: 'https://airanko.com/tools/bulk-image-resizer' },
-  ],
-}
-
 export default function BulkImageResizerPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -141,12 +133,9 @@ export default function BulkImageResizerPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <Navbar />
+      />      <Navbar />
+      <ToolSchema name="Bulk Image Resizer" slug="bulk-image-resizer" description="Process unlimited images at once with global or per-image settings. 100% in-browser, files never leave your device." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Bulk Image Resizer', href: '/tools/bulk-image-resizer' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">

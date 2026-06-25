@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap, FileCode2 } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import XmlSitemapGeneratorTool from '@/components/xml-sitemap-generator/xml-sitemap-generator-tool'
 import XmlSitemapGeneratorSeoSections from '@/components/xml-sitemap-generator-seo-sections'
 
@@ -103,23 +105,13 @@ const faqJsonLd = {
   ],
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Ai Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://airanko.com/#tools' },
-    { '@type': 'ListItem', position: 3, name: 'XML Sitemap Generator', item: 'https://airanko.com/tools/xml-sitemap-generator' },
-  ],
-}
-
 export default function XmlSitemapGeneratorPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <Navbar />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />      <Navbar />
+      <ToolSchema name="XML Sitemap Generator" slug="xml-sitemap-generator" description="Generate a Google-ready sitemap.xml from any website. Up to 500 URLs, changefreq, priority, lastmod, and image extensions." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'XML Sitemap Generator', href: '/tools/xml-sitemap-generator' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">

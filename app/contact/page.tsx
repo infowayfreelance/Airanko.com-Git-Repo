@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap, Mail, Clock } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import ContactForm from '@/components/contact/contact-form'
 
 export const metadata: Metadata = {
@@ -17,20 +18,11 @@ export const metadata: Metadata = {
   },
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Ai Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Contact',  item: 'https://airanko.com/contact' },
-  ],
-}
-
 export default function ContactPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <Navbar />
+      <BreadcrumbSchema items={[{ name: 'Contact', href: '/contact' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">

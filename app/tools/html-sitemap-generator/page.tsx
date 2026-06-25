@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import HtmlSitemapGeneratorTool from '@/components/html-sitemap-generator/html-sitemap-generator-tool'
 import HtmlSitemapGeneratorSeoSections from '@/components/html-sitemap-generator-seo-sections'
 
@@ -73,22 +75,13 @@ const faqJsonLd = {
   ],
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Ai Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Tools',    item: 'https://airanko.com/#tools' },
-    { '@type': 'ListItem', position: 3, name: 'HTML Sitemap Generator', item: 'https://airanko.com/tools/html-sitemap-generator' },
-  ],
-}
-
 export default function HtmlSitemapGeneratorPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <Navbar />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />      <Navbar />
+      <ToolSchema name="HTML Sitemap Generator" slug="html-sitemap-generator" description="Generate a styled HTML sitemap from any URL with live preview, 5 layouts, 4 themes and 5 export formats." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'HTML Sitemap Generator', href: '/tools/html-sitemap-generator' }]} />
 
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center gap-1.5 text-sm text-muted-foreground">

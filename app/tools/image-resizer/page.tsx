@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import ImageResizerTool from '@/components/image-resizer/image-resizer-tool'
 import ImageResizerSeoSections from '@/components/image-resizer-seo-sections'
 
@@ -76,6 +78,8 @@ export default function ImageResizerPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Navbar />
+      <ToolSchema name="Image Resizer & Converter" slug="image-resizer" description="Resize, crop, convert and compress images to PNG, JPEG, WebP — runs entirely in your browser." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Image Resizer', href: '/tools/image-resizer' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">

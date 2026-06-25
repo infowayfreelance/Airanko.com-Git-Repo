@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import ToolSchema from '@/components/ToolSchema'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import ContentOptimizerTool from '@/components/content-optimizer/content-optimizer-tool'
 import ContentOptimizerSeoSections from '@/components/content-optimizer-seo-sections'
 
@@ -75,22 +77,13 @@ const faqJsonLd = {
   ],
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Ai Ranko', item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://airanko.com/#tools' },
-    { '@type': 'ListItem', position: 3, name: 'AI Content Optimizer', item: 'https://airanko.com/tools/content-optimizer' },
-  ],
-}
-
 export default function ContentOptimizerPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <Navbar />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />      <Navbar />
+      <ToolSchema name="AI Content Optimizer" slug="content-optimizer" description="Audit existing content against Google 2024 E-E-A-T and Helpful Content rules. Get scores, fixes, heading rewrites and missing LSI keywords." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Content Optimizer', href: '/tools/content-optimizer' }]} />
 
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center gap-1.5 text-sm text-muted-foreground">

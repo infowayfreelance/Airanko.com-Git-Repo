@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap, ShieldCheck, Info } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy | Ai Ranko',
@@ -15,15 +16,6 @@ export const metadata: Metadata = {
     siteName: 'Ai Ranko',
     type: 'website',
   },
-}
-
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Ai Ranko',       item: 'https://airanko.com' },
-    { '@type': 'ListItem', position: 2, name: 'Privacy Policy', item: 'https://airanko.com/privacy-policy' },
-  ],
 }
 
 const sections = [
@@ -44,8 +36,8 @@ const sections = [
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <Navbar />
+      <BreadcrumbSchema items={[{ name: 'Privacy Policy', href: '/privacy-policy' }]} />
 
       {/* Breadcrumb */}
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">
