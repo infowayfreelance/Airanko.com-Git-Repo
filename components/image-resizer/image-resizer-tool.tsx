@@ -81,6 +81,15 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1048576).toFixed(2)} MB`
 }
 
+function buildSeoFilename(rawName: string, w: number, h: number, fmt: OutputFormat): string {
+  const slug = rawName
+    .replace(/\.[^/.]+$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'image'
+  return `${slug}-${w}x${h}.${FORMAT_EXT[fmt]}`
+}
+
 export default function ImageResizerTool() {
   const [imgSrc, setImgSrc] = useState<string | null>(null)
   const [originalFile, setOriginalFile] = useState<File | null>(null)
@@ -115,6 +124,9 @@ export default function ImageResizerTool() {
   const [previewSize, setPreviewSize] = useState<number>(0)
   const [isProcessing, setIsProcessing] = useState(false)
   const [processed, setProcessed] = useState(false)
+
+  // SEO filename
+  const [downloadName, setDownloadName] = useState('')
 
   const imgRef = useRef<HTMLImageElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -204,6 +216,14 @@ export default function ImageResizerTool() {
       setCrop(centerAspectCrop(width, height, cropAspect))
     }
   }
+
+  // Auto-generate a SEO-friendly download filename from the current settings
+  useEffect(() => {
+    if (!originalFile) { setDownloadName(''); return }
+    const w = resizeOverridden ? resizeWidth : baseDims.w
+    const h = resizeOverridden ? resizeHeight : baseDims.h
+    setDownloadName(buildSeoFilename(originalFile.name, w || 1, h || 1, format))
+  }, [originalFile, resizeWidth, resizeHeight, resizeOverridden, baseDims, format])
 
   // Whenever the user finishes a crop (or clears it), recompute the effective
   // base dimensions in *natural* image pixels and snap the resize inputs to
@@ -336,10 +356,9 @@ export default function ImageResizerTool() {
             setProcessed(true)
 
             if (download) {
-              const baseName = originalFile?.name.replace(/\.[^/.]+$/, '') ?? 'image'
               const a = document.createElement('a')
               a.href = url
-              a.download = `${baseName}-airanko.${FORMAT_EXT[format]}`
+              a.download = downloadName || buildSeoFilename(originalFile?.name ?? 'image', dw, dh, format)
               a.click()
             }
             resolve()
@@ -352,7 +371,7 @@ export default function ImageResizerTool() {
     })
 
     setIsProcessing(false)
-  }, [imgSrc, resizeWidth, resizeHeight, resizeOverridden, completedCrop, format, quality, originalFile, imgRef])
+  }, [imgSrc, resizeWidth, resizeHeight, resizeOverridden, completedCrop, format, quality, originalFile, imgRef, downloadName])
 
   const reset = () => {
     setImgSrc(null)
@@ -787,6 +806,16 @@ export default function ImageResizerTool() {
                   <><Settings2 className="mr-2 h-4 w-4" /> Apply &amp; Preview</>
                 )}
               </Button>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Filename</Label>
+                <Input
+                  value={downloadName}
+                  onChange={(e) => setDownloadName(e.target.value)}
+                  className="h-8 text-xs font-mono"
+                  placeholder="image-800x600.webp"
+                />
+                <p className="text-xs text-muted-foreground">Auto-generated SEO name — edit before downloading</p>
+              </div>
               <Button
                 className="w-full"
                 variant="outline"

@@ -52,6 +52,8 @@ interface ImageItem {
   outputH: number
   status: 'idle' | 'processing' | 'done' | 'error'
   expanded: boolean
+  // editable SEO filename
+  customName: string
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -102,6 +104,15 @@ function formatBytes(bytes: number): string {
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 10)
+}
+
+function buildSeoFilename(rawName: string, w: number, h: number, fmt: OutputFormat): string {
+  const slug = rawName
+    .replace(/\.[^/.]+$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'image'
+  return `${slug}-${w}x${h}.${FORMAT_EXT[fmt]}`
 }
 
 function resizeOnCanvas(
@@ -677,6 +688,18 @@ function ImageCard({ item, index, globalFormat, globalQuality, onUpdate, onProce
         </div>
       </div>
 
+      {/* Editable SEO filename */}
+      <div className="px-4 pb-3 flex items-center gap-2">
+        <Label className="text-xs text-muted-foreground shrink-0">Filename:</Label>
+        <Input
+          value={item.customName}
+          onChange={(e) => onUpdate(item.id, { customName: e.target.value })}
+          className="h-7 text-xs font-mono"
+          placeholder="image-800x600.webp"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+
       {/* Output preview when done */}
       {item.status === 'done' && item.outputUrl && (
         <div className="px-4 pb-3">
@@ -761,6 +784,7 @@ export default function BulkImageResizerTool() {
               outputH: img.height,
               status: 'idle',
               expanded: false,
+              customName: buildSeoFilename(file.name, img.width, img.height, 'image/webp'),
             },
           ])
         }
@@ -814,10 +838,9 @@ export default function BulkImageResizerTool() {
         )
       )
       if (download) {
-        const baseName = item.file.name.replace(/\.[^/.]+$/, '')
         const a = document.createElement('a')
         a.href = url
-        a.download = `${baseName}-airanko.${FORMAT_EXT[fmt]}`
+        a.download = item.customName || buildSeoFilename(item.file.name, targetW, targetH, fmt)
         a.click()
       }
     } catch {
@@ -831,10 +854,9 @@ export default function BulkImageResizerTool() {
 
     if (item.outputUrl) {
       const fmt = item.overrideFormat ?? globalFormat
-      const baseName = item.file.name.replace(/\.[^/.]+$/, '')
       const a = document.createElement('a')
       a.href = item.outputUrl
-      a.download = `${baseName}-airanko.${FORMAT_EXT[fmt]}`
+      a.download = item.customName || buildSeoFilename(item.file.name, item.outputW, item.outputH, fmt)
       a.click()
     } else {
       await processOne(id, true)
@@ -860,10 +882,9 @@ export default function BulkImageResizerTool() {
           )
         )
         if (download) {
-          const baseName = item.file.name.replace(/\.[^/.]+$/, '')
           const a = document.createElement('a')
           a.href = url
-          a.download = `${baseName}-airanko.${FORMAT_EXT[fmt]}`
+          a.download = item.customName || buildSeoFilename(item.file.name, targetW, targetH, fmt)
           a.click()
           await new Promise((r) => setTimeout(r, 200))
         }
