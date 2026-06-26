@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useId } from 'react'
+import { useState, useRef, useCallback, useEffect, useId } from 'react'
 import {
   Upload,
   Download,
@@ -805,6 +805,27 @@ export default function BulkImageResizerTool() {
     if (e.dataTransfer.files) loadFiles(e.dataTransfer.files)
   }
 
+  // Paste images from clipboard (copied from web pages, screenshots, etc.)
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      const files: File[] = []
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          const f = item.getAsFile()
+          if (f) files.push(f)
+        }
+      }
+      if (files.length) {
+        e.preventDefault()
+        loadFiles(files)
+      }
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [loadFiles])
+
   // ── Per-image update ────────────────────────────────────────────────────────
 
   const updateImage = useCallback((id: string, patch: Partial<ImageItem>) => {
@@ -969,9 +990,11 @@ export default function BulkImageResizerTool() {
         </div>
         <div className="text-center">
           <p className="font-semibold text-foreground">
-            {images.length > 0 ? 'Drop more images to add them' : 'Drop images here'}
+            {images.length > 0 ? 'Drop, paste, or click to add more' : 'Drop, paste, or click to upload'}
           </p>
-          <p className="mt-1 text-sm">or click to browse — PNG, JPEG, WebP, GIF supported &middot; unlimited files</p>
+          <p className="mt-1 text-sm">
+            Drag files, press <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-mono">Ctrl/Cmd + V</kbd> to paste, or click to browse — PNG, JPEG, WebP, GIF &middot; unlimited files
+          </p>
         </div>
         <input
           ref={fileInputRef}

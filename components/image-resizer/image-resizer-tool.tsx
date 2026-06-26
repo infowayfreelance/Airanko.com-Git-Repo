@@ -169,6 +169,26 @@ export default function ImageResizerTool() {
     if (file) loadFile(file)
   }
 
+  // Paste image from clipboard (copied from a web page, screenshot tool, etc.)
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (file) {
+            e.preventDefault()
+            loadFile(file)
+            break
+          }
+        }
+      }
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [loadFile])
+
   const handleWidthChange = (val: string) => {
     const w = parseInt(val) || 0
     setResizeWidth(w)
@@ -423,8 +443,8 @@ export default function ImageResizerTool() {
             <Upload className="h-8 w-8 text-muted-foreground" />
           </div>
           <div className="text-center">
-            <p className="font-semibold text-foreground">Drop your image here</p>
-            <p className="mt-1 text-sm">or click to browse — PNG, JPEG, WebP, GIF, BMP supported</p>
+            <p className="font-semibold text-foreground">Drop, paste, or click to upload</p>
+            <p className="mt-1 text-sm">Drag a file, press <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-mono">Ctrl/Cmd + V</kbd> to paste, or click to browse — PNG, JPEG, WebP, GIF, BMP</p>
           </div>
           <input
             ref={fileInputRef}
