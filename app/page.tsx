@@ -133,6 +133,16 @@ const seoTools = [
     bg: 'bg-violet-50',
   },
   {
+    icon: Globe,
+    label: 'Website Cloner',
+    description: 'Clone any web page to a self-contained HTML file — inlines CSS & JS, rewrites asset URLs. Live preview and one-click download.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/website-cloner',
+    color: 'text-teal-600',
+    bg: 'bg-teal-50',
+  },
+  {
     icon: PenLine,
     label: 'AI Content Writer',
     description: 'Generate SEO articles with E-E-A-T scoring, AI Overview hooks, FAQ schema, and a publish-ready checklist.',
@@ -245,6 +255,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 15, name: 'HTML Sitemap Generator',                 url: 'https://airanko.com/tools/html-sitemap-generator' },
     { '@type': 'ListItem', position: 16, name: 'Vibe Code Detector',                     url: 'https://airanko.com/tools/vibe-code-detector' },
     { '@type': 'ListItem', position: 17, name: 'XML Sitemap Generator',                  url: 'https://airanko.com/tools/xml-sitemap-generator' },
+    { '@type': 'ListItem', position: 18, name: 'Website Cloner',                         url: 'https://airanko.com/tools/website-cloner' },
   ],
 }
 
