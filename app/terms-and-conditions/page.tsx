@@ -14,7 +14,24 @@ export const metadata: Metadata = {
     description: 'The rules and responsibilities that govern your use of Ai Ranko and all tools hosted on our platform.',
     url: 'https://airanko.com/terms-and-conditions',
     siteName: 'Ai Ranko',
+    locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+        width: 1200,
+        height: 630,
+        alt: 'Terms and Conditions | Ai Ranko',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Terms and Conditions | Ai Ranko',
+    description: 'The rules and responsibilities that govern your use of Ai Ranko and all tools hosted on our platform.',
+    images: [
+      'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+    ],
   },
 }
 

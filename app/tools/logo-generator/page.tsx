@@ -5,10 +5,38 @@ import { ChevronRight, Sparkles } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Minimalist Logo Generator – Ai Ranko',
+  title: 'Free Minimalist Logo Generator — Download SVG & PNG | Ai Ranko',
   description:
-    'Create a clean, minimalist logo for your brand in seconds. Customize shapes, fonts, colors, and layouts — download as SVG or PNG for free.',
+    'Create a clean, minimalist logo for your brand in seconds. Customize shapes, fonts, colors, and layouts — download as SVG or PNG for free. No signup, no watermark.',
+  keywords:
+    'free logo generator, minimalist logo maker, logo creator online, brand logo design, SVG logo generator, PNG logo download, free logo design tool, logo maker no signup',
   alternates: { canonical: 'https://airanko.com/tools/logo-generator' },
+  openGraph: {
+    title: 'Free Minimalist Logo Generator — Download SVG & PNG | Ai Ranko',
+    description:
+      'Create a clean, minimalist logo for your brand in seconds. Customize shapes, fonts, colors, and layouts — download as SVG or PNG for free.',
+    url: 'https://airanko.com/tools/logo-generator',
+    siteName: 'Ai Ranko',
+    locale: 'en_US',
+    type: 'website',
+    images: [
+      {
+        url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+        width: 1200,
+        height: 630,
+        alt: 'Free Minimalist Logo Generator | Ai Ranko',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Free Minimalist Logo Generator — Download SVG & PNG | Ai Ranko',
+    description:
+      'Create a clean, minimalist logo for your brand in seconds. Download as SVG or PNG for free. No signup.',
+    images: [
+      'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+    ],
+  },
 }
 
 export default function LogoGeneratorPage() {

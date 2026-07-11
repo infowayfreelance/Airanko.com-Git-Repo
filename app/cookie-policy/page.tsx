@@ -6,14 +6,31 @@ import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 
 export const metadata: Metadata = {
   title: 'Cookie Policy | Ai Ranko',
-  description: 'Learn how Ai Ranko uses cookies and how to control them.',
+  description: 'Learn how Ai Ranko uses cookies, what types we set, how long they last, and how to manage or disable them in your browser.',
   alternates: { canonical: 'https://airanko.com/cookie-policy' },
   openGraph: {
     title: 'Cookie Policy | Ai Ranko',
     description: 'Learn how Ai Ranko uses cookies and how to control them.',
     url: 'https://airanko.com/cookie-policy',
     siteName: 'Ai Ranko',
+    locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+        width: 1200,
+        height: 630,
+        alt: 'Cookie Policy | Ai Ranko',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Cookie Policy | Ai Ranko',
+    description: 'Learn how Ai Ranko uses cookies and how to control them.',
+    images: [
+      'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+    ],
   },
 }
 

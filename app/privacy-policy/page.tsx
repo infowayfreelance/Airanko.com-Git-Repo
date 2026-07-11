@@ -7,14 +7,31 @@ import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 export const metadata: Metadata = {
   title: 'Privacy Policy | Ai Ranko',
   description:
-    "Ai Ranko's Privacy Policy — how we collect, use, and protect your data when you use our free SEO and image tools.",
+    "Ai Ranko's Privacy Policy — how we collect, use, and protect your data when you use our free SEO and image tools. Most tools are 100% browser-based and never upload your files.",
   alternates: { canonical: 'https://airanko.com/privacy-policy' },
   openGraph: {
     title: 'Privacy Policy | Ai Ranko',
     description: 'How Ai Ranko collects, uses, and protects your information when you use our tools and services.',
     url: 'https://airanko.com/privacy-policy',
     siteName: 'Ai Ranko',
+    locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+        width: 1200,
+        height: 630,
+        alt: 'Privacy Policy | Ai Ranko',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Privacy Policy | Ai Ranko',
+    description: 'How Ai Ranko collects, uses, and protects your information when you use our tools and services.',
+    images: [
+      'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+    ],
   },
 }
 

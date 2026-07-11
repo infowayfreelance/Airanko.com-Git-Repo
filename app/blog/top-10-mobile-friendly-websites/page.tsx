@@ -24,24 +24,41 @@ const POST = {
 export const metadata: Metadata = {
   title: `${POST.title} | Ai Ranko Blog`,
   description: POST.excerpt,
-  keywords: 'mobile friendly websites, best mobile websites 2026, mobile-first design examples, responsive web design, mobile UX, Core Web Vitals leaders, fastest mobile sites',
+  keywords: 'mobile friendly websites, best mobile websites 2026, mobile-first design examples, responsive web design, mobile UX, Core Web Vitals leaders, fastest mobile sites, mobile usability test, mobile-first indexing examples',
+  authors: [{ name: POST.author, url: 'https://airanko.com' }],
+  category: POST.category,
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-snippet': -1,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+    },
+  },
   alternates: { canonical: POST.url },
   openGraph: {
     title: POST.title,
     description: POST.excerpt,
     url: POST.url,
     siteName: 'Ai Ranko',
+    locale: 'en_US',
     type: 'article',
     publishedTime: POST.date,
     modifiedTime: POST.updated,
     authors: [POST.author],
     images: [{ url: POST.image, width: 1200, height: 630, alt: POST.title }],
+    tags: ['Mobile UX', 'Web Performance', 'Core Web Vitals', 'Responsive Design'],
   },
   twitter: {
     card: 'summary_large_image',
     title: POST.title,
     description: POST.excerpt,
     images: [POST.image],
+    creator: '@airanko',
+    site: '@airanko',
   },
 }
 
