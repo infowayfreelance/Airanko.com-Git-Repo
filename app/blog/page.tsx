@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ChevronRight, Zap, Calendar, Clock, ArrowRight, Smartphone } from 'lucide-react'
+import { ChevronRight, Zap, Calendar, Clock, ArrowRight, Smartphone, ImageIcon } from 'lucide-react'
 import Navbar from '@/components/navbar'
 
 export const metadata: Metadata = {
@@ -28,6 +28,16 @@ type Post = {
 }
 
 const posts: Post[] = [
+  {
+    slug: 'top-10-free-photo-cropping-tools',
+    title: 'Top 10 Free Photo Cropping Tools for Bloggers and Marketers (2026)',
+    excerpt:
+      'We tested the most popular free image cropping tools and ranked them on ease of use, aspect ratio presets, privacy, output quality, and extra features. Here\'s the honest list for content creators.',
+    date: 'July 11, 2026',
+    readingTime: '11 min read',
+    category: 'Image Tools',
+    icon: ImageIcon,
+  },
   {
     slug: 'top-10-mobile-friendly-websites',
     title: 'Top 10 Mobile-Friendly Websites in 2026 (Tested and Ranked)',
