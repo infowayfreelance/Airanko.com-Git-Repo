@@ -26,7 +26,20 @@ export const metadata: Metadata = {
   title: `${POST.title} | Ai Ranko Blog`,
   description: POST.excerpt,
   keywords:
-    'free photo cropping tools, best image cropper 2026, free image crop online, crop image for instagram, crop image for blog, image resizer crop converter, browser based image editor, no upload image crop',
+    'free photo cropping tools, best image cropper 2026, free image crop online, crop image for instagram, crop image for blog, image resizer crop converter, browser based image editor, no upload image crop, online image cropper no signup, free crop tool blogger, image crop for seo',
+  authors: [{ name: POST.author, url: 'https://airanko.com' }],
+  category: POST.category,
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-snippet': -1,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+    },
+  },
   alternates: { canonical: POST.url },
   openGraph: {
     title: POST.title,
@@ -38,30 +51,81 @@ export const metadata: Metadata = {
     modifiedTime: POST.updated,
     authors: [POST.author],
     images: [{ url: POST.image, width: 1200, height: 630, alt: POST.title }],
+    locale: 'en_US',
+    tags: ['Image Tools', 'Photo Editing', 'SEO', 'Content Marketing', 'Free Tools'],
   },
   twitter: {
     card: 'summary_large_image',
     title: POST.title,
     description: POST.excerpt,
     images: [POST.image],
+    creator: '@airanko',
+    site: '@airanko',
   },
 }
 
 const articleJsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'Article',
+  '@type': 'BlogPosting',
+  '@id': POST.url,
   headline: POST.title,
   description: POST.excerpt,
-  image: POST.image,
-  author: { '@type': 'Organization', name: POST.author, url: 'https://airanko.com' },
+  image: {
+    '@type': 'ImageObject',
+    url: POST.image,
+    width: 1200,
+    height: 630,
+  },
+  author: {
+    '@type': 'Organization',
+    name: 'Ai Ranko Editorial Team',
+    url: 'https://airanko.com',
+  },
   publisher: {
     '@type': 'Organization',
     name: 'Ai Ranko',
-    logo: { '@type': 'ImageObject', url: 'https://airanko.com/images/ai-ranko-logo.webp' },
+    url: 'https://airanko.com',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://airanko.com/images/ai-ranko-logo.webp',
+      width: 200,
+      height: 60,
+    },
   },
   datePublished: POST.date,
   dateModified: POST.updated,
   mainEntityOfPage: { '@type': 'WebPage', '@id': POST.url },
+  inLanguage: 'en-US',
+  articleSection: POST.category,
+  wordCount: 2200,
+  isPartOf: {
+    '@type': 'Blog',
+    '@id': 'https://airanko.com/blog',
+    name: 'Ai Ranko Blog',
+    publisher: { '@type': 'Organization', name: 'Ai Ranko', url: 'https://airanko.com' },
+  },
+  about: [
+    { '@type': 'Thing', name: 'Image Cropping' },
+    { '@type': 'Thing', name: 'Photo Editing Tools' },
+    { '@type': 'Thing', name: 'Content Marketing' },
+    { '@type': 'Thing', name: 'SEO' },
+  ],
+  mentions: [
+    { '@type': 'WebApplication', name: 'iLoveIMG',   url: 'https://www.iloveimg.com' },
+    { '@type': 'WebApplication', name: 'Ai Ranko Image Resizer', url: 'https://airanko.com/tools/image-resizer' },
+    { '@type': 'WebApplication', name: 'Canva',       url: 'https://www.canva.com' },
+    { '@type': 'WebApplication', name: 'Adobe Express', url: 'https://www.adobe.com/express' },
+    { '@type': 'WebApplication', name: 'Fotor',       url: 'https://www.fotor.com' },
+    { '@type': 'WebApplication', name: 'Picsart',     url: 'https://picsart.com' },
+    { '@type': 'WebApplication', name: 'BeFunky',     url: 'https://www.befunky.com' },
+    { '@type': 'WebApplication', name: 'Pixlr',       url: 'https://pixlr.com' },
+    { '@type': 'WebApplication', name: 'Img2Go',      url: 'https://www.img2go.com' },
+    { '@type': 'WebApplication', name: 'Photopea',    url: 'https://www.photopea.com' },
+  ],
+  speakable: {
+    '@type': 'SpeakableSpecification',
+    cssSelector: ['h1', 'h2', '#final p', '#how-to-choose p'],
+  },
 }
 
 const breadcrumbJsonLd = {
@@ -78,18 +142,20 @@ const itemListJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
   name: POST.title,
+  description: 'The 10 best free photo cropping tools for bloggers and marketers in 2026, ranked by ease of use, privacy, output quality, and extra features.',
   numberOfItems: 10,
+  url: POST.url,
   itemListElement: [
-    { '@type': 'ListItem', position: 1,  name: 'iLoveIMG',                     url: 'https://www.iloveimg.com' },
-    { '@type': 'ListItem', position: 2,  name: 'Ai Ranko Image Resizer',        url: 'https://airanko.com/tools/image-resizer' },
-    { '@type': 'ListItem', position: 3,  name: 'Canva',                         url: 'https://www.canva.com' },
-    { '@type': 'ListItem', position: 4,  name: 'Adobe Express',                 url: 'https://www.adobe.com/express' },
-    { '@type': 'ListItem', position: 5,  name: 'Fotor',                         url: 'https://www.fotor.com' },
-    { '@type': 'ListItem', position: 6,  name: 'Picsart',                       url: 'https://picsart.com' },
-    { '@type': 'ListItem', position: 7,  name: 'BeFunky',                       url: 'https://www.befunky.com' },
-    { '@type': 'ListItem', position: 8,  name: 'Pixlr',                         url: 'https://pixlr.com' },
-    { '@type': 'ListItem', position: 9,  name: 'Img2Go',                        url: 'https://www.img2go.com' },
-    { '@type': 'ListItem', position: 10, name: 'Photopea',                      url: 'https://www.photopea.com' },
+    { '@type': 'ListItem', position: 1,  name: 'iLoveIMG',                           item: { '@type': 'WebApplication', name: 'iLoveIMG',             url: 'https://www.iloveimg.com',                  description: 'Fast and beginner-friendly batch image cropping tool.' } },
+    { '@type': 'ListItem', position: 2,  name: 'Ai Ranko Image Resizer',              item: { '@type': 'WebApplication', name: 'Ai Ranko Image Resizer', url: 'https://airanko.com/tools/image-resizer',  description: '100% browser-based image resizer, cropper, converter and compressor with no upload required.' } },
+    { '@type': 'ListItem', position: 3,  name: 'Canva',                               item: { '@type': 'WebApplication', name: 'Canva',                 url: 'https://www.canva.com',                     description: 'Design platform with smart crop and template library.' } },
+    { '@type': 'ListItem', position: 4,  name: 'Adobe Express',                       item: { '@type': 'WebApplication', name: 'Adobe Express',         url: 'https://www.adobe.com/express',             description: 'Adobe-powered image editor with custom-shape cropping.' } },
+    { '@type': 'ListItem', position: 5,  name: 'Fotor',                               item: { '@type': 'WebApplication', name: 'Fotor',                 url: 'https://www.fotor.com',                     description: 'Creative cropping tool with non-standard shapes and quick effects.' } },
+    { '@type': 'ListItem', position: 6,  name: 'Picsart',                             item: { '@type': 'WebApplication', name: 'Picsart',               url: 'https://picsart.com',                       description: 'Social-first image editor with extensive template library.' } },
+    { '@type': 'ListItem', position: 7,  name: 'BeFunky',                             item: { '@type': 'WebApplication', name: 'BeFunky',               url: 'https://www.befunky.com',                   description: 'Photo editor with composition presets and Golden Ratio crop.' } },
+    { '@type': 'ListItem', position: 8,  name: 'Pixlr',                               item: { '@type': 'WebApplication', name: 'Pixlr',                 url: 'https://pixlr.com',                         description: 'Photoshop-like browser editor with layer and mask support.' } },
+    { '@type': 'ListItem', position: 9,  name: 'Img2Go',                              item: { '@type': 'WebApplication', name: 'Img2Go',                url: 'https://www.img2go.com',                    description: 'Multi-format image editor supporting cloud storage and URL uploads.' } },
+    { '@type': 'ListItem', position: 10, name: 'Photopea',                            item: { '@type': 'WebApplication', name: 'Photopea',              url: 'https://www.photopea.com',                  description: 'Professional-grade browser editor with PSD file support.' } },
   ],
 }
 
@@ -118,6 +184,68 @@ const faqJsonLd = {
       acceptedAnswer: { '@type': 'Answer', text: 'Genuinely browser-based tools (where processing happens via JavaScript on your device) never send your image to a server, so yes — those are private by design. Always check whether a tool says "no upload required" versus one that silently uploads your file in the background.' },
     },
   ],
+}
+
+const howToJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: 'How to Choose the Right Free Photo Cropping Tool',
+  description: 'A guide to picking the best free image cropping tool based on your workflow and privacy needs.',
+  step: [
+    {
+      '@type': 'HowToStep',
+      position: 1,
+      name: 'Identify how often you crop',
+      text: 'If you only crop occasionally and want zero learning curve, iLoveIMG or Fotor will get the job done fast.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 2,
+      name: 'Assess your privacy requirements',
+      text: 'If you handle client images, product photography, or anything sensitive, prioritize a browser-based tool like Ai Ranko that never uploads your files to a server.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 3,
+      name: 'Consider your design needs',
+      text: 'If you are building full social media graphics with text and branding, Canva or Picsart\'s template libraries will save you more time than a standalone cropper.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 4,
+      name: 'Check for all-in-one features',
+      text: 'If you need to crop and immediately optimize for page speed and SEO, look for a tool that combines cropping with resizing, compression, and WebP conversion in one step.',
+    },
+  ],
+}
+
+const aiRankoToolJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  '@id': 'https://airanko.com/tools/image-resizer',
+  name: 'Ai Ranko Image Resizer, Cropper & Converter',
+  applicationCategory: 'MultimediaApplication',
+  applicationSubCategory: 'Image Editing',
+  operatingSystem: 'Any (browser-based)',
+  url: 'https://airanko.com/tools/image-resizer',
+  description: '100% browser-based image resizer, cropper, converter and compressor. Crop, resize to custom dimensions, convert to WebP, and compress — all in one tab. No upload, no signup, no limits.',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  featureList: [
+    '100% browser-based — images never leave your device',
+    'Crop with social media aspect ratio presets (1:1, 16:9, 4:3)',
+    'Resize to custom pixel dimensions',
+    'Convert to WebP, JPEG, or PNG',
+    'Compress images without quality loss',
+    'No signup, no watermark, no daily limits',
+  ],
+  publisher: {
+    '@type': 'Organization',
+    name: 'Ai Ranko',
+    url: 'https://airanko.com',
+    logo: { '@type': 'ImageObject', url: 'https://airanko.com/images/ai-ranko-logo.webp' },
+  },
+  isAccessibleForFree: true,
+  browserRequirements: 'Requires a modern web browser with JavaScript enabled',
 }
 
 // ── Tool data ─────────────────────────────────────────────────────────────────
@@ -320,6 +448,8 @@ export default function PhotoCroppingToolsBlogPost() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(aiRankoToolJsonLd) }} />
       <Navbar />
 
       {/* Breadcrumb */}
