@@ -7,13 +7,37 @@ export const metadata: Metadata = {
   title: 'Blog — SEO, AI, and Web Performance Insights | Ai Ranko',
   description:
     'Practical guides on SEO, AI-powered content, mobile performance, and the tools modern marketers use every day. Written by the Ai Ranko team.',
+  keywords:
+    'SEO blog, AI content tips, mobile performance guides, free SEO tools blog, image optimization, content marketing, web performance, digital marketing tips',
   alternates: { canonical: 'https://airanko.com/blog' },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-snippet': -1, 'max-image-preview': 'large', 'max-video-preview': -1 },
+  },
   openGraph: {
     title: 'Blog — SEO, AI, and Web Performance Insights | Ai Ranko',
     description: 'Practical guides on SEO, AI-powered content, mobile performance, and the tools modern marketers use every day.',
     url: 'https://airanko.com/blog',
     siteName: 'Ai Ranko',
+    locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+        width: 1200,
+        height: 630,
+        alt: 'Ai Ranko Blog — SEO, AI, and Web Performance Insights',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Blog — SEO, AI, and Web Performance Insights | Ai Ranko',
+    description: 'Practical guides on SEO, AI-powered content, mobile performance, and the tools modern marketers use every day.',
+    images: [
+      'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+    ],
   },
 }
 

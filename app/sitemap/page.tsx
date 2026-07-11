@@ -9,14 +9,31 @@ import Navbar from '@/components/navbar'
 export const metadata: Metadata = {
   title: 'HTML Sitemap — All Tools & Pages | Ai Ranko',
   description:
-    'Complete list of every page and free SEO + AI tool on Ai Ranko, organized by category. Find what you need fast. 17 free tools, no signup.',
+    'Complete list of every page and free SEO + AI tool on Ai Ranko, organized by category. Find what you need fast. No signup required.',
   alternates: { canonical: 'https://airanko.com/sitemap' },
   openGraph: {
     title: 'HTML Sitemap — All Tools & Pages | Ai Ranko',
-    description: 'Complete list of every page and free SEO + AI tool on Ai Ranko.',
+    description: 'Complete list of every page and free SEO + AI tool on Ai Ranko, organized by category.',
     url: 'https://airanko.com/sitemap',
     siteName: 'Ai Ranko',
+    locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+        width: 1200,
+        height: 630,
+        alt: 'HTML Sitemap | Ai Ranko',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'HTML Sitemap — All Tools & Pages | Ai Ranko',
+    description: 'Complete list of every page and free SEO + AI tool on Ai Ranko, organized by category.',
+    images: [
+      'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+    ],
   },
 }
 

@@ -4,17 +4,46 @@ import Link from 'next/link'
 export const metadata: Metadata = {
   title: 'Ai Ranko – Free AI-Powered SEO & Image Tools',
   description:
-    'Boost your rankings with Ai Ranko — free AI-powered SEO tools and image utilities. Resize, convert & optimize images. Analyze meta tags, track keywords, and grow organic traffic.',
+    'Boost your rankings with Ai Ranko — free AI-powered SEO tools and image utilities. Resize, convert & optimize images. Analyze meta tags, track keywords, and grow organic traffic. No signup required.',
+  keywords:
+    'free SEO tools, AI SEO tools, image resizer online, keyword research tool, meta tag checker, site audit tool, free image converter, content optimizer, AI content writer, website cloner, background remover',
   alternates: { canonical: 'https://airanko.com' },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-snippet': -1,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+    },
+  },
   openGraph: {
     title: 'Ai Ranko – Free AI-Powered SEO & Image Tools',
     description:
-      'Boost your rankings with Ai Ranko — free AI-powered SEO tools and image utilities. Resize, convert & optimize images. Analyze meta tags, track keywords, and grow organic traffic.',
+      'Boost your rankings with Ai Ranko — free AI-powered SEO tools and image utilities. Resize, convert & optimize images. Analyze meta tags, track keywords, and grow organic traffic. No signup required.',
+    url: 'https://airanko.com',
+    siteName: 'Ai Ranko',
+    locale: 'en_US',
+    type: 'website',
+    images: [
+      {
+        url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+        width: 1200,
+        height: 630,
+        alt: 'Ai Ranko – Free AI-Powered SEO & Image Tools',
+      },
+    ],
   },
   twitter: {
+    card: 'summary_large_image',
     title: 'Ai Ranko – Free AI-Powered SEO & Image Tools',
     description:
-      'Boost your rankings with Ai Ranko — free AI-powered SEO tools and image utilities. Resize, convert & optimize images. Analyze meta tags, track keywords, and grow organic traffic.',
+      'Free AI-powered SEO tools and image utilities. No signup. Resize images, research keywords, audit your site, and more.',
+    images: [
+      'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
+    ],
   },
 }
 import {
