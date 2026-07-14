@@ -241,6 +241,9 @@ function detectPlatform(html: string, generatorValues: string[]): PlatformDetect
   const detected: DetectedTool[] = []
   let aiPoints = 0
   let cmsPoints = 0
+  // Set only when a real CMS/site-builder is confirmed — libraries like jQuery
+  // add points but can never classify a site as "cms" on their own.
+  let cmsStrong = false
 
   const addTool = (name: string, type: DetectedTool['type'], evidence: string[]) => {
     const existing = detected.find((d) => d.name === name)
@@ -249,22 +252,42 @@ function detectPlatform(html: string, generatorValues: string[]): PlatformDetect
   }
 
   // ── CMS: WordPress ecosystem ──
-  const wpEvidence: string[] = []
-  if (L.includes('/wp-content/'))  wpEvidence.push('wp-content asset paths')
-  if (L.includes('/wp-includes/')) wpEvidence.push('wp-includes core scripts')
-  if (L.includes('/wp-json'))      wpEvidence.push('wp-json REST API endpoint')
-  if (gen.includes('wordpress'))   wpEvidence.push('generator meta tag: WordPress')
-  const isWordPress = wpEvidence.length > 0
-  if (isWordPress) { addTool('WordPress', 'cms', wpEvidence); cmsPoints += 60 }
+  // Only count real ASSET REFERENCES (src=/href=), not text mentions — a
+  // migrated image URL or a blog post mentioning "/wp-content/" must not turn
+  // a Next.js site into "WordPress". Declaring WordPress requires ≥2 distinct
+  // evidence types (or a generator tag).
+  const wpContentAssets  = countMatches(html, /(?:src|href)\s*=\s*["'][^"']*\/wp-content\//gi)
+  const wpIncludesAssets = countMatches(html, /(?:src|href)\s*=\s*["'][^"']*\/wp-includes\//gi)
+  const wpJsonLink       = /<link[^>]*href=["'][^"']*\/wp-json[^"']*["']/i.test(html) || /rel=["']https:\/\/api\.w\.org\/["']/i.test(html)
+  const wpGenerator      = gen.includes('wordpress')
+  const wpBodyClass      = /<body[^>]*class=["'][^"']*\bwp-/i.test(html)
 
-  const hasElementor = /class=["'][^"']*elementor|data-elementor-type|elementor-frontend/i.test(html)
-  if (hasElementor) { addTool('Elementor', 'site-builder', ['elementor-* classes / data-elementor attributes']); cmsPoints += 25 }
+  const wpEvidence: string[] = []
+  if (wpContentAssets > 0)  wpEvidence.push(`${wpContentAssets} wp-content asset reference${wpContentAssets > 1 ? 's' : ''}`)
+  if (wpIncludesAssets > 0) wpEvidence.push('wp-includes core scripts')
+  if (wpJsonLink)           wpEvidence.push('wp-json REST API link')
+  if (wpGenerator)          wpEvidence.push('generator meta tag: WordPress')
+  if (wpBodyClass)          wpEvidence.push('WordPress body classes')
+
+  const wpEvidenceTypes = wpEvidence.length
+  const isWordPress = wpGenerator || wpEvidenceTypes >= 2
+  const wpTracesOnly = !isWordPress && wpEvidenceTypes === 1
+  if (isWordPress) { addTool('WordPress', 'cms', wpEvidence); cmsPoints += 60; cmsStrong = true }
+  else if (wpTracesOnly) { addTool('WordPress traces', 'library', [...wpEvidence, 'single weak signal — possibly migrated assets, not a WordPress site']); cmsPoints += 10 }
+
+  const hasElementor = /class=["'][^"']*elementor-|data-elementor-type|elementor-frontend/i.test(html)
+  if (hasElementor) { addTool('Elementor', 'site-builder', ['elementor-* classes / data-elementor attributes']); cmsPoints += 25; cmsStrong = true }
   const hasDivi = L.includes('et_pb_')
-  if (hasDivi) { addTool('Divi Builder', 'site-builder', ['et_pb_* module classes']); cmsPoints += 25 }
+  if (hasDivi) { addTool('Divi Builder', 'site-builder', ['et_pb_* module classes']); cmsPoints += 25; cmsStrong = true }
   const hasWpBakery = L.includes('vc_row')
-  if (hasWpBakery) { addTool('WPBakery', 'site-builder', ['vc_row layout classes']); cmsPoints += 25 }
-  const hasGutenberg = L.includes('wp-block-')
-  if (hasGutenberg) { addTool('Gutenberg', 'site-builder', ['wp-block-* block classes']); cmsPoints += 15 }
+  if (hasWpBakery) { addTool('WPBakery', 'site-builder', ['vc_row layout classes']); cmsPoints += 25; cmsStrong = true }
+
+  // Gutenberg: every WordPress site loads the core "wp-block-library"
+  // stylesheet, so a plain substring match false-flags all WP sites. Only
+  // count actual block markup in class attributes.
+  const gutenbergBlocks = countMatches(html, /class=["'][^"']*\bwp-block-(?!library)[a-z-]+/gi)
+  const hasGutenberg = gutenbergBlocks >= 2
+  if (hasGutenberg) { addTool('Gutenberg', 'site-builder', [`${gutenbergBlocks} wp-block-* elements in page markup`]); cmsPoints += 15 }
   if (L.includes('woocommerce')) { addTool('WooCommerce', 'cms', ['woocommerce classes/assets']); cmsPoints += 10 }
 
   // ── Other CMS / hosted site builders ──
@@ -282,7 +305,7 @@ function detectPlatform(html: string, generatorValues: string[]): PlatformDetect
     { name: 'Weebly',      test: L.includes('weebly.com'), ev: 'Weebly assets', type: 'site-builder' },
   ]
   for (const c of otherCms) {
-    if (c.test) { addTool(c.name, c.type, [c.ev]); cmsPoints += 60 }
+    if (c.test) { addTool(c.name, c.type, [c.ev]); cmsPoints += 60; cmsStrong = true }
   }
 
   // ── Traditional-stack libraries (mild human/CMS signal — AI tools rarely emit these today) ──
@@ -295,11 +318,18 @@ function detectPlatform(html: string, generatorValues: string[]): PlatformDetect
   const aiGenerator = generatorValues.find((g) => AI_GENERATOR_NAMES.some((n) => g.toLowerCase().includes(n))) ?? null
   if (aiGenerator) { addTool(aiGenerator, 'ai-tool', [`generator meta tag: ${aiGenerator}`]); aiPoints += 60 }
 
-  const hasV0 = L.includes('data-v0-t') || L.includes('v0.dev') || L.includes('v0.app')
-  if (hasV0) { addTool('v0 by Vercel', 'ai-tool', ['data-v0-t attribute / v0.dev references']); aiPoints += 55 }
+  // v0: direct markers + its signature placeholder asset conventions
+  // (/placeholder.svg?height=…&width=…, placeholder-user.jpg, placeholder-logo.*)
+  const v0Direct = L.includes('data-v0-t') || L.includes('v0.dev') || L.includes('v0.app')
+  const v0PlaceholderSvg = /placeholder\.svg\?(?:height|width)=/i.test(html)
+  const v0PlaceholderAssets = L.includes('placeholder-user.jpg') || L.includes('placeholder-logo.') || L.includes('placeholder.jpg')
+  const hasV0 = v0Direct || v0PlaceholderSvg
+  if (v0Direct) { addTool('v0 by Vercel', 'ai-tool', ['data-v0-t attribute / v0.dev references']); aiPoints += 55 }
+  if (v0PlaceholderSvg) { addTool('v0 by Vercel', 'ai-tool', ['v0 placeholder.svg?height=…&width=… asset convention']); aiPoints += v0Direct ? 10 : 50 }
+  else if (v0PlaceholderAssets) { addTool('v0 by Vercel (probable)', 'ai-tool', ['v0-style placeholder-user/placeholder-logo assets']); aiPoints += 30 }
 
-  const hasLovable = L.includes('gptengineer') || L.includes('gpt-engineer') || L.includes('lovable.dev') || L.includes('lovable-badge') || L.includes('lovableproject.com')
-  if (hasLovable) { addTool('Lovable', 'ai-tool', ['Lovable / GPT-Engineer script or badge']); aiPoints += 55 }
+  const hasLovable = L.includes('gptengineer') || L.includes('gpt-engineer') || L.includes('lovable.dev') || L.includes('lovable-badge') || L.includes('lovableproject.com') || L.includes('/lovable-uploads/')
+  if (hasLovable) { addTool('Lovable', 'ai-tool', [L.includes('/lovable-uploads/') ? '/lovable-uploads/ asset paths' : 'Lovable / GPT-Engineer script or badge']); aiPoints += 55 }
 
   const hasBolt = L.includes('bolt.new')
   if (hasBolt) { addTool('Bolt', 'ai-tool', ['bolt.new references']); aiPoints += 45 }
@@ -331,6 +361,27 @@ function detectPlatform(html: string, generatorValues: string[]): PlatformDetect
   const hasTailwindCdn = L.includes('cdn.tailwindcss.com')
   if (hasTailwindCdn) { addTool('Tailwind CDN', 'library', ['cdn.tailwindcss.com script (prototype-style build)']); aiPoints += 25 }
 
+  // ChatGPT / Claude single-file artifact patterns: AI chatbots that generate a
+  // full HTML page almost always leave section comments ("<!-- Hero Section -->")
+  // and use placeholder image services.
+  const aiSectionComments = countMatches(html, /<!--\s*(?:hero|navigation|nav bar|navbar|header|footer|features?|testimonials?|pricing|faq|cta|call to action|about(?: us)?|contact(?: us)?|services?|gallery|team)\s*(?:section)?\s*-->/gi)
+  const placeholderServices = L.includes('via.placeholder.com') || L.includes('placehold.co') || L.includes('source.unsplash.com') || L.includes('placekitten.com')
+  const chatbotArtifact = (hasTailwindCdn && aiSectionComments >= 2) || (aiSectionComments >= 4) || (placeholderServices && aiSectionComments >= 2)
+  if (chatbotArtifact) {
+    addTool('ChatGPT / Claude (pattern)', 'ai-tool', [
+      `${aiSectionComments} AI-style section comments${hasTailwindCdn ? ' + Tailwind CDN' : ''}${placeholderServices ? ' + placeholder image service' : ''}`,
+    ])
+    aiPoints += 45
+  } else if (aiSectionComments >= 2) {
+    aiPoints += 15
+  }
+  if (placeholderServices && !chatbotArtifact) aiPoints += 10
+
+  // next/font hashed classes + Geist — the default v0 / AI-scaffolded Next.js look (weak, supporting)
+  const hasNextFontHashes = L.includes('__classname_') || L.includes('__variable_')
+  const hasGeist = /geist(?:_|-|\s|sans|mono)/i.test(html)
+  if (hasNextFontHashes && (shadcnFound.length > 0 || hasGeist)) aiPoints += 10
+
   // ── Frameworks (neutral context) ──
   if (L.includes('id="__next"') || L.includes('/_next/') || L.includes('self.__next_f')) addTool('Next.js', 'framework', ['__next root / _next assets'])
   else if (L.includes('data-reactroot') || L.includes('id="root"') && L.includes('react')) addTool('React', 'framework', ['React root markers'])
@@ -345,9 +396,10 @@ function detectPlatform(html: string, generatorValues: string[]): PlatformDetect
   // ── Fixed signal checklists (for the report UI) ──
   const aiSignals: FingerprintSignal[] = [
     { name: 'AI generator meta tag',          found: !!aiGenerator,            detail: aiGenerator ? `"${aiGenerator}"` : 'No v0 / Lovable / Bolt generator tag' },
-    { name: 'v0 by Vercel fingerprint',       found: hasV0,                    detail: hasV0 ? 'data-v0-t attribute or v0.dev reference' : 'Not found' },
-    { name: 'Lovable / GPT-Engineer script',  found: hasLovable,               detail: hasLovable ? 'Lovable badge or gptengineer script' : 'Not found' },
+    { name: 'v0 by Vercel fingerprint',       found: hasV0 || v0PlaceholderAssets, detail: v0Direct ? 'data-v0-t attribute or v0.dev reference' : v0PlaceholderSvg ? 'v0 placeholder.svg asset convention' : v0PlaceholderAssets ? 'v0-style placeholder assets' : 'Not found' },
+    { name: 'Lovable / GPT-Engineer markers', found: hasLovable,               detail: hasLovable ? (L.includes('/lovable-uploads/') ? '/lovable-uploads/ asset paths' : 'Lovable badge or gptengineer script') : 'Not found' },
     { name: 'Bolt / Base44 / Replit markers', found: hasBolt || hasBase44 || hasReplit, detail: hasBolt || hasBase44 || hasReplit ? 'AI builder hosting references' : 'Not found' },
+    { name: 'ChatGPT / Claude artifact patterns', found: chatbotArtifact,      detail: chatbotArtifact ? `${aiSectionComments} section comments${hasTailwindCdn ? ' + Tailwind CDN' : ''}${placeholderServices ? ' + placeholder images' : ''}` : aiSectionComments > 0 ? `${aiSectionComments} section comment${aiSectionComments > 1 ? 's' : ''} (below threshold)` : 'No AI-style section comments' },
     { name: 'shadcn/ui design tokens',        found: shadcnStrong || shadcnModerate, detail: shadcnFound.length > 0 ? `${shadcnFound.length} tokens, ${shadcnTotal} uses` : 'None of the signature token classes' },
     { name: 'Radix UI primitives',            found: hasRadix,                 detail: hasRadix ? 'data-radix-* attributes present' : 'Not found' },
     { name: 'Lucide icon set',                found: hasLucide,                detail: hasLucide ? 'lucide-* SVG classes present' : 'Not found' },
@@ -356,18 +408,21 @@ function detectPlatform(html: string, generatorValues: string[]): PlatformDetect
 
   const anyOtherCms = otherCms.some((c) => c.test)
   const cmsSignals: FingerprintSignal[] = [
-    { name: 'WordPress core assets',          found: isWordPress,   detail: isWordPress ? wpEvidence.join(', ') : 'No wp-content / wp-includes paths' },
+    { name: 'WordPress core assets',          found: isWordPress,   detail: isWordPress ? wpEvidence.join(', ') : wpTracesOnly ? `Weak trace only (${wpEvidence[0]}) — not enough to confirm WordPress` : 'No wp-content / wp-includes asset references' },
     { name: 'Page builder markup',            found: hasElementor || hasDivi || hasWpBakery, detail: hasElementor ? 'Elementor' : hasDivi ? 'Divi' : hasWpBakery ? 'WPBakery' : 'No Elementor / Divi / WPBakery classes' },
-    { name: 'Gutenberg block classes',        found: hasGutenberg,  detail: hasGutenberg ? 'wp-block-* classes present' : 'Not found' },
+    { name: 'Gutenberg block markup',         found: hasGutenberg,  detail: hasGutenberg ? `${gutenbergBlocks} wp-block-* elements in page body` : 'No block markup (core wp-block-library CSS alone does not count)' },
     { name: 'Hosted CMS / site builder',      found: anyOtherCms,   detail: anyOtherCms ? otherCms.filter((c) => c.test).map((c) => c.name).join(', ') : 'No Shopify / Wix / Squarespace / Webflow markers' },
     { name: 'Traditional stack (jQuery / Bootstrap)', found: hasJquery || hasBootstrap, detail: hasJquery || hasBootstrap ? [hasJquery && 'jQuery', hasBootstrap && 'Bootstrap'].filter(Boolean).join(', ') : 'Not found' },
   ]
 
   // ── Classification ──
+  // AI fingerprints take precedence: a vibe-coded site that merely references
+  // old CMS assets stays "ai". "cms" additionally requires a confirmed
+  // CMS/builder (cmsStrong) — library points alone never classify.
   let classification: PlatformDetection['classification']
-  if (aiPoints >= 50) classification = 'ai'
-  else if (cmsPoints >= 50) classification = 'cms'
-  else if (aiPoints >= 25) classification = 'mixed'
+  if (aiPoints >= 45) classification = 'ai'
+  else if (cmsStrong && cmsPoints >= 50) classification = 'cms'
+  else if (aiPoints >= 22) classification = 'mixed'
   else classification = 'custom'
 
   return { classification, aiPoints, cmsPoints, detected, aiSignals, cmsSignals }
