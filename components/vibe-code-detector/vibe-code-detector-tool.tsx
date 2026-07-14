@@ -4,27 +4,28 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Globe, Github, FileCode2, Sparkles, AlertCircle, CheckCircle2, XCircle,
   RefreshCw, Loader2, Cpu, Image as ImageIcon, ShieldCheck,
-  Code, Layers, Palette, FileText, ListTree, MessageSquare,
-  ExternalLink, ChevronRight, Download, Zap,
+  Code, Palette, FileText, ListTree, MessageSquare,
+  ExternalLink, Download, Zap, Fingerprint, Layers, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { VibeCodeDetectorResult, AnalyzerScore } from '@/app/api/vibe-code-detector/route'
+import type { VibeCodeDetectorResult, AnalyzerScore, FingerprintSignal, DetectedTool } from '@/app/api/vibe-code-detector/route'
 
 type Mode = 'url' | 'github' | 'paste'
 type Stage = 'input' | 'analyzing' | 'results'
 
-// 9 steps — each advances at a timed interval giving ~12-15s minimum feel
+// Each step runs for its own duration — total ≈ 17s so every step is visibly processed.
 const PROGRESS_STEPS = [
-  { label: 'Fetching source content…',             weight: 15 },
-  { label: 'Scanning inline code & comments…',     weight: 12 },
-  { label: 'Auditing CSS class density…',          weight: 12 },
-  { label: 'Inspecting HTML structure & depth…',   weight: 12 },
-  { label: 'Detecting AI JavaScript patterns…',    weight: 12 },
-  { label: 'Analyzing copywriting signals…',       weight: 12 },
-  { label: 'Checking security headers…',           weight: 7  },
-  { label: 'Auditing images & metadata…',          weight: 12 },
-  { label: 'Compiling vibe score…',                weight: 6  },
+  { label: 'Fetching source content…',                  ms: 2600 },
+  { label: 'Detecting CMS & site-builder fingerprints…', ms: 2200 },
+  { label: 'Scanning for AI-tool signatures…',           ms: 2200 },
+  { label: 'Scanning inline code & comments…',           ms: 1700 },
+  { label: 'Auditing CSS & utility class density…',      ms: 1700 },
+  { label: 'Inspecting HTML structure & depth…',         ms: 1600 },
+  { label: 'Analyzing JavaScript patterns…',             ms: 1600 },
+  { label: 'Analyzing copywriting signals…',             ms: 1400 },
+  { label: 'Compiling final verdict…',                   ms: 1600 },
 ]
+const TOTAL_MS = PROGRESS_STEPS.reduce((s, x) => s + x.ms, 0)
 
 const severityColor: Record<string, string> = {
   Clean:     'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -38,6 +39,21 @@ function scoreToHex(score: number): string {
   if (score < 50) return '#f59e0b'
   if (score < 75) return '#f97316'
   return '#ef4444'
+}
+
+const TOOL_TYPE_STYLE: Record<DetectedTool['type'], string> = {
+  'ai-tool':      'border-red-200 bg-red-50 text-red-700',
+  'cms':          'border-blue-200 bg-blue-50 text-blue-700',
+  'site-builder': 'border-violet-200 bg-violet-50 text-violet-700',
+  'framework':    'border-border bg-muted text-muted-foreground',
+  'library':      'border-border bg-muted text-muted-foreground',
+}
+const TOOL_TYPE_LABEL: Record<DetectedTool['type'], string> = {
+  'ai-tool':      'AI tool',
+  'cms':          'CMS',
+  'site-builder': 'Site builder',
+  'framework':    'Framework',
+  'library':      'Library',
 }
 
 function ScoreGauge({ score, size = 'lg' }: { score: number; size?: 'sm' | 'md' | 'lg' }) {
@@ -88,11 +104,38 @@ function StatBox({ label, value, hint, positive }: { label: string; value: numbe
   )
 }
 
+function SignalRow({ signal, foundMeans }: { signal: FingerprintSignal; foundMeans: 'ai' | 'cms' }) {
+  const found = signal.found
+  const accent = foundMeans === 'ai'
+    ? (found ? 'border-red-200 bg-red-50' : 'border-border bg-background')
+    : (found ? 'border-blue-200 bg-blue-50' : 'border-border bg-background')
+  const iconColor = foundMeans === 'ai' ? 'text-red-500' : 'text-blue-600'
+  return (
+    <div className={cn('flex items-start gap-3 rounded-xl border p-3', accent)}>
+      {found
+        ? <CheckCircle2 className={cn('mt-0.5 h-4 w-4 shrink-0', iconColor)} />
+        : <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/40" />}
+      <div className="min-w-0 flex-1">
+        <p className={cn('text-xs font-semibold', found ? 'text-foreground' : 'text-muted-foreground')}>{signal.name}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground break-words">{signal.detail}</p>
+      </div>
+      <span className={cn(
+        'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold',
+        found
+          ? (foundMeans === 'ai' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700')
+          : 'bg-muted text-muted-foreground',
+      )}>
+        {found ? 'FOUND' : '—'}
+      </span>
+    </div>
+  )
+}
+
 function AnalyzerCard({
-  id, title, subtitle, icon: Icon, data, children,
+  id, title, subtitle, icon: Icon, data, informational, children,
 }: {
   id: string; title: string; subtitle: string; icon: React.ComponentType<{ className?: string }>;
-  data: AnalyzerScore | null; children?: React.ReactNode
+  data: AnalyzerScore | null; informational?: boolean; children?: React.ReactNode
 }) {
   if (!data) {
     return (
@@ -102,7 +145,7 @@ function AnalyzerCard({
             <Icon className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="font-heading text-base font-bold text-foreground">{title}</h2>
+            <h3 className="font-heading text-base font-bold text-foreground">{title}</h3>
             <p className="text-xs text-muted-foreground">Only available in URL mode</p>
           </div>
           <span className="ml-auto rounded-lg border border-border bg-muted px-2 py-1 text-xs text-muted-foreground">N/A</span>
@@ -118,12 +161,14 @@ function AnalyzerCard({
             <Icon className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="font-heading text-base font-bold text-foreground">{title}</h2>
+            <h3 className="font-heading text-base font-bold text-foreground">{title}</h3>
             <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <ScoreGauge score={data.score} size="md" />
+          {informational && (
+            <span className="rounded-lg border border-border bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">Info only — not in vibe score</span>
+          )}
           <span className={cn('rounded-lg border px-2.5 py-1 text-xs font-semibold', severityColor[data.severity])}>{data.severity}</span>
         </div>
       </div>
@@ -144,7 +189,12 @@ export default function VibeCodeDetectorTool() {
   const [currentStep, setCurrentStep] = useState(0)
   const [result, setResult] = useState<VibeCodeDetectorResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showAudits, setShowAudits] = useState(false)
+
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const apiDone = useRef(false)
+  const apiResult = useRef<VibeCodeDetectorResult | null>(null)
+  const finishing = useRef(false)
 
   const charCount = code.length
   const wordCount = code.trim() ? code.trim().split(/\s+/).filter(Boolean).length : 0
@@ -155,48 +205,69 @@ export default function VibeCodeDetectorTool() {
     return code.length >= 100
   }, [mode, urlInput, ghInput, code])
 
+  useEffect(() => () => { if (progressTimer.current) clearInterval(progressTimer.current) }, [])
+
+  function stepIndexForElapsed(elapsed: number): number {
+    let acc = 0
+    for (let i = 0; i < PROGRESS_STEPS.length; i++) {
+      acc += PROGRESS_STEPS[i].ms
+      if (elapsed < acc) return i
+    }
+    return PROGRESS_STEPS.length - 1
+  }
+
   async function analyze() {
     if (!canSubmit) return
     setError(null)
+    setResult(null)
+    setShowAudits(false)
     setStage('analyzing')
     setProgress(0)
     setCurrentStep(0)
+    apiDone.current = false
+    apiResult.current = null
+    finishing.current = false
 
-    // Advance progress at ~500ms per tick — ensures minimum ~12-15s visual duration
-    // regardless of how fast the API returns
-    let p = 0
-    let step = 0
+    const start = Date.now()
+
+    // Elapsed-time-driven animation: every step runs its full duration so the
+    // scan reads as a deliberate, step-by-step audit. If the API is slower than
+    // the animation, we hold at 97% on the last step until it returns.
     progressTimer.current = setInterval(() => {
-      if (step < PROGRESS_STEPS.length - 1) {
-        p = Math.min(p + 2, PROGRESS_STEPS.slice(0, step + 1).reduce((s, x) => s + x.weight, 0))
-        setProgress(p)
-        const cumulative = PROGRESS_STEPS.slice(0, step + 1).reduce((s, x) => s + x.weight, 0)
-        if (p >= cumulative) { step = Math.min(step + 1, PROGRESS_STEPS.length - 1); setCurrentStep(step) }
+      const elapsed = Date.now() - start
+      const idx = stepIndexForElapsed(elapsed)
+      setCurrentStep(idx)
+
+      const rawPct = (elapsed / TOTAL_MS) * 100
+      const cappedPct = Math.min(rawPct, apiDone.current ? 100 : 97)
+      setProgress(Math.min(Math.round(cappedPct), apiDone.current ? 100 : 97))
+
+      if (elapsed >= TOTAL_MS && apiDone.current && !finishing.current) {
+        finishing.current = true
+        if (progressTimer.current) clearInterval(progressTimer.current)
+        setProgress(100)
+        setCurrentStep(PROGRESS_STEPS.length - 1)
+        setTimeout(() => {
+          setResult(apiResult.current)
+          setStage('results')
+        }, 450)
       }
-    }, 500)
+    }, 120)
 
     try {
       const input = mode === 'url' ? urlInput : mode === 'github' ? ghInput : code
-
-      // Minimum 10 seconds so progress bar has time to animate all steps realistically
-      const [res] = await Promise.all([
-        fetch('/api/vibe-code-detector', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode, input }),
-        }),
-        new Promise<void>((resolve) => setTimeout(resolve, 10000)),
-      ])
-
+      const res = await fetch('/api/vibe-code-detector', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, input }),
+      })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error ?? 'Analysis failed.')
       }
       const data: VibeCodeDetectorResult = await res.json()
-      if (progressTimer.current) clearInterval(progressTimer.current)
-      setProgress(100)
-      setCurrentStep(PROGRESS_STEPS.length - 1)
-      setTimeout(() => { setResult(data); setStage('results') }, 300)
+      apiResult.current = data
+      apiDone.current = true
     } catch (err: unknown) {
       if (progressTimer.current) clearInterval(progressTimer.current)
       setError(err instanceof Error ? err.message : 'Something went wrong.')
@@ -211,6 +282,7 @@ export default function VibeCodeDetectorTool() {
     setError(null)
     setProgress(0)
     setCurrentStep(0)
+    setShowAudits(false)
   }
 
   function downloadJson() {
@@ -231,23 +303,23 @@ export default function VibeCodeDetectorTool() {
         <div className="mx-auto max-w-3xl">
           <div className="mx-auto mb-8 max-w-2xl text-center">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
-              <Zap className="h-3 w-3" />
-              8 real analyzers · Zero fake scores · Instant export
+              <Fingerprint className="h-3 w-3" />
+              Platform fingerprinting · CMS-aware · Zero fake scores
             </div>
             <h1 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
               Vibe Code Detector
             </h1>
             <p className="mt-3 leading-relaxed text-muted-foreground text-pretty">
-              Find out if a website, GitHub repo, or code snippet was <strong>vibe-coded with AI</strong>. We fetch your source, then run 8 real audits — CSS density, HTML structure, JS patterns, copywriting signals, security headers, and more. Every score is measured, never guessed.
+              Find out if a website was <strong>vibe-coded with AI tools</strong> like v0, Lovable, Bolt, ChatGPT, or Claude. We fingerprint the actual platform first — WordPress, Elementor, Wix, Shopify and other CMS builds are recognized and never misflagged — then verify with real code-pattern audits.
             </p>
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
-              { icon: Code,       label: '8 real audits' },
-              { icon: Cpu,        label: 'No fake scores' },
-              { icon: ShieldCheck,label: 'Security check' },
-              { icon: Download,   label: 'JSON export' },
+              { icon: Fingerprint, label: 'Tool fingerprints' },
+              { icon: Layers,      label: 'CMS-aware' },
+              { icon: Cpu,         label: 'No fake scores' },
+              { icon: Download,    label: 'JSON export' },
             ].map((f) => (
               <div key={f.label} className="flex items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
                 <f.icon className="h-3.5 w-3.5 text-primary" />
@@ -356,7 +428,7 @@ export default function VibeCodeDetectorTool() {
               </button>
 
               <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                Analysis takes 10–60 seconds. 8 real audits — no AI guesswork, no fake scores.
+                Analysis takes 15–30 seconds. Platform fingerprinting + 8 code audits — no guesswork.
               </p>
             </div>
           </div>
@@ -373,17 +445,17 @@ export default function VibeCodeDetectorTool() {
           <div className="mb-8 flex justify-center">
             <div className="relative flex h-24 w-24 items-center justify-center rounded-full border-4 border-primary/20">
               <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
-              <Zap className="h-9 w-9 text-primary" />
+              <Fingerprint className="h-9 w-9 text-primary" />
             </div>
           </div>
           <h2 className="font-heading text-xl font-bold text-foreground">Scanning for vibe code…</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {mode === 'github' ? 'Fetching repository source files…' : mode === 'url' ? 'Fetching HTML and security headers…' : 'Running 8 real audits on your code…'}
+            {mode === 'github' ? 'Fetching repository source files…' : mode === 'url' ? 'Fetching HTML and fingerprinting the platform…' : 'Fingerprinting the platform and auditing your code…'}
           </p>
 
           <div className="mt-8 overflow-hidden rounded-full bg-muted">
             <div
-              className="h-3 rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500"
+              className="h-3 rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -391,8 +463,8 @@ export default function VibeCodeDetectorTool() {
 
           <div className="mt-8 space-y-2 text-left">
             {PROGRESS_STEPS.map((step, i) => {
-              const done   = i < currentStep
-              const active = i === currentStep
+              const done   = i < currentStep || progress === 100
+              const active = i === currentStep && progress < 100
               return (
                 <div
                   key={step.label}
@@ -419,9 +491,14 @@ export default function VibeCodeDetectorTool() {
   // ── RESULTS STAGE ─────────────────────────────────────────────────────────
   if (!result) return null
 
+  const verdictColor = scoreToHex(result.overall.score)
+  const aiTools = result.platform.detected.filter((d) => d.type === 'ai-tool')
+  const foundAiSignals = result.platform.aiSignals.filter((s) => s.found).length
+  const foundCmsSignals = result.platform.cmsSignals.filter((s) => s.found).length
+
   return (
     <section className="px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-5xl">
 
         {/* Top bar */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -444,52 +521,89 @@ export default function VibeCodeDetectorTool() {
           </div>
         </div>
 
-        {/* Overall score + 8 mini gauges */}
-        <div className="mb-6 grid gap-6 rounded-3xl border border-border bg-card p-6 sm:grid-cols-[auto_1fr] sm:p-8">
-          <div className="flex flex-col items-center gap-3 border-b border-border pb-6 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-8">
-            <ScoreGauge score={result.overall.score} size="lg" />
-            <div className="text-center">
-              <p className="font-heading text-sm font-bold text-foreground">Vibe Score</p>
-              <p className="text-xs font-medium" style={{ color: scoreToHex(result.overall.score) }}>
+        {/* ── Verdict hero ── */}
+        <div className="mb-6 rounded-3xl border border-border bg-card p-6 sm:p-8">
+          <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-center">
+            <div className="flex flex-col items-center gap-2">
+              <ScoreGauge score={result.overall.score} size="lg" />
+              <p className="text-[10px] text-muted-foreground">0 = not vibe-coded · 100 = vibe-coded</p>
+            </div>
+            <div>
+              <span
+                className="inline-block rounded-full border px-3 py-1 text-sm font-bold"
+                style={{ color: verdictColor, borderColor: `${verdictColor}55`, background: `${verdictColor}14` }}
+              >
                 {result.overall.confidence}
+              </span>
+              <p className="mt-3 leading-relaxed text-foreground text-pretty">
+                {result.overall.verdictText}
               </p>
-              <p className="mt-1 text-[10px] text-muted-foreground">0 = human-written · 100 = fully vibe-coded</p>
+
+              {/* Detected platform badges */}
+              {result.platform.detected.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Detected stack</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.platform.detected.map((t) => (
+                      <span
+                        key={t.name}
+                        title={t.evidence.join(' · ')}
+                        className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium', TOOL_TYPE_STYLE[t.type])}
+                      >
+                        {t.name}
+                        <span className="rounded bg-black/5 px-1 py-px text-[9px] font-semibold uppercase tracking-wide opacity-70">{TOOL_TYPE_LABEL[t.type]}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {([
-              { key: 'inlineCode',      label: 'Inline Code',  icon: Code,          data: result.analyzers.inlineCode },
-              { key: 'cssQuality',      label: 'CSS',          icon: Palette,       data: result.analyzers.cssQuality },
-              { key: 'htmlStructure',   label: 'HTML',         icon: ListTree,      data: result.analyzers.htmlStructure },
-              { key: 'jsPatterns',      label: 'JavaScript',   icon: Cpu,           data: result.analyzers.jsPatterns },
-              { key: 'content',         label: 'Copywriting',  icon: MessageSquare, data: result.analyzers.content },
-              { key: 'securityHeaders', label: 'Security',     icon: ShieldCheck,   data: result.analyzers.securityHeaders },
-              { key: 'images',          label: 'Images',       icon: ImageIcon,     data: result.analyzers.images },
-              { key: 'metadata',        label: 'Metadata',     icon: FileText,      data: result.analyzers.metadata },
-            ] as const).map((c) => (
-              <a
-                key={c.key}
-                href={`#analyzer-${c.key}`}
-                className="flex flex-col items-center gap-2 rounded-xl border border-border bg-background p-3 transition-all hover:border-primary/40 hover:bg-card"
-              >
-                {c.data === null ? (
-                  <>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                      <c.icon className="h-4 w-4" />
-                    </div>
-                    <span className="text-[10px] font-medium text-muted-foreground">N/A</span>
-                  </>
-                ) : (
-                  <>
-                    <ScoreGauge score={c.data.score} size="sm" />
-                    <div className="flex items-center gap-1">
-                      <c.icon className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-[10px] font-semibold text-foreground">{c.label}</span>
-                    </div>
-                  </>
-                )}
-              </a>
-            ))}
+        </div>
+
+        {/* ── Evidence panels ── */}
+        <div className="mb-6 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-3xl border border-border bg-card p-6">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-500">
+                  <Fingerprint className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="font-heading text-sm font-bold text-foreground">AI-tool fingerprints</h2>
+                  <p className="text-[11px] text-muted-foreground">Direct evidence of vibe coding</p>
+                </div>
+              </div>
+              <span className={cn('rounded-lg px-2 py-1 text-xs font-bold tabular-nums', foundAiSignals > 0 ? 'bg-red-100 text-red-700' : 'bg-muted text-muted-foreground')}>
+                {foundAiSignals}/{result.platform.aiSignals.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {result.platform.aiSignals.map((s) => <SignalRow key={s.name} signal={s} foundMeans="ai" />)}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-border bg-card p-6">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="font-heading text-sm font-bold text-foreground">CMS &amp; traditional-stack fingerprints</h2>
+                  <p className="text-[11px] text-muted-foreground">Evidence the site is NOT vibe-coded</p>
+                </div>
+              </div>
+              <span className={cn('rounded-lg px-2 py-1 text-xs font-bold tabular-nums', foundCmsSignals > 0 ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground')}>
+                {foundCmsSignals}/{result.platform.cmsSignals.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {result.platform.cmsSignals.map((s) => <SignalRow key={s.name} signal={s} foundMeans="cms" />)}
+            </div>
+            <p className="mt-3 rounded-xl bg-muted/50 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+              CMS and page-builder sites (WordPress, Elementor, Wix, Shopify…) generate template markup that superficially resembles AI output. When these fingerprints are found, code-pattern signals are discounted — a CMS build is not a vibe-coded build.
+            </p>
           </div>
         </div>
 
@@ -523,14 +637,31 @@ export default function VibeCodeDetectorTool() {
           </div>
         )}
 
-        {/* Detailed cards */}
+        {/* ── Detailed audits (collapsible) ── */}
+        <button
+          onClick={() => setShowAudits((v) => !v)}
+          className="mb-4 flex w-full items-center justify-between gap-2 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:bg-muted/40"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Code className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="font-heading text-sm font-bold text-foreground">Detailed code audits</span>
+              <p className="text-[11px] text-muted-foreground">Supporting signals: inline code, CSS, HTML structure, JS patterns, copywriting, images, metadata{result.analyzers.securityHeaders ? ', security headers' : ''}</p>
+            </div>
+          </div>
+          <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', showAudits && 'rotate-180')} />
+        </button>
+
+        {showAudits && (
         <div className="space-y-6">
 
           {/* 1. Inline Code */}
-          <AnalyzerCard id="inlineCode" title="Inline Code Quality" subtitle="Inline scripts, style attributes, event handlers, HTML comments, data-testid" icon={Code} data={result.analyzers.inlineCode}>
+          <AnalyzerCard id="inlineCode" title="Inline Code Quality" subtitle="Inline scripts, event handlers, AI-style comments, debug leftovers" icon={Code} data={result.analyzers.inlineCode}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatBox label="Inline scripts"    value={result.analyzers.inlineCode.details.inline_scripts as number}      hint="<script> without src=" />
-              <StatBox label="Inline styles"     value={result.analyzers.inlineCode.details.inline_styles as number}       hint="style= attributes" />
+              <StatBox label="Inline styles"     value={result.analyzers.inlineCode.details.inline_styles as number}       hint="Common in CMS builds too" positive />
               <StatBox label="Event handlers"    value={result.analyzers.inlineCode.details.inline_events as number}       hint="onclick=, onload=, …" />
               <StatBox label="data-testid"       value={result.analyzers.inlineCode.details.data_testid as number}         hint="AI test scaffolding" />
             </div>
@@ -541,27 +672,13 @@ export default function VibeCodeDetectorTool() {
           </AnalyzerCard>
 
           {/* 2. CSS Quality */}
-          <AnalyzerCard id="cssQuality" title="CSS Quality" subtitle="Tailwind utility density, !important overrides, font count, duplicate declarations" icon={Palette} data={result.analyzers.cssQuality}>
+          <AnalyzerCard id="cssQuality" title="CSS Quality" subtitle="Tailwind utility density, !important overrides, font count" icon={Palette} data={result.analyzers.cssQuality}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatBox label="Heavy utility els" value={result.analyzers.cssQuality.details.heavy_utility_elements as number} hint="≥8 classes on one element" />
               <StatBox label="Long class names"  value={result.analyzers.cssQuality.details.long_class_count as number}       hint="> 30 chars" />
-              <StatBox label="!important count"  value={result.analyzers.cssQuality.details.important_count as number}        hint="Lazy override signal" />
+              <StatBox label="!important count"  value={result.analyzers.cssQuality.details.important_count as number}        hint="Override-heavy CSS" />
               <StatBox label="Font count"        value={result.analyzers.cssQuality.details.font_count as number}             hint="@font-face + imports" />
             </div>
-            {(result.analyzers.cssQuality.details.all_colors as string[]).length > 0 && (
-              <div className="mt-4">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Color palette ({(result.analyzers.cssQuality.details.all_colors as string[]).length} unique — informational)
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(result.analyzers.cssQuality.details.all_colors as string[]).slice(0, 60).map((c, i) => (
-                    <div key={`${c}-${i}`} title={c}>
-                      <div className="h-6 w-6 rounded border border-border" style={{ background: c }} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             {(result.analyzers.cssQuality.details.font_list as string[]).length > 0 && (
               <div className="mt-4">
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Fonts detected</p>
@@ -575,10 +692,10 @@ export default function VibeCodeDetectorTool() {
           </AnalyzerCard>
 
           {/* 3. HTML Structure */}
-          <AnalyzerCard id="htmlStructure" title="HTML Structure" subtitle="Semantic tags, div nesting depth, empty elements, landmark elements" icon={ListTree} data={result.analyzers.htmlStructure}>
+          <AnalyzerCard id="htmlStructure" title="HTML Structure" subtitle="Semantic tags, div nesting, landmarks — discounted for CMS builds" icon={ListTree} data={result.analyzers.htmlStructure}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatBox label="Semantic usage" value={`${result.analyzers.htmlStructure.details.semantic_percentage}%`}  hint="nav, main, article, …" />
-              <StatBox label="Max div depth"  value={result.analyzers.htmlStructure.details.max_div_depth as number}    hint=">6 = vibe signal" />
+              <StatBox label="Semantic usage" value={`${result.analyzers.htmlStructure.details.semantic_percentage}%`}  hint="nav, main, article, …" positive />
+              <StatBox label="Max div depth"  value={result.analyzers.htmlStructure.details.max_div_depth as number}    hint="Template builds nest deep" />
               <StatBox label="Empty elements" value={result.analyzers.htmlStructure.details.empty_elements as number}   hint="Unfilled scaffolding" />
               <StatBox label="ARIA attrs"     value={result.analyzers.htmlStructure.details.aria_attributes as number}  hint="Positive signal" positive />
             </div>
@@ -604,7 +721,7 @@ export default function VibeCodeDetectorTool() {
                       <span className="text-muted-foreground">×{h.count}</span>
                     </div>
                   ))}
-                  {result.analyzers.htmlStructure.details.heading_levels_skipped && (
+                  {result.analyzers.htmlStructure.details.heading_levels_skipped as boolean && (
                     <p className="mt-2 text-[10px] text-amber-600">⚠ Heading levels are skipped</p>
                   )}
                 </div>
@@ -613,27 +730,13 @@ export default function VibeCodeDetectorTool() {
           </AnalyzerCard>
 
           {/* 4. JavaScript */}
-          <AnalyzerCard id="jsPatterns" title="JavaScript Patterns" subtitle="Generic names, AI-style comments, console.log, TODOs, async over-use" icon={Cpu} data={result.analyzers.jsPatterns}>
+          <AnalyzerCard id="jsPatterns" title="JavaScript Patterns" subtitle="AI-style comments, generic names, console.log, TODO scaffolding" icon={Cpu} data={result.analyzers.jsPatterns}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatBox label="Generic names"   value={result.analyzers.jsPatterns.details.generic_names as number}        hint="data, result, response…" />
               <StatBox label="AI comments"     value={result.analyzers.jsPatterns.details.ai_comment_patterns as number}  hint='"Here we…", "This function…"' />
+              <StatBox label="Generic names"   value={result.analyzers.jsPatterns.details.generic_names as number}        hint="data, result, response…" />
               <StatBox label="console.log"     value={result.analyzers.jsPatterns.details.console_logs as number}         hint="Debug left in prod" />
               <StatBox label="TODO / FIXME"    value={result.analyzers.jsPatterns.details.todo_comments as number}        hint="Unfinished scaffolding" />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <StatBox label="try/catch blocks" value={result.analyzers.jsPatterns.details.try_catch_count as number} hint="Positive — good practice" positive />
-              <StatBox label="Async funcs"      value={result.analyzers.jsPatterns.details.async_funcs as number}     hint="High = AI over-wrapping" />
-            </div>
-            {(result.analyzers.jsPatterns.details.generic_names_list as string[]).length > 0 && (
-              <div className="mt-4">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Generic variable names</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(result.analyzers.jsPatterns.details.generic_names_list as string[]).map((n) => (
-                    <code key={n} className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700">{n}</code>
-                  ))}
-                </div>
-              </div>
-            )}
             {(result.analyzers.jsPatterns.details.ai_comment_list as string[]).length > 0 && (
               <div className="mt-4">
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">AI-style comments found</p>
@@ -657,123 +760,29 @@ export default function VibeCodeDetectorTool() {
           </AnalyzerCard>
 
           {/* 5. Content */}
-          <AnalyzerCard id="content" title="Copywriting Signals" subtitle="AI buzzwords, filler phrases, vague CTAs, sentence uniformity" icon={MessageSquare} data={result.analyzers.content}>
+          <AnalyzerCard id="content" title="Copywriting Signals" subtitle="AI buzzwords, filler phrases, sentence uniformity" icon={MessageSquare} data={result.analyzers.content}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatBox label="Words"          value={result.analyzers.content.details.word_count as number}     hint="Visible text" />
+              <StatBox label="Words"          value={result.analyzers.content.details.word_count as number}     hint="Visible text" positive />
               <StatBox label="Buzzwords"      value={result.analyzers.content.details.buzzword_total as number} hint="seamless, scalable, …" />
               <StatBox label="Filler phrases" value={result.analyzers.content.details.filler_total as number}   hint="Generic marketing-speak" />
               <StatBox label="Vague CTAs"     value={result.analyzers.content.details.vague_ctas as number}     hint="'Learn more', 'Explore'" />
             </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sentence length distribution</p>
-                <div className="space-y-1.5">
-                  {Object.entries(result.analyzers.content.details.sentence_distribution as Record<string, number>).map(([bucket, count]) => {
-                    const total = Object.values(result.analyzers.content.details.sentence_distribution as Record<string, number>).reduce((s, v) => s + v, 0) || 1
-                    const pct = (count / total) * 100
-                    return (
-                      <div key={bucket} className="flex items-center gap-2 text-[11px]">
-                        <span className="w-12 font-mono text-muted-foreground">{bucket}</span>
-                        <div className="flex-1 overflow-hidden rounded-full bg-muted">
-                          <div className="h-2 bg-primary" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="w-8 text-right font-mono tabular-nums text-foreground">{count}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <p className="mt-2 text-[10px] text-muted-foreground">
-                  Avg {result.analyzers.content.details.avg_sentence_length as number}w · σ {result.analyzers.content.details.sentence_variance as number} {(result.analyzers.content.details.sentence_variance as number) > 8 ? '(natural variance)' : '(low — AI signal)'}
-                </p>
-              </div>
-              <div>
-                {(result.analyzers.content.details.buzzword_hits as { word: string; count: number }[]).length > 0 && (
-                  <>
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">AI buzzwords found</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(result.analyzers.content.details.buzzword_hits as { word: string; count: number }[]).map((b) => (
-                        <span key={b.word} className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800">
-                          {b.word} <span className="font-mono">×{b.count}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </AnalyzerCard>
-
-          {/* 6. Security */}
-          <AnalyzerCard id="securityHeaders" title="Security Headers" subtitle="CSP, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy" icon={ShieldCheck} data={result.analyzers.securityHeaders}>
-            {result.analyzers.securityHeaders && (
-              <div className="space-y-2">
-                {(result.analyzers.securityHeaders.details.checks as { name: string; present: boolean; value: string | null; risk: string }[]).map((c) => (
-                  <div key={c.name} className={cn('flex items-start gap-3 rounded-xl border p-3', c.present ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50')}>
-                    {c.present ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />}
-                    <div className="min-w-0 flex-1">
-                      <p className={cn('font-mono text-xs font-semibold', c.present ? 'text-emerald-800' : 'text-red-800')}>{c.name}</p>
-                      {c.present && c.value ? (
-                        <p className="mt-0.5 truncate font-mono text-[10px] text-emerald-700">{c.value}</p>
-                      ) : (
-                        <p className="mt-0.5 text-[10px] text-red-700">{c.risk}</p>
-                      )}
-                    </div>
-                    <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold', c.present ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800')}>
-                      {c.present ? 'PASS' : 'FAIL'}
+            {(result.analyzers.content.details.buzzword_hits as { word: string; count: number }[]).length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">AI buzzwords found</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(result.analyzers.content.details.buzzword_hits as { word: string; count: number }[]).map((b) => (
+                    <span key={b.word} className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800">
+                      {b.word} <span className="font-mono">×{b.count}</span>
                     </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </AnalyzerCard>
 
-          {/* 7. Images */}
-          <AnalyzerCard id="images" title="Image Audit" subtitle="Alt text coverage, missing dimensions, generic filenames" icon={ImageIcon} data={result.analyzers.images}>
-            {result.analyzers.images.details.total as number === 0 ? (
-              <p className="text-sm text-muted-foreground">No &lt;img&gt; elements found in this source.</p>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <StatBox label="Total images"     value={result.analyzers.images.details.total as number}            hint="<img> + <Image>" />
-                  <StatBox label="Missing alt"      value={result.analyzers.images.details.missing_alt as number}      hint="Accessibility failure" />
-                  <StatBox label="Generic alt"      value={result.analyzers.images.details.generic_alt as number}      hint='"image", "photo", …' />
-                  <StatBox label="AI filenames"     value={result.analyzers.images.details.ai_filename_count as number} hint="placeholder, stock-photo, …" />
-                </div>
-                {(result.analyzers.images.details.records as { src: string; alt: string | null; hasAlt: boolean; genericAlt: boolean }[]).length > 0 && (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[400px] text-xs">
-                      <thead className="border-b border-border">
-                        <tr>
-                          <th className="pb-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Source</th>
-                          <th className="pb-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Alt text</th>
-                          <th className="pb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(result.analyzers.images.details.records as { src: string; alt: string | null; hasAlt: boolean; genericAlt: boolean; emptyAlt: boolean }[]).slice(0, 15).map((r, i) => (
-                          <tr key={i} className="border-b border-border/50">
-                            <td className="py-2 pr-4">
-                              <span className="truncate font-mono text-[10px] text-foreground" style={{ maxWidth: '200px', display: 'block' }}>{r.src || '—'}</span>
-                            </td>
-                            <td className="py-2 pr-4 text-muted-foreground">{r.alt ?? <em>none</em>}</td>
-                            <td className="py-2 text-center">
-                              {!r.hasAlt ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Missing</span>
-                               : r.emptyAlt ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Empty</span>
-                               : r.genericAlt ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Generic</span>
-                               : <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Good</span>}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
-          </AnalyzerCard>
-
-          {/* 8. Metadata */}
-          <AnalyzerCard id="metadata" title="Metadata & SEO" subtitle="Title, description, Open Graph, generator tag, JSON-LD" icon={FileText} data={result.analyzers.metadata}>
+          {/* 6. Metadata */}
+          <AnalyzerCard id="metadata" title="Metadata & Generator Tag" subtitle="Title, description, generator tag — AI generator tags are decisive" icon={FileText} data={result.analyzers.metadata}>
             <div className="space-y-2">
               {([
                 { label: 'Title tag', value: (result.analyzers.metadata.details.title as { value: string | null; length: number; ideal_range: boolean }).value, length: (result.analyzers.metadata.details.title as { value: string | null; length: number; ideal_range: boolean }).length, ideal: (result.analyzers.metadata.details.title as { value: string | null; length: number; ideal_range: boolean }).ideal_range },
@@ -788,21 +797,26 @@ export default function VibeCodeDetectorTool() {
                 </div>
               ))}
 
-              {/* Generator tag highlight */}
               {(result.analyzers.metadata.details.generator as { present: boolean; value: string | null; is_ai_generator: boolean }).present && (
-                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <div className={cn(
+                  'flex items-start gap-2 rounded-xl border p-3',
+                  (result.analyzers.metadata.details.generator as { is_ai_generator: boolean }).is_ai_generator
+                    ? 'border-red-200 bg-red-50'
+                    : 'border-blue-200 bg-blue-50',
+                )}>
+                  <AlertCircle className={cn('mt-0.5 h-4 w-4 shrink-0', (result.analyzers.metadata.details.generator as { is_ai_generator: boolean }).is_ai_generator ? 'text-red-600' : 'text-blue-600')} />
                   <div>
-                    <p className="text-xs font-semibold text-amber-800">Generator tag detected</p>
-                    <p className="mt-0.5 font-mono text-[11px] text-amber-700">
+                    <p className="text-xs font-semibold text-foreground">Generator tag detected</p>
+                    <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
                       {(result.analyzers.metadata.details.generator as { value: string | null }).value}
-                      {(result.analyzers.metadata.details.generator as { is_ai_generator: boolean }).is_ai_generator && ' — known vibe-code tool'}
+                      {(result.analyzers.metadata.details.generator as { is_ai_generator: boolean }).is_ai_generator
+                        ? ' — known AI/vibe-code tool'
+                        : ' — CMS/tooling tag (not an AI signal)'}
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* OG & JSON-LD quick view */}
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="rounded-xl border border-border bg-background p-3">
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Open Graph</p>
@@ -830,7 +844,7 @@ export default function VibeCodeDetectorTool() {
                     </div>
                   ))}
                   <div className="flex items-center gap-2 py-0.5">
-                    <ChevronRight className="h-3 w-3 text-primary" />
+                    <FileText className="h-3 w-3 text-primary" />
                     <span className="font-mono text-[10px] text-muted-foreground">JSON-LD: {(result.analyzers.metadata.details.json_ld_count as number)} block{(result.analyzers.metadata.details.json_ld_count as number) !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
@@ -838,7 +852,46 @@ export default function VibeCodeDetectorTool() {
             </div>
           </AnalyzerCard>
 
+          {/* 7. Images — informational */}
+          <AnalyzerCard id="images" title="Image Audit" subtitle="Alt text coverage and filenames" icon={ImageIcon} data={result.analyzers.images} informational>
+            {(result.analyzers.images.details.total as number) === 0 ? (
+              <p className="text-sm text-muted-foreground">No &lt;img&gt; elements found in this source.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatBox label="Total images"     value={result.analyzers.images.details.total as number}            hint="<img> + <Image>" positive />
+                <StatBox label="Missing alt"      value={result.analyzers.images.details.missing_alt as number}      hint="Accessibility issue" />
+                <StatBox label="Generic alt"      value={result.analyzers.images.details.generic_alt as number}      hint='"image", "photo", …' />
+                <StatBox label="Stock filenames"  value={result.analyzers.images.details.ai_filename_count as number} hint="placeholder, unsplash, …" />
+              </div>
+            )}
+          </AnalyzerCard>
+
+          {/* 8. Security — informational */}
+          <AnalyzerCard id="securityHeaders" title="Security Headers" subtitle="CSP, X-Frame-Options, HSTS — site hygiene, not a vibe signal" icon={ShieldCheck} data={result.analyzers.securityHeaders} informational>
+            {result.analyzers.securityHeaders && (
+              <div className="space-y-2">
+                {(result.analyzers.securityHeaders.details.checks as { name: string; present: boolean; value: string | null; risk: string }[]).map((c) => (
+                  <div key={c.name} className={cn('flex items-start gap-3 rounded-xl border p-3', c.present ? 'border-emerald-200 bg-emerald-50' : 'border-border bg-background')}>
+                    {c.present ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50" />}
+                    <div className="min-w-0 flex-1">
+                      <p className={cn('font-mono text-xs font-semibold', c.present ? 'text-emerald-800' : 'text-foreground')}>{c.name}</p>
+                      {c.present && c.value ? (
+                        <p className="mt-0.5 truncate font-mono text-[10px] text-emerald-700">{c.value}</p>
+                      ) : (
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">{c.risk}</p>
+                      )}
+                    </div>
+                    <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold', c.present ? 'bg-emerald-200 text-emerald-800' : 'bg-muted text-muted-foreground')}>
+                      {c.present ? 'PASS' : 'MISSING'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </AnalyzerCard>
+
         </div>
+        )}
       </div>
     </section>
   )

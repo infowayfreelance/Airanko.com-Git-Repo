@@ -21,6 +21,27 @@ export interface FetchedFile {
   bytes: number
 }
 
+export interface DetectedTool {
+  name: string
+  type: 'ai-tool' | 'cms' | 'site-builder' | 'framework' | 'library'
+  evidence: string[]
+}
+
+export interface FingerprintSignal {
+  name: string
+  found: boolean
+  detail: string
+}
+
+export interface PlatformDetection {
+  classification: 'ai' | 'cms' | 'custom' | 'mixed'
+  aiPoints: number
+  cmsPoints: number
+  detected: DetectedTool[]
+  aiSignals: FingerprintSignal[]
+  cmsSignals: FingerprintSignal[]
+}
+
 export interface VibeCodeDetectorResult {
   mode: 'url' | 'github' | 'paste'
   inputDisplay: string
@@ -31,9 +52,11 @@ export interface VibeCodeDetectorResult {
     finalUrl?: string
     contentType?: string
   }
+  platform: PlatformDetection
   overall: {
     score: number
-    confidence: 'Likely human-written' | 'Mixed signals' | 'Likely vibe-coded' | 'Strongly vibe-coded'
+    confidence: string
+    verdictText: string
   }
   analyzers: {
     inlineCode:      AnalyzerScore
@@ -55,13 +78,6 @@ function severityFromScore(score: number): Severity {
   if (score < 50) return 'Moderate'
   if (score < 75) return 'Heavy'
   return 'Excessive'
-}
-
-function confidenceFromScore(score: number): VibeCodeDetectorResult['overall']['confidence'] {
-  if (score < 25) return 'Likely human-written'
-  if (score < 50) return 'Mixed signals'
-  if (score < 75) return 'Likely vibe-coded'
-  return 'Strongly vibe-coded'
 }
 
 function normalizeUrl(input: string): string {
@@ -199,39 +215,187 @@ async function fetchGithub(repoUrl: string): Promise<FetchedFile[]> {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// ANALYZERS
-// Every metric is computed from real content — no randomization, no fake data.
+// PLATFORM & TOOL FINGERPRINTING
+// The core of the verdict. CMS/site-builder markup (WordPress + Elementor,
+// Wix, Shopify, …) is template-generated — messy HTML there does NOT mean
+// vibe-coded. Conversely, v0 / Lovable / Bolt / shadcn stacks are direct
+// evidence of AI generation.
+// ──────────────────────────────────────────────────────────────────────────
+
+const AI_GENERATOR_NAMES = ['v0', 'vercel v0', 'bolt', 'lovable', 'cursor', 'windsurf', 'replit', 'devin', 'github copilot', 'chatgpt', 'claude', 'gpt-engineer']
+
+// shadcn/ui semantic design tokens — the signature class vocabulary emitted by
+// v0, Lovable, Bolt and most AI site builders. Almost never hand-typed at scale
+// outside that ecosystem.
+const SHADCN_TOKENS = [
+  'text-muted-foreground', 'bg-background', 'text-foreground', 'border-border',
+  'bg-card', 'text-card-foreground', 'text-primary-foreground', 'bg-muted',
+  'ring-offset-background', 'bg-popover', 'text-popover-foreground',
+  'bg-accent', 'text-accent-foreground', 'bg-destructive', 'text-destructive-foreground',
+  'bg-secondary', 'text-secondary-foreground',
+]
+
+function detectPlatform(html: string, generatorValues: string[]): PlatformDetection {
+  const L = html.toLowerCase()
+  const gen = generatorValues.join(' | ').toLowerCase()
+  const detected: DetectedTool[] = []
+  let aiPoints = 0
+  let cmsPoints = 0
+
+  const addTool = (name: string, type: DetectedTool['type'], evidence: string[]) => {
+    const existing = detected.find((d) => d.name === name)
+    if (existing) existing.evidence.push(...evidence.filter((e) => !existing.evidence.includes(e)))
+    else detected.push({ name, type, evidence })
+  }
+
+  // ── CMS: WordPress ecosystem ──
+  const wpEvidence: string[] = []
+  if (L.includes('/wp-content/'))  wpEvidence.push('wp-content asset paths')
+  if (L.includes('/wp-includes/')) wpEvidence.push('wp-includes core scripts')
+  if (L.includes('/wp-json'))      wpEvidence.push('wp-json REST API endpoint')
+  if (gen.includes('wordpress'))   wpEvidence.push('generator meta tag: WordPress')
+  const isWordPress = wpEvidence.length > 0
+  if (isWordPress) { addTool('WordPress', 'cms', wpEvidence); cmsPoints += 60 }
+
+  const hasElementor = /class=["'][^"']*elementor|data-elementor-type|elementor-frontend/i.test(html)
+  if (hasElementor) { addTool('Elementor', 'site-builder', ['elementor-* classes / data-elementor attributes']); cmsPoints += 25 }
+  const hasDivi = L.includes('et_pb_')
+  if (hasDivi) { addTool('Divi Builder', 'site-builder', ['et_pb_* module classes']); cmsPoints += 25 }
+  const hasWpBakery = L.includes('vc_row')
+  if (hasWpBakery) { addTool('WPBakery', 'site-builder', ['vc_row layout classes']); cmsPoints += 25 }
+  const hasGutenberg = L.includes('wp-block-')
+  if (hasGutenberg) { addTool('Gutenberg', 'site-builder', ['wp-block-* block classes']); cmsPoints += 15 }
+  if (L.includes('woocommerce')) { addTool('WooCommerce', 'cms', ['woocommerce classes/assets']); cmsPoints += 10 }
+
+  // ── Other CMS / hosted site builders ──
+  const otherCms: { name: string; test: boolean; ev: string; type: DetectedTool['type'] }[] = [
+    { name: 'Shopify',     test: L.includes('cdn.shopify.com') || L.includes('/cdn/shop/') || L.includes('shopify.theme'), ev: 'Shopify CDN / theme runtime', type: 'cms' },
+    { name: 'Wix',         test: L.includes('wixstatic.com') || L.includes('parastorage.com'), ev: 'Wix static asset domains', type: 'site-builder' },
+    { name: 'Squarespace', test: L.includes('squarespace.com') || L.includes('sqs-block') || gen.includes('squarespace'), ev: 'Squarespace assets / sqs-block classes', type: 'site-builder' },
+    { name: 'Webflow',     test: L.includes('website-files.com') || L.includes('data-wf-page') || gen.includes('webflow'), ev: 'Webflow asset CDN / data-wf attributes', type: 'site-builder' },
+    { name: 'Framer',      test: L.includes('framerusercontent.com'), ev: 'Framer user-content CDN', type: 'site-builder' },
+    { name: 'Drupal',      test: gen.includes('drupal') || L.includes('/sites/default/files'), ev: 'Drupal generator / default file paths', type: 'cms' },
+    { name: 'Joomla',      test: gen.includes('joomla') || L.includes('/media/jui/'), ev: 'Joomla generator / media paths', type: 'cms' },
+    { name: 'Ghost',       test: gen.includes('ghost'), ev: 'Ghost generator meta tag', type: 'cms' },
+    { name: 'Blogger',     test: L.includes('blogger.com/static') || gen.includes('blogger'), ev: 'Blogger static assets', type: 'cms' },
+    { name: 'Duda',        test: L.includes('dudaone') || L.includes('duda_website_builder'), ev: 'Duda builder runtime', type: 'site-builder' },
+    { name: 'Weebly',      test: L.includes('weebly.com'), ev: 'Weebly assets', type: 'site-builder' },
+  ]
+  for (const c of otherCms) {
+    if (c.test) { addTool(c.name, c.type, [c.ev]); cmsPoints += 60 }
+  }
+
+  // ── Traditional-stack libraries (mild human/CMS signal — AI tools rarely emit these today) ──
+  const hasJquery = /<script[^>]*src=["'][^"']*jquery[^"']*["']/i.test(html)
+  if (hasJquery) { addTool('jQuery', 'library', ['jQuery script include']); cmsPoints += 10 }
+  const hasBootstrap = /<link[^>]*href=["'][^"']*bootstrap[^"']*["']|class=["'][^"']*\b(?:navbar-expand|col-md-|col-lg-)/i.test(html)
+  if (hasBootstrap) { addTool('Bootstrap', 'library', ['Bootstrap CSS / grid classes']); cmsPoints += 10 }
+
+  // ── AI-tool fingerprints ──
+  const aiGenerator = generatorValues.find((g) => AI_GENERATOR_NAMES.some((n) => g.toLowerCase().includes(n))) ?? null
+  if (aiGenerator) { addTool(aiGenerator, 'ai-tool', [`generator meta tag: ${aiGenerator}`]); aiPoints += 60 }
+
+  const hasV0 = L.includes('data-v0-t') || L.includes('v0.dev') || L.includes('v0.app')
+  if (hasV0) { addTool('v0 by Vercel', 'ai-tool', ['data-v0-t attribute / v0.dev references']); aiPoints += 55 }
+
+  const hasLovable = L.includes('gptengineer') || L.includes('gpt-engineer') || L.includes('lovable.dev') || L.includes('lovable-badge') || L.includes('lovableproject.com')
+  if (hasLovable) { addTool('Lovable', 'ai-tool', ['Lovable / GPT-Engineer script or badge']); aiPoints += 55 }
+
+  const hasBolt = L.includes('bolt.new')
+  if (hasBolt) { addTool('Bolt', 'ai-tool', ['bolt.new references']); aiPoints += 45 }
+
+  const hasBase44 = L.includes('base44')
+  if (hasBase44) { addTool('Base44', 'ai-tool', ['base44 references']); aiPoints += 45 }
+
+  const hasReplit = L.includes('.repl.co') || L.includes('replit.dev') || L.includes('replit-badge')
+  if (hasReplit) { addTool('Replit', 'ai-tool', ['Replit hosting / badge markers']); aiPoints += 35 }
+
+  // shadcn/ui token vocabulary
+  let shadcnTotal = 0
+  const shadcnFound: string[] = []
+  for (const token of SHADCN_TOKENS) {
+    const c = countMatches(L, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))
+    if (c > 0) { shadcnFound.push(token); shadcnTotal += c }
+  }
+  const shadcnStrong = shadcnFound.length >= 4 && shadcnTotal >= 8
+  const shadcnModerate = !shadcnStrong && shadcnFound.length >= 2
+  if (shadcnStrong)   { addTool('shadcn/ui', 'ai-tool', [`${shadcnFound.length} design tokens × ${shadcnTotal} uses (${shadcnFound.slice(0, 4).join(', ')}…)`]); aiPoints += 40 }
+  else if (shadcnModerate) { addTool('shadcn/ui (partial)', 'ai-tool', [`${shadcnFound.length} design tokens found`]); aiPoints += 20 }
+
+  const hasRadix = L.includes('data-radix-') || L.includes('id="radix-') || L.includes("id='radix-")
+  if (hasRadix) { addTool('Radix UI', 'library', ['data-radix-* / radix element ids']); aiPoints += 15 }
+
+  const hasLucide = L.includes('class="lucide') || L.includes('lucide lucide-')
+  if (hasLucide) { addTool('Lucide icons', 'library', ['lucide-* SVG icon classes']); aiPoints += 10 }
+
+  const hasTailwindCdn = L.includes('cdn.tailwindcss.com')
+  if (hasTailwindCdn) { addTool('Tailwind CDN', 'library', ['cdn.tailwindcss.com script (prototype-style build)']); aiPoints += 25 }
+
+  // ── Frameworks (neutral context) ──
+  if (L.includes('id="__next"') || L.includes('/_next/') || L.includes('self.__next_f')) addTool('Next.js', 'framework', ['__next root / _next assets'])
+  else if (L.includes('data-reactroot') || L.includes('id="root"') && L.includes('react')) addTool('React', 'framework', ['React root markers'])
+  if (L.includes('__nuxt')) addTool('Nuxt', 'framework', ['__nuxt root'])
+  if (/ng-version=/i.test(html)) addTool('Angular', 'framework', ['ng-version attribute'])
+  if (L.includes('astro-island')) addTool('Astro', 'framework', ['astro-island elements'])
+  if (L.includes('___gatsby')) addTool('Gatsby', 'framework', ['___gatsby root'])
+
+  aiPoints = Math.min(aiPoints, 100)
+  cmsPoints = Math.min(cmsPoints, 100)
+
+  // ── Fixed signal checklists (for the report UI) ──
+  const aiSignals: FingerprintSignal[] = [
+    { name: 'AI generator meta tag',          found: !!aiGenerator,            detail: aiGenerator ? `"${aiGenerator}"` : 'No v0 / Lovable / Bolt generator tag' },
+    { name: 'v0 by Vercel fingerprint',       found: hasV0,                    detail: hasV0 ? 'data-v0-t attribute or v0.dev reference' : 'Not found' },
+    { name: 'Lovable / GPT-Engineer script',  found: hasLovable,               detail: hasLovable ? 'Lovable badge or gptengineer script' : 'Not found' },
+    { name: 'Bolt / Base44 / Replit markers', found: hasBolt || hasBase44 || hasReplit, detail: hasBolt || hasBase44 || hasReplit ? 'AI builder hosting references' : 'Not found' },
+    { name: 'shadcn/ui design tokens',        found: shadcnStrong || shadcnModerate, detail: shadcnFound.length > 0 ? `${shadcnFound.length} tokens, ${shadcnTotal} uses` : 'None of the signature token classes' },
+    { name: 'Radix UI primitives',            found: hasRadix,                 detail: hasRadix ? 'data-radix-* attributes present' : 'Not found' },
+    { name: 'Lucide icon set',                found: hasLucide,                detail: hasLucide ? 'lucide-* SVG classes present' : 'Not found' },
+    { name: 'Tailwind CDN prototype build',   found: hasTailwindCdn,           detail: hasTailwindCdn ? 'cdn.tailwindcss.com included' : 'Not found' },
+  ]
+
+  const anyOtherCms = otherCms.some((c) => c.test)
+  const cmsSignals: FingerprintSignal[] = [
+    { name: 'WordPress core assets',          found: isWordPress,   detail: isWordPress ? wpEvidence.join(', ') : 'No wp-content / wp-includes paths' },
+    { name: 'Page builder markup',            found: hasElementor || hasDivi || hasWpBakery, detail: hasElementor ? 'Elementor' : hasDivi ? 'Divi' : hasWpBakery ? 'WPBakery' : 'No Elementor / Divi / WPBakery classes' },
+    { name: 'Gutenberg block classes',        found: hasGutenberg,  detail: hasGutenberg ? 'wp-block-* classes present' : 'Not found' },
+    { name: 'Hosted CMS / site builder',      found: anyOtherCms,   detail: anyOtherCms ? otherCms.filter((c) => c.test).map((c) => c.name).join(', ') : 'No Shopify / Wix / Squarespace / Webflow markers' },
+    { name: 'Traditional stack (jQuery / Bootstrap)', found: hasJquery || hasBootstrap, detail: hasJquery || hasBootstrap ? [hasJquery && 'jQuery', hasBootstrap && 'Bootstrap'].filter(Boolean).join(', ') : 'Not found' },
+  ]
+
+  // ── Classification ──
+  let classification: PlatformDetection['classification']
+  if (aiPoints >= 50) classification = 'ai'
+  else if (cmsPoints >= 50) classification = 'cms'
+  else if (aiPoints >= 25) classification = 'mixed'
+  else classification = 'custom'
+
+  return { classification, aiPoints, cmsPoints, detected, aiSignals, cmsSignals }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// SUPPORTING ANALYZERS
+// Heuristic code-pattern audits. These support the verdict but never decide
+// it alone — CMS-generated markup triggers many of the same patterns.
 // ──────────────────────────────────────────────────────────────────────────
 
 // ─── 1. Inline Code Quality ───────────────────────────────────────────────
 function analyzeInlineCode(html: string): AnalyzerScore {
-  // Inline scripts (not from src)
   const inline_scripts = countMatches(html, /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi)
-
-  // Inline style attributes
   const inline_styles = countMatches(html, /\bstyle\s*=\s*["'][^"']+["']/gi)
-
-  // Inline event handlers
   const inline_events = countMatches(html, /\bon(?:click|load|submit|change|mouseover|mouseout|mouseenter|mouseleave|focus|blur|keyup|keydown|input|scroll|resize)\s*=\s*["']/gi)
-
-  // HTML comments (vibe coders leave lots of template comments)
   const html_comments = countMatches(html, /<!--[\s\S]*?-->/g)
 
-  // AI-style inline script content signals (only inside actual <script> blocks)
   const scriptContents = (html.match(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi) ?? []).join('\n')
-  // Comments like "// This function..." or "// Here we..."
   const ai_comments_in_inline = countMatches(scriptContents, /\/\/\s*(?:this function|here we|this code|this will|this handles|this is a|the following|this method|below we|let's|let me|now we|step \d)/gi)
-  // console.log left in
   const console_logs_inline = countMatches(scriptContents, /\bconsole\.(log|warn|error|info)\s*\(/gi)
-
-  // data-testid attributes — common in AI-generated/vibe-coded React
   const data_testid = countMatches(html, /\bdata-testid\s*=\s*["']/gi)
 
-  const inlineScriptScore  = Math.min(inline_scripts * 10, 40)
-  const inlineStyleScore   = Math.min(inline_styles * 2, 20)    // reduced weight — inline styles alone aren't a strong signal
-  const eventHandlerScore  = Math.min(inline_events * 5, 25)
-  const commentScore       = Math.min(html_comments * 2, 15)    // reduced weight
-  const aiCommentScore     = Math.min(ai_comments_in_inline * 8, 30)
+  const inlineScriptScore  = Math.min(inline_scripts * 8, 30)
+  const inlineStyleScore   = Math.min(inline_styles * 1, 10)
+  const eventHandlerScore  = Math.min(inline_events * 4, 20)
+  const commentScore       = Math.min(html_comments * 1, 10)
+  const aiCommentScore     = Math.min(ai_comments_in_inline * 10, 40)
   const consoleScore       = Math.min(console_logs_inline * 6, 20)
   const testidScore        = Math.min(data_testid * 3, 15)
 
@@ -242,13 +406,8 @@ function analyzeInlineCode(html: string): AnalyzerScore {
     score: finalScore,
     severity: severityFromScore(finalScore),
     details: {
-      inline_scripts,
-      inline_styles,
-      inline_events,
-      html_comments,
-      ai_comments_in_inline,
-      console_logs_inline,
-      data_testid,
+      inline_scripts, inline_styles, inline_events, html_comments,
+      ai_comments_in_inline, console_logs_inline, data_testid,
       breakdown: { inlineScriptScore, inlineStyleScore, eventHandlerScore, commentScore, aiCommentScore, consoleScore, testidScore },
     },
   }
@@ -259,27 +418,20 @@ function analyzeCss(html: string, externalCss: string[]): AnalyzerScore {
   const styleBlocks = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) ?? []).join('\n')
   const css = [styleBlocks, externalCss.join('\n')].filter(Boolean).join('\n')
 
-  // ── Tailwind / utility-class density ──
-  // Vibe coding almost always uses Tailwind with very long class strings
   const allClassNames: string[] = []
   for (const m of html.matchAll(/\bclass(?:Name)?\s*=\s*["']([^"']+)["']/gi)) {
     for (const c of m[1].split(/\s+/)) if (c) allClassNames.push(c)
   }
 
-  // Count elements with ≥8 utility classes (typical of AI-generated Tailwind)
   let heavy_utility_elements = 0
   for (const m of html.matchAll(/\bclass(?:Name)?\s*=\s*["']([^"']+)["']/gi)) {
     const classes = m[1].split(/\s+/).filter(Boolean)
     if (classes.length >= 8) heavy_utility_elements++
   }
 
-  // Long class names > 30 chars (generated class names from CSS-in-JS or AI tools)
   const long_class_names = allClassNames.filter((c) => c.length > 30)
-
-  // !important usage (lazy AI fix)
   const important_count = countMatches(css, /!important\b/gi)
 
-  // Duplicate declarations (CSS pasted from AI often repeats the same rule)
   const declMatches = css.matchAll(/([\w-]+)\s*:\s*([^;{}\n]+)\s*;?/g)
   const declCounts = new Map<string, number>()
   for (const m of declMatches) {
@@ -288,7 +440,6 @@ function analyzeCss(html: string, externalCss: string[]): AnalyzerScore {
   }
   const duplicate_props = Array.from(declCounts.values()).filter((c) => c > 3).length
 
-  // Font count (vibe coders often import many fonts)
   const fontFaces  = countMatches(css, /@font-face/gi)
   const fontImports = uniqueMatches(css, /@import\s+url\([^)]*(?:fonts\.google|fonts\.bunny|typekit)[^)]*\)/gi)
   const fontFamilies = uniqueMatches(css, /font-family\s*:\s*[^;}\n]+/gi).map((s) =>
@@ -297,19 +448,17 @@ function analyzeCss(html: string, externalCss: string[]): AnalyzerScore {
   const font_count = fontFaces + fontImports.length + new Set(fontFamilies).size
   const font_list = Array.from(new Set(fontFamilies)).slice(0, 20)
 
-  // Inline CSS variables with generic names (--color-1, --primary-color typical of AI)
   const generic_css_vars = countMatches(css, /--(?:color|bg|background|text|font|size|space|gap|border|shadow|radius)-?\d+\b/gi)
 
   const heavyUtilityScore = Math.min(heavy_utility_elements * 3, 40)
   const longClassScore    = Math.min(long_class_names.length * 3, 25)
-  const importantScore    = Math.min(important_count * 4, 20)
-  const duplicateScore    = Math.min(duplicate_props * 2, 15)
-  const fontScore         = Math.max(0, (font_count - 2) * 10)
+  const importantScore    = Math.min(important_count * 2, 15)
+  const duplicateScore    = Math.min(duplicate_props * 1, 10)
+  const fontScore         = Math.min(Math.max(0, (font_count - 3) * 5), 15)
   const genericVarScore   = Math.min(generic_css_vars * 2, 10)
 
   const finalScore = Math.min(heavyUtilityScore + longClassScore + importantScore + duplicateScore + fontScore + genericVarScore, 100)
 
-  // Color palette for display (informational only — not scored)
   const hex  = uniqueMatches(html + '\n' + css, /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6,8})\b/g)
   const rgb  = uniqueMatches(css, /rgba?\([^)]+\)/g)
   const all_colors = Array.from(new Set([...hex, ...rgb])).slice(0, 60)
@@ -321,12 +470,7 @@ function analyzeCss(html: string, externalCss: string[]): AnalyzerScore {
       heavy_utility_elements,
       long_class_count: long_class_names.length,
       long_class_names: long_class_names.slice(0, 10),
-      important_count,
-      duplicate_props,
-      font_count,
-      font_list,
-      generic_css_vars,
-      all_colors,
+      important_count, duplicate_props, font_count, font_list, generic_css_vars, all_colors,
       breakdown: { heavyUtilityScore, longClassScore, importantScore, duplicateScore, fontScore, genericVarScore },
     },
   }
@@ -344,7 +488,6 @@ function analyzeHtmlStructure(html: string): AnalyzerScore {
   const semantic_percentage = totalBlocks === 0 ? 0 :
     Object.values(semantic_count).reduce((s, v) => s + v, 0) / totalBlocks
 
-  // Div nesting depth
   let max_div_depth = 0
   let cur_div_depth = 0
   const tagPattern = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*?>/g
@@ -359,22 +502,18 @@ function analyzeHtmlStructure(html: string): AnalyzerScore {
     }
   }
 
-  // Empty structural elements (vibe coders often leave scaffolding)
   const empty_elements =
     countMatches(html, /<div[^>]*>\s*<\/div>/gi) +
     countMatches(html, /<p[^>]*>\s*<\/p>/gi) +
     countMatches(html, /<span[^>]*>\s*<\/span>/gi)
 
-  // Missing structural landmarks
   const has_main   = semantic_count.main > 0
   const has_nav    = semantic_count.nav > 0
   const has_footer = semantic_count.footer > 0
   const missing_landmarks = (has_main ? 0 : 1) + (has_nav ? 0 : 1) + (has_footer ? 0 : 1)
 
-  // ARIA attributes
   const aria_attributes = countMatches(html, /\baria-[a-z]+\s*=/gi)
 
-  // Heading hierarchy
   const headings: number[] = []
   for (const m of html.matchAll(/<h([1-6])\b/gi)) headings.push(parseInt(m[1], 10))
   const has_h1 = headings.includes(1)
@@ -384,14 +523,13 @@ function analyzeHtmlStructure(html: string): AnalyzerScore {
   }
   const h_counts = [1, 2, 3, 4, 5, 6].map((n) => ({ level: n, count: headings.filter((h) => h === n).length }))
 
-  // Excessive wrapper divs per semantic element — ratio signal
   const wrapperRatio = totalBlocks > 0 ? div_count / Math.max(1, totalBlocks) : 0
 
-  const semanticScore         = Math.max(0, Math.round((1 - semantic_percentage) * 35))  // low semantic = high score
-  const divNestScore          = Math.min(Math.max(0, max_div_depth - 6) * 6, 30)          // penalize nesting > 6
-  const emptyScore            = Math.min(empty_elements * 4, 20)
+  const semanticScore         = Math.max(0, Math.round((1 - semantic_percentage) * 30))
+  const divNestScore          = Math.min(Math.max(0, max_div_depth - 8) * 5, 25)
+  const emptyScore            = Math.min(empty_elements * 3, 15)
   const missingLandmarkScore  = missing_landmarks * 7
-  const wrapperScore          = wrapperRatio > 0.85 ? 15 : wrapperRatio > 0.7 ? 8 : 0
+  const wrapperScore          = wrapperRatio > 0.9 ? 12 : wrapperRatio > 0.75 ? 6 : 0
 
   const finalScore = Math.min(semanticScore + divNestScore + emptyScore + missingLandmarkScore + wrapperScore, 100)
 
@@ -400,10 +538,7 @@ function analyzeHtmlStructure(html: string): AnalyzerScore {
     severity: severityFromScore(finalScore),
     details: {
       semantic_percentage: Math.round(semantic_percentage * 100),
-      semantic_count,
-      div_count,
-      max_div_depth,
-      empty_elements,
+      semantic_count, div_count, max_div_depth, empty_elements,
       missing_landmarks: { main: !has_main, nav: !has_nav, footer: !has_footer },
       aria_attributes,
       heading_counts: h_counts,
@@ -420,78 +555,56 @@ function analyzeJs(html: string, externalJs: string[]): AnalyzerScore {
     .map((b) => b.replace(/^<script[^>]*>|<\/script>$/gi, '')).join('\n')
   const js = [inlineJs, externalJs.join('\n')].filter(Boolean).join('\n')
 
-  // Generic variable names (AI always uses these)
   const generic_name_regex = /\b(?:const|let|var|function)\s+(data|result|response|output|content|element|item|container|wrapper|temp|val|obj|arr|info|stuff|things|helper|util|value|param|config|options|settings|handler|callback|payload|body|res|req)\b/g
   const genericMatches = Array.from(js.matchAll(generic_name_regex)).map((m) => m[1])
   const generic_names = genericMatches.length
   const generic_names_list = Array.from(new Set(genericMatches))
 
-  // Overly descriptive names (ChatGPT style: handleButtonClickEvent, getUserDataFromApi)
   const longNameMatches = Array.from(js.matchAll(/\b(?:const|let|var|function)\s+([a-zA-Z_$][\w$]{25,})\b/g)).map((m) => m[1])
   const overly_descriptive_count = longNameMatches.length
   const overly_descriptive_list = Array.from(new Set(longNameMatches)).slice(0, 10)
 
-  // console.log left in production
   const console_logs = countMatches(js, /\bconsole\.log\s*\(/g)
 
-  // TODO / FIXME comments (AI always adds these)
   const todo_comments = countMatches(js, /\/\/\s*(?:TODO|FIXME|HACK|XXX|NOTE:|IMPORTANT:|STEP \d|STEP:)\b/gi)
   const todo_list = (js.match(/\/\/\s*(?:TODO|FIXME|HACK|XXX|NOTE:|IMPORTANT:|STEP)[^\n]*/gi) ?? []).slice(0, 10)
 
-  // AI-style explanatory comments ("// This function handles...", "// Here we...")
   const ai_comment_patterns = countMatches(js, /\/\/\s*(?:this function|here we|this code|this will|this handles|this is|the following|this method|let's|now we|step \d:|first,|then,|finally,|next,)/gi)
   const ai_comment_list = (js.match(/\/\/\s*(?:this function|here we|this code|this will|this handles|the following|let's|now we|step \d:)[^\n]*/gi) ?? []).slice(0, 5)
 
-  // JSDoc on every tiny function (over-documented)
   const jsdoc_blocks = countMatches(js, /\/\*\*[\s\S]*?\*\//g)
-
-  // Error handling boilerplate (try-catch on everything)
   const try_catch_count = countMatches(js, /\btry\s*\{/g)
   const event_listeners = countMatches(js, /\baddEventListener\s*\(/g)
-
-  // Async/await patterns (AI loves wrapping everything in async)
   const async_funcs = countMatches(js, /\basync\s+(?:function|\([^)]*\)\s*=>|[a-zA-Z_$][\w$]*\s*=>)/g)
 
-  const namingScore      = Math.min(generic_names * 3, 25)
+  const namingScore      = Math.min(generic_names * 2, 20)
   const longNameScore    = Math.min(overly_descriptive_count * 4, 20)
   const consoleScore     = Math.min(console_logs * 5, 25)
   const todoScore        = Math.min(todo_comments * 6, 20)
-  const aiCommentScore   = Math.min(ai_comment_patterns * 5, 20)
-  const errorBonus       = Math.min(try_catch_count * 4, 15)   // reduces score — good practice
-  const finalScore = Math.max(0, Math.min(namingScore + longNameScore + consoleScore + todoScore + aiCommentScore, 100) - errorBonus)
+  const aiCommentScore   = Math.min(ai_comment_patterns * 8, 35)
+  const finalScore = Math.max(0, Math.min(namingScore + longNameScore + consoleScore + todoScore + aiCommentScore, 100))
 
   return {
     score: finalScore,
     severity: severityFromScore(finalScore),
     details: {
-      generic_names,
-      generic_names_list,
-      overly_descriptive_count,
-      overly_descriptive_list,
-      console_logs,
-      todo_comments,
-      todo_list,
-      ai_comment_patterns,
-      ai_comment_list,
-      jsdoc_blocks,
-      try_catch_count,
-      event_listeners,
-      async_funcs,
-      breakdown: { namingScore, longNameScore, consoleScore, todoScore, aiCommentScore, errorBonus },
+      generic_names, generic_names_list, overly_descriptive_count, overly_descriptive_list,
+      console_logs, todo_comments, todo_list, ai_comment_patterns, ai_comment_list,
+      jsdoc_blocks, try_catch_count, event_listeners, async_funcs,
+      breakdown: { namingScore, longNameScore, consoleScore, todoScore, aiCommentScore },
     },
   }
 }
 
 // ─── 5. Content & Copywriting ─────────────────────────────────────────────
-// Expanded vibe-code / AI-writing vocabulary
 const AI_BUZZWORDS = [
   'seamless', 'scalable', 'robust', 'cutting-edge', 'innovative', 'leverage',
   'synergy', 'comprehensive', 'streamlined', 'holistic', 'empower', 'transformative',
   'revolutionize', 'bespoke', 'best-in-class', 'world-class', 'game-changing',
-  'next-level', 'state-of-the-art', 'dynamic', 'actionable', 'utilize',
+  'next-level', 'state-of-the-art', 'actionable', 'utilize',
   'elevate', 'supercharge', 'unlock', 'reimagine', 'delve', 'fostering',
   'pivotal', 'harness', 'tailor-made', 'data-driven', 'frictionless',
-  'user-centric', 'ecosystem', 'paradigm', 'disruptive', 'iterate',
+  'user-centric', 'paradigm', 'disruptive',
 ]
 const AI_FILLER_PHRASES = [
   'everything you need', 'all in one place', 'take your business to the next level',
@@ -500,7 +613,7 @@ const AI_FILLER_PHRASES = [
   'tailored to your needs', 'results-driven', 'client-focused', 'industry-leading',
   'trusted partner', 'full-service', 'cutting edge solutions', 'get in touch today',
   'start your journey', 'in today\'s fast-paced', 'in the digital age',
-  'look no further', 'at the forefront', 'years of experience',
+  'look no further', 'at the forefront',
 ]
 const VAGUE_CTAS = ['learn more', 'discover', 'find out more', 'explore', 'click here', 'read more', 'get started', 'contact us', 'see more']
 
@@ -536,7 +649,6 @@ function analyzeContent(html: string): AnalyzerScore {
   }
   const filler_total = filler_hits.reduce((s, f) => s + f.count, 0)
 
-  // Vague CTAs
   const ctaTexts: string[] = []
   for (const m of html.matchAll(/<(?:a|button)\b[^>]*>([\s\S]*?)<\/(?:a|button)>/gi)) {
     ctaTexts.push(stripHtml(m[1]).trim().toLowerCase())
@@ -548,7 +660,6 @@ function analyzeContent(html: string): AnalyzerScore {
   }
   const vague_ctas = vague_ctas_list.reduce((s, v) => s + v.count, 0)
 
-  // Sentence stats
   const sentences = text.split(/[.!?]+\s+/).filter((s) => s.split(/\s+/).length >= 3)
   const sentenceLengths = sentences.map((s) => s.split(/\s+/).filter(Boolean).length)
   const avg_sentence_length = sentenceLengths.length === 0 ? 0 :
@@ -556,7 +667,6 @@ function analyzeContent(html: string): AnalyzerScore {
   const sentence_variance = sentenceLengths.length === 0 ? 0 :
     Math.sqrt(sentenceLengths.map((l) => (l - avg_sentence_length) ** 2).reduce((s, v) => s + v, 0) / Math.max(1, sentenceLengths.length))
 
-  // Distribution
   const lenBuckets = [0, 0, 0, 0, 0]
   for (const l of sentenceLengths) {
     if (l < 10) lenBuckets[0]++
@@ -566,25 +676,19 @@ function analyzeContent(html: string): AnalyzerScore {
     else lenBuckets[4]++
   }
 
-  // Low variance = AI tendency to write uniform-length sentences
   const lowVarianceScore = sentence_variance < 5 && sentenceLengths.length > 5 ? 15 : 0
 
-  const buzzwordScore = Math.min(buzzword_total * 5, 35)
-  const fillerScore   = Math.min(filler_total * 8, 35)
-  const ctaScore      = Math.min(vague_ctas * 5, 15)
+  const buzzwordScore = Math.min(buzzword_total * 4, 35)
+  const fillerScore   = Math.min(filler_total * 7, 35)
+  const ctaScore      = Math.min(vague_ctas * 3, 15)
   const finalScore    = Math.max(0, Math.min(buzzwordScore + fillerScore + ctaScore + lowVarianceScore, 100))
 
   return {
     score: finalScore,
     severity: severityFromScore(finalScore),
     details: {
-      word_count,
-      buzzword_hits,
-      buzzword_total,
-      filler_hits,
-      filler_total,
-      vague_ctas_list,
-      vague_ctas,
+      word_count, buzzword_hits, buzzword_total, filler_hits, filler_total,
+      vague_ctas_list, vague_ctas,
       avg_sentence_length: Math.round(avg_sentence_length * 10) / 10,
       sentence_variance: Math.round(sentence_variance * 10) / 10,
       sentence_distribution: { '<10': lenBuckets[0], '10-19': lenBuckets[1], '20-29': lenBuckets[2], '30-39': lenBuckets[3], '40+': lenBuckets[4] },
@@ -593,7 +697,7 @@ function analyzeContent(html: string): AnalyzerScore {
   }
 }
 
-// ─── 6. Security Headers (URL mode only) ──────────────────────────────────
+// ─── 6. Security Headers (informational — not part of the vibe score) ─────
 function analyzeSecurity(headers: Record<string, string>): AnalyzerScore {
   const csp = headers['content-security-policy']
   const xfo = headers['x-frame-options']
@@ -628,7 +732,7 @@ function analyzeSecurity(headers: Record<string, string>): AnalyzerScore {
   }
 }
 
-// ─── 7. Images ─────────────────────────────────────────────────────────────
+// ─── 7. Images (informational — not part of the vibe score) ───────────────
 const GENERIC_ALT_TEXT = [
   'image', 'photo', 'picture', 'banner', 'hero', 'img', 'placeholder',
   'thumbnail', 'screenshot', 'graphic', 'illustration', 'icon', 'logo image',
@@ -717,15 +821,25 @@ function analyzeImages(html: string): AnalyzerScore {
 
 // ─── 8. Metadata & SEO Signals ────────────────────────────────────────────
 const GENERIC_TITLES = ['home', 'welcome', 'page', 'untitled', 'my website', 'website', 'homepage']
-// Generators strongly associated with AI/vibe coding tools
-const AI_GENERATORS = ['v0', 'vercel v0', 'bolt', 'lovable', 'cursor', 'windsurf', 'replit', 'devin', 'github copilot', 'chatgpt', 'claude']
+
+function extractGenerators(html: string): string[] {
+  const values: string[] = []
+  for (const m of html.matchAll(/<meta\s+name=["']generator["'][^>]*content=["']([^"']*)["']/gi)) {
+    if (m[1].trim()) values.push(m[1].trim())
+  }
+  // also handle content-before-name attribute order
+  for (const m of html.matchAll(/<meta\s+content=["']([^"']*)["'][^>]*name=["']generator["']/gi)) {
+    if (m[1].trim() && !values.includes(m[1].trim())) values.push(m[1].trim())
+  }
+  return values
+}
 
 function analyzeMetadata(html: string): AnalyzerScore {
   const head = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? html
 
   const title         = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? null
   const description   = head.match(/<meta\s+name=["']description["'][^>]*content=["']([^"']*)["']/i)?.[1]?.trim() ?? null
-  const generator     = head.match(/<meta\s+name=["']generator["'][^>]*content=["']([^"']*)["']/i)?.[1]?.trim() ?? null
+  const generator     = extractGenerators(html)[0] ?? null
   const ogTitle       = head.match(/<meta\s+property=["']og:title["'][^>]*content=["']([^"']*)["']/i)?.[1]?.trim() ?? null
   const ogDescription = head.match(/<meta\s+property=["']og:description["'][^>]*content=["']([^"']*)["']/i)?.[1]?.trim() ?? null
   const ogImage       = head.match(/<meta\s+property=["']og:image["'][^>]*content=["']([^"']*)["']/i)?.[1]?.trim() ?? null
@@ -743,14 +857,13 @@ function analyzeMetadata(html: string): AnalyzerScore {
   const description_present = description !== null && description.length > 0
   const description_length  = description?.length ?? 0
   const generator_present   = generator !== null && generator.length > 0
-  // Higher penalty if generator is explicitly a known vibe-code tool
-  const is_ai_generator = generator ? AI_GENERATORS.some((g) => generator.toLowerCase().includes(g)) : false
+  const is_ai_generator = generator ? AI_GENERATOR_NAMES.some((g) => generator.toLowerCase().includes(g)) : false
   const missing_og_count = (ogTitle ? 0 : 1) + (ogDescription ? 0 : 1) + (ogImage ? 0 : 1)
 
   const missingTitle       = !title_present ? 20 : 0
   const genericTitle       = title_is_generic ? 15 : 0
   const missingDescription = !description_present ? 15 : 0
-  const generatorTag       = is_ai_generator ? 40 : generator_present ? 20 : 0  // bump if it's a known AI tool
+  const generatorTag       = is_ai_generator ? 50 : 0   // CMS generator tags are NOT a vibe signal
   const missingOG          = missing_og_count * 5
   const finalScore         = Math.min(missingTitle + genericTitle + missingDescription + generatorTag + missingOG, 100)
 
@@ -791,10 +904,55 @@ function combineFromFiles(files: FetchedFile[]): { html: string; externalCss: st
   return { html: html.join('\n'), externalCss, externalJs }
 }
 
-function overallScoreFromAnalyzers(a: VibeCodeDetectorResult['analyzers']): number {
-  const items = [a.inlineCode, a.cssQuality, a.htmlStructure, a.jsPatterns, a.content, a.images, a.metadata]
-  if (a.securityHeaders) items.push(a.securityHeaders)
-  return Math.round(items.reduce((s, x) => s + x.score, 0) / items.length)
+// ── Verdict ────────────────────────────────────────────────────────────────
+// Direct platform fingerprints decide the verdict. Code-pattern heuristics
+// only nudge the score — they never turn a CMS site into a "vibe-coded" one.
+
+function computeVerdict(
+  platform: PlatformDetection,
+  analyzers: VibeCodeDetectorResult['analyzers'],
+): VibeCodeDetectorResult['overall'] {
+  // Weighted heuristic base (security & images excluded — not vibe signals)
+  const a = analyzers
+  const base =
+    a.jsPatterns.score    * 0.25 +
+    a.cssQuality.score    * 0.25 +
+    a.inlineCode.score    * 0.15 +
+    a.content.score       * 0.15 +
+    a.htmlStructure.score * 0.10 +
+    a.metadata.score      * 0.10
+
+  const { aiPoints, cmsPoints, classification, detected } = platform
+
+  let score: number
+  let confidence: string
+  let verdictText: string
+
+  const aiTools  = detected.filter((d) => d.type === 'ai-tool').map((d) => d.name)
+  const cmsTools = detected.filter((d) => d.type === 'cms' || d.type === 'site-builder').map((d) => d.name)
+
+  if (classification === 'cms') {
+    score = Math.min(18, Math.round(6 + aiPoints * 0.2))
+    confidence = 'Not vibe-coded — CMS build'
+    verdictText = `This site is built with ${cmsTools.join(' + ')}. Its markup is generated by CMS templates and page-builder tooling — patterns like deep div nesting or inline styles here come from the CMS, not from an AI coding tool. This is not a vibe-coded website.`
+  } else if (classification === 'ai') {
+    score = Math.min(97, Math.max(75, Math.round(55 + aiPoints * 0.3 + base * 0.15)))
+    confidence = 'Vibe-coded'
+    verdictText = `Direct AI-tool fingerprints detected${aiTools.length ? ` (${aiTools.join(', ')})` : ''}. This site carries the signature stack and markup of AI coding tools — it was very likely vibe-coded.`
+  } else if (classification === 'mixed') {
+    score = Math.min(74, Math.max(45, Math.round(35 + aiPoints * 0.5 + base * 0.2)))
+    confidence = 'Possibly vibe-coded'
+    verdictText = `Some AI-tool signals were found${aiTools.length ? ` (${aiTools.join(', ')})` : ''}, but no definitive fingerprint. Parts of this site may have been AI-generated, or it shares libraries popular with AI tools.`
+  } else {
+    // No direct fingerprints either way — heuristics alone, heavily damped
+    score = Math.min(44, Math.round(base * 0.45 + aiPoints))
+    confidence = score >= 30 ? 'Probably human-coded' : 'Likely human-coded'
+    verdictText = cmsTools.length
+      ? `Built with ${cmsTools.join(' + ')} and no AI-tool fingerprints were found. This looks like a conventionally built site.`
+      : `No CMS or AI-tool fingerprints were found, and the code patterns look conventional. This site appears to be human-coded.`
+  }
+
+  return { score, confidence, verdictText }
 }
 
 // ── Handler ────────────────────────────────────────────────────────────────
@@ -849,6 +1007,9 @@ export async function POST(req: NextRequest) {
       fetchInfo = { sourceCount: 1, totalBytes: input.length }
     }
 
+    const generators = extractGenerators(html)
+    const platform = detectPlatform([html, externalCss.join('\n'), externalJs.join('\n')].join('\n'), generators)
+
     const analyzers: VibeCodeDetectorResult['analyzers'] = {
       inlineCode:      analyzeInlineCode(html),
       cssQuality:      analyzeCss(html, externalCss),
@@ -860,13 +1021,14 @@ export async function POST(req: NextRequest) {
       metadata:        analyzeMetadata(html),
     }
 
-    const overallScore = overallScoreFromAnalyzers(analyzers)
+    const overall = computeVerdict(platform, analyzers)
 
     const result: VibeCodeDetectorResult = {
       mode,
       inputDisplay,
       fetchInfo,
-      overall: { score: overallScore, confidence: confidenceFromScore(overallScore) },
+      platform,
+      overall,
       analyzers,
       generatedAt: new Date().toISOString(),
     }
