@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { runDetectionEngine } from '@/lib/vibe-detector/engine'
+import type { SignalContext, ImageRef, FetchedImageSample, DetectionResult } from '@/lib/vibe-detector/types'
 
 export const maxDuration = 120
 
@@ -21,27 +23,13 @@ export interface FetchedFile {
   bytes: number
 }
 
-export interface DetectedTool {
-  name: string
-  type: 'ai-tool' | 'cms' | 'site-builder' | 'framework' | 'library'
-  evidence: string[]
-}
-
-export interface FingerprintSignal {
-  name: string
-  found: boolean
-  detail: string
-}
-
-export interface PlatformDetection {
-  classification: 'ai' | 'cms' | 'custom' | 'mixed'
-  aiPoints: number
-  cmsPoints: number
-  detected: DetectedTool[]
-  aiSignals: FingerprintSignal[]
-  cmsSignals: FingerprintSignal[]
-}
-
+/**
+ * NOTE: platform/verdict detection has moved to lib/vibe-detector/{signals,engine}.ts.
+ * This route now only (a) fetches/prepares content, (b) runs the legacy
+ * pattern-audit analyzers below for the "Detailed code audits" report
+ * section, and (c) builds a SignalContext and hands it to the detection
+ * engine for the probabilistic AI / Human / CMS / Hybrid verdict.
+ */
 export interface VibeCodeDetectorResult {
   mode: 'url' | 'github' | 'paste'
   inputDisplay: string
@@ -52,12 +40,7 @@ export interface VibeCodeDetectorResult {
     finalUrl?: string
     contentType?: string
   }
-  platform: PlatformDetection
-  overall: {
-    score: number
-    confidence: string
-    verdictText: string
-  }
+  detection: DetectionResult
   analyzers: {
     inlineCode:      AnalyzerScore
     cssQuality:      AnalyzerScore
@@ -136,6 +119,81 @@ async function headRequest(url: string): Promise<Record<string, string>> {
   return headers
 }
 
+/** Minimal PNG tEXt/iTXt chunk reader — no external deps. Used to catch the
+ * Stable Diffusion WebUI "parameters" chunk and EXIF-adjacent text fields
+ * (Software/CreatorTool/Author/Comment/Description) embedded by many AI
+ * image generators and editors. */
+function parsePngTextChunks(buf: Buffer): { keyword: string; text: string }[] {
+  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  if (buf.length < 8 || !buf.subarray(0, 8).equals(sig)) return []
+  const chunks: { keyword: string; text: string }[] = []
+  let offset = 8
+  while (offset + 8 <= buf.length) {
+    const length = buf.readUInt32BE(offset)
+    const type = buf.toString('ascii', offset + 4, offset + 8)
+    const dataStart = offset + 8
+    const dataEnd = dataStart + length
+    if (length < 0 || dataEnd + 4 > buf.length) break
+    if (type === 'tEXt') {
+      const data = buf.subarray(dataStart, dataEnd)
+      const nullIdx = data.indexOf(0)
+      if (nullIdx > -1) chunks.push({ keyword: data.subarray(0, nullIdx).toString('latin1'), text: data.subarray(nullIdx + 1).toString('latin1') })
+    } else if (type === 'iTXt') {
+      const data = buf.subarray(dataStart, dataEnd)
+      const nullIdx = data.indexOf(0)
+      if (nullIdx > -1) {
+        const keyword = data.subarray(0, nullIdx).toString('latin1')
+        let p = nullIdx + 1 + 2 // skip compression-flag + compression-method bytes
+        const langEnd = data.indexOf(0, p)
+        if (langEnd > -1) {
+          p = langEnd + 1
+          const transEnd = data.indexOf(0, p)
+          if (transEnd > -1) chunks.push({ keyword, text: data.subarray(transEnd + 1).toString('utf8') })
+        }
+      }
+    } else if (type === 'IEND') break
+    offset = dataEnd + 4
+  }
+  return chunks
+}
+
+/** Downloads a capped sample of the page's own images and prepares them for
+ * the AI-image-forensics signal — raw bytes as latin1 text (so embedded
+ * EXIF/XMP ASCII fields are regex-searchable without a binary parser) plus
+ * parsed PNG text chunks. URL mode only. */
+async function fetchImageSamples(html: string, baseUrl: string): Promise<FetchedImageSample[]> {
+  const srcs = new Set<string>()
+  for (const m of html.matchAll(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)) srcs.add(m[1])
+  for (const m of html.matchAll(/<Image\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/g)) srcs.add(m[1])
+
+  const absolute = Array.from(srcs)
+    .filter((s) => !s.startsWith('data:'))
+    .map((s) => { try { return new URL(s, baseUrl).href } catch { return null } })
+    .filter((s): s is string => !!s)
+    .slice(0, 10)
+
+  const picked = absolute.slice(0, 6)
+  const results = await Promise.all(picked.map(async (url): Promise<FetchedImageSample | null> => {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'User-Agent': USER_AGENT } })
+      if (!res.ok) return null
+      const contentType = res.headers.get('content-type') ?? ''
+      if (!contentType.startsWith('image/')) return null
+      const arrayBuf = await res.arrayBuffer()
+      if (arrayBuf.byteLength > 4_000_000) return null
+      const buf = Buffer.from(arrayBuf)
+      return {
+        url,
+        contentType,
+        bytes: buf.length,
+        latin1: buf.toString('latin1'),
+        pngTextChunks: contentType.includes('png') ? parsePngTextChunks(buf) : [],
+      }
+    } catch { return null }
+  }))
+  return results.filter((r): r is FetchedImageSample => r !== null)
+}
+
 // ── GitHub fetching ────────────────────────────────────────────────────────
 
 const ALLOWED_EXTS = new Set([
@@ -145,13 +203,29 @@ const ALLOWED_EXTS = new Set([
 
 interface GhTreeEntry { path: string; type: string; size?: number }
 
+interface GithubFetchResult {
+  files: FetchedFile[]
+  allFilePaths: string[]
+  packageJson: Record<string, unknown> | null
+  hasComponentsJson: boolean
+  readme: string | null
+}
+
 function parseGithubUrl(url: string): { owner: string; repo: string; branch?: string } | null {
   const m = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/(?:tree|blob)\/([^/]+))?/i)
   if (!m) return null
   return { owner: m[1], repo: m[2].replace(/\.git$/, ''), branch: m[3] }
 }
 
-async function fetchGithub(repoUrl: string): Promise<FetchedFile[]> {
+async function fetchRawFile(owner: string, repo: string, branch: string, path: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`, { signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return null
+    return await res.text()
+  } catch { return null }
+}
+
+async function fetchGithub(repoUrl: string): Promise<GithubFetchResult> {
   const parsed = parseGithubUrl(repoUrl)
   if (!parsed) throw new Error('Invalid GitHub URL. Expected https://github.com/owner/repo')
 
@@ -177,8 +251,10 @@ async function fetchGithub(repoUrl: string): Promise<FetchedFile[]> {
   if (!treeRes.ok) throw new Error(`Failed to fetch repo tree (${treeRes.status})`)
   const treeData = await treeRes.json() as { tree: GhTreeEntry[]; truncated?: boolean }
 
-  const candidates = (treeData.tree ?? [])
-    .filter((e) => e.type === 'blob')
+  const allBlobs = (treeData.tree ?? []).filter((e) => e.type === 'blob')
+  const allFilePaths = allBlobs.map((e) => e.path).slice(0, 3000)
+
+  const candidates = allBlobs
     .filter((e) => {
       const dot = e.path.lastIndexOf('.')
       const ext = dot >= 0 ? e.path.slice(dot).toLowerCase() : ''
@@ -196,242 +272,38 @@ async function fetchGithub(repoUrl: string): Promise<FetchedFile[]> {
 
   const toFetch = candidates.slice(0, 30).filter((e) => !e.size || e.size < 200_000)
 
-  const results: FetchedFile[] = await Promise.all(
-    toFetch.map(async (entry) => {
-      try {
-        const raw = await fetch(
-          `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${branch}/${entry.path}`,
-          { signal: AbortSignal.timeout(8000) },
-        )
-        if (!raw.ok) return null
-        const content = await raw.text()
+  const [filesResults, packageJsonRaw, readmeRaw] = await Promise.all([
+    Promise.all(
+      toFetch.map(async (entry) => {
+        const content = await fetchRawFile(parsed.owner, parsed.repo, branch!, entry.path)
+        if (content === null) return null
         return { path: entry.path, content, bytes: content.length }
-      } catch { return null }
-    }),
-  ).then((arr) => arr.filter((x): x is FetchedFile => x !== null))
+      }),
+    ).then((arr) => arr.filter((x): x is FetchedFile => x !== null)),
+    allBlobs.some((e) => e.path === 'package.json') ? fetchRawFile(parsed.owner, parsed.repo, branch, 'package.json') : Promise.resolve(null),
+    (() => {
+      const readmePath = allBlobs.find((e) => /^readme(\.md|\.mdx|\.txt)?$/i.test(e.path))?.path
+      return readmePath ? fetchRawFile(parsed.owner, parsed.repo, branch!, readmePath) : Promise.resolve(null)
+    })(),
+  ])
 
-  if (results.length === 0) throw new Error('No analyzable files found in the repo.')
-  return results
+  if (filesResults.length === 0) throw new Error('No analyzable files found in the repo.')
+
+  let packageJson: Record<string, unknown> | null = null
+  if (packageJsonRaw) {
+    try { packageJson = JSON.parse(packageJsonRaw) } catch { packageJson = null }
+  }
+  const hasComponentsJson = allBlobs.some((e) => /(?:^|\/)components\.json$/i.test(e.path))
+
+  return { files: filesResults, allFilePaths, packageJson, hasComponentsJson, readme: readmeRaw }
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// PLATFORM & TOOL FINGERPRINTING
-// The core of the verdict. CMS/site-builder markup (WordPress + Elementor,
-// Wix, Shopify, …) is template-generated — messy HTML there does NOT mean
-// vibe-coded. Conversely, v0 / Lovable / Bolt / shadcn stacks are direct
-// evidence of AI generation.
-// ──────────────────────────────────────────────────────────────────────────
-
-const AI_GENERATOR_NAMES = ['v0', 'vercel v0', 'bolt', 'lovable', 'cursor', 'windsurf', 'replit', 'devin', 'github copilot', 'chatgpt', 'claude', 'gpt-engineer']
-
-// shadcn/ui semantic design tokens — the signature class vocabulary emitted by
-// v0, Lovable, Bolt and most AI site builders. Almost never hand-typed at scale
-// outside that ecosystem.
-const SHADCN_TOKENS = [
-  'text-muted-foreground', 'bg-background', 'text-foreground', 'border-border',
-  'bg-card', 'text-card-foreground', 'text-primary-foreground', 'bg-muted',
-  'ring-offset-background', 'bg-popover', 'text-popover-foreground',
-  'bg-accent', 'text-accent-foreground', 'bg-destructive', 'text-destructive-foreground',
-  'bg-secondary', 'text-secondary-foreground',
-]
-
-function detectPlatform(html: string, generatorValues: string[]): PlatformDetection {
-  const L = html.toLowerCase()
-  const gen = generatorValues.join(' | ').toLowerCase()
-  const detected: DetectedTool[] = []
-  let aiPoints = 0
-  let cmsPoints = 0
-  // Set only when a real CMS/site-builder is confirmed — libraries like jQuery
-  // add points but can never classify a site as "cms" on their own.
-  let cmsStrong = false
-
-  const addTool = (name: string, type: DetectedTool['type'], evidence: string[]) => {
-    const existing = detected.find((d) => d.name === name)
-    if (existing) existing.evidence.push(...evidence.filter((e) => !existing.evidence.includes(e)))
-    else detected.push({ name, type, evidence })
-  }
-
-  // ── CMS: WordPress ecosystem ──
-  // Only count real ASSET REFERENCES (src=/href=), not text mentions — a
-  // migrated image URL or a blog post mentioning "/wp-content/" must not turn
-  // a Next.js site into "WordPress". Declaring WordPress requires ≥2 distinct
-  // evidence types (or a generator tag).
-  const wpContentAssets  = countMatches(html, /(?:src|href)\s*=\s*["'][^"']*\/wp-content\//gi)
-  const wpIncludesAssets = countMatches(html, /(?:src|href)\s*=\s*["'][^"']*\/wp-includes\//gi)
-  const wpJsonLink       = /<link[^>]*href=["'][^"']*\/wp-json[^"']*["']/i.test(html) || /rel=["']https:\/\/api\.w\.org\/["']/i.test(html)
-  const wpGenerator      = gen.includes('wordpress')
-  const wpBodyClass      = /<body[^>]*class=["'][^"']*\bwp-/i.test(html)
-
-  const wpEvidence: string[] = []
-  if (wpContentAssets > 0)  wpEvidence.push(`${wpContentAssets} wp-content asset reference${wpContentAssets > 1 ? 's' : ''}`)
-  if (wpIncludesAssets > 0) wpEvidence.push('wp-includes core scripts')
-  if (wpJsonLink)           wpEvidence.push('wp-json REST API link')
-  if (wpGenerator)          wpEvidence.push('generator meta tag: WordPress')
-  if (wpBodyClass)          wpEvidence.push('WordPress body classes')
-
-  const wpEvidenceTypes = wpEvidence.length
-  const isWordPress = wpGenerator || wpEvidenceTypes >= 2
-  const wpTracesOnly = !isWordPress && wpEvidenceTypes === 1
-  if (isWordPress) { addTool('WordPress', 'cms', wpEvidence); cmsPoints += 60; cmsStrong = true }
-  else if (wpTracesOnly) { addTool('WordPress traces', 'library', [...wpEvidence, 'single weak signal — possibly migrated assets, not a WordPress site']); cmsPoints += 10 }
-
-  const hasElementor = /class=["'][^"']*elementor-|data-elementor-type|elementor-frontend/i.test(html)
-  if (hasElementor) { addTool('Elementor', 'site-builder', ['elementor-* classes / data-elementor attributes']); cmsPoints += 25; cmsStrong = true }
-  const hasDivi = L.includes('et_pb_')
-  if (hasDivi) { addTool('Divi Builder', 'site-builder', ['et_pb_* module classes']); cmsPoints += 25; cmsStrong = true }
-  const hasWpBakery = L.includes('vc_row')
-  if (hasWpBakery) { addTool('WPBakery', 'site-builder', ['vc_row layout classes']); cmsPoints += 25; cmsStrong = true }
-
-  // Gutenberg: every WordPress site loads the core "wp-block-library"
-  // stylesheet, so a plain substring match false-flags all WP sites. Only
-  // count actual block markup in class attributes.
-  const gutenbergBlocks = countMatches(html, /class=["'][^"']*\bwp-block-(?!library)[a-z-]+/gi)
-  const hasGutenberg = gutenbergBlocks >= 2
-  if (hasGutenberg) { addTool('Gutenberg', 'site-builder', [`${gutenbergBlocks} wp-block-* elements in page markup`]); cmsPoints += 15 }
-  if (L.includes('woocommerce')) { addTool('WooCommerce', 'cms', ['woocommerce classes/assets']); cmsPoints += 10 }
-
-  // ── Other CMS / hosted site builders ──
-  const otherCms: { name: string; test: boolean; ev: string; type: DetectedTool['type'] }[] = [
-    { name: 'Shopify',     test: L.includes('cdn.shopify.com') || L.includes('/cdn/shop/') || L.includes('shopify.theme'), ev: 'Shopify CDN / theme runtime', type: 'cms' },
-    { name: 'Wix',         test: L.includes('wixstatic.com') || L.includes('parastorage.com'), ev: 'Wix static asset domains', type: 'site-builder' },
-    { name: 'Squarespace', test: L.includes('squarespace.com') || L.includes('sqs-block') || gen.includes('squarespace'), ev: 'Squarespace assets / sqs-block classes', type: 'site-builder' },
-    { name: 'Webflow',     test: L.includes('website-files.com') || L.includes('data-wf-page') || gen.includes('webflow'), ev: 'Webflow asset CDN / data-wf attributes', type: 'site-builder' },
-    { name: 'Framer',      test: L.includes('framerusercontent.com'), ev: 'Framer user-content CDN', type: 'site-builder' },
-    { name: 'Drupal',      test: gen.includes('drupal') || L.includes('/sites/default/files'), ev: 'Drupal generator / default file paths', type: 'cms' },
-    { name: 'Joomla',      test: gen.includes('joomla') || L.includes('/media/jui/'), ev: 'Joomla generator / media paths', type: 'cms' },
-    { name: 'Ghost',       test: gen.includes('ghost'), ev: 'Ghost generator meta tag', type: 'cms' },
-    { name: 'Blogger',     test: L.includes('blogger.com/static') || gen.includes('blogger'), ev: 'Blogger static assets', type: 'cms' },
-    { name: 'Duda',        test: L.includes('dudaone') || L.includes('duda_website_builder'), ev: 'Duda builder runtime', type: 'site-builder' },
-    { name: 'Weebly',      test: L.includes('weebly.com'), ev: 'Weebly assets', type: 'site-builder' },
-  ]
-  for (const c of otherCms) {
-    if (c.test) { addTool(c.name, c.type, [c.ev]); cmsPoints += 60; cmsStrong = true }
-  }
-
-  // ── Traditional-stack libraries (mild human/CMS signal — AI tools rarely emit these today) ──
-  const hasJquery = /<script[^>]*src=["'][^"']*jquery[^"']*["']/i.test(html)
-  if (hasJquery) { addTool('jQuery', 'library', ['jQuery script include']); cmsPoints += 10 }
-  const hasBootstrap = /<link[^>]*href=["'][^"']*bootstrap[^"']*["']|class=["'][^"']*\b(?:navbar-expand|col-md-|col-lg-)/i.test(html)
-  if (hasBootstrap) { addTool('Bootstrap', 'library', ['Bootstrap CSS / grid classes']); cmsPoints += 10 }
-
-  // ── AI-tool fingerprints ──
-  const aiGenerator = generatorValues.find((g) => AI_GENERATOR_NAMES.some((n) => g.toLowerCase().includes(n))) ?? null
-  if (aiGenerator) { addTool(aiGenerator, 'ai-tool', [`generator meta tag: ${aiGenerator}`]); aiPoints += 60 }
-
-  // v0: direct markers + its signature placeholder asset conventions
-  // (/placeholder.svg?height=…&width=…, placeholder-user.jpg, placeholder-logo.*)
-  const v0Direct = L.includes('data-v0-t') || L.includes('v0.dev') || L.includes('v0.app')
-  const v0PlaceholderSvg = /placeholder\.svg\?(?:height|width)=/i.test(html)
-  const v0PlaceholderAssets = L.includes('placeholder-user.jpg') || L.includes('placeholder-logo.') || L.includes('placeholder.jpg')
-  const hasV0 = v0Direct || v0PlaceholderSvg
-  if (v0Direct) { addTool('v0 by Vercel', 'ai-tool', ['data-v0-t attribute / v0.dev references']); aiPoints += 55 }
-  if (v0PlaceholderSvg) { addTool('v0 by Vercel', 'ai-tool', ['v0 placeholder.svg?height=…&width=… asset convention']); aiPoints += v0Direct ? 10 : 50 }
-  else if (v0PlaceholderAssets) { addTool('v0 by Vercel (probable)', 'ai-tool', ['v0-style placeholder-user/placeholder-logo assets']); aiPoints += 30 }
-
-  const hasLovable = L.includes('gptengineer') || L.includes('gpt-engineer') || L.includes('lovable.dev') || L.includes('lovable-badge') || L.includes('lovableproject.com') || L.includes('/lovable-uploads/')
-  if (hasLovable) { addTool('Lovable', 'ai-tool', [L.includes('/lovable-uploads/') ? '/lovable-uploads/ asset paths' : 'Lovable / GPT-Engineer script or badge']); aiPoints += 55 }
-
-  const hasBolt = L.includes('bolt.new')
-  if (hasBolt) { addTool('Bolt', 'ai-tool', ['bolt.new references']); aiPoints += 45 }
-
-  const hasBase44 = L.includes('base44')
-  if (hasBase44) { addTool('Base44', 'ai-tool', ['base44 references']); aiPoints += 45 }
-
-  const hasReplit = L.includes('.repl.co') || L.includes('replit.dev') || L.includes('replit-badge')
-  if (hasReplit) { addTool('Replit', 'ai-tool', ['Replit hosting / badge markers']); aiPoints += 35 }
-
-  // shadcn/ui token vocabulary
-  let shadcnTotal = 0
-  const shadcnFound: string[] = []
-  for (const token of SHADCN_TOKENS) {
-    const c = countMatches(L, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))
-    if (c > 0) { shadcnFound.push(token); shadcnTotal += c }
-  }
-  const shadcnStrong = shadcnFound.length >= 4 && shadcnTotal >= 8
-  const shadcnModerate = !shadcnStrong && shadcnFound.length >= 2
-  if (shadcnStrong)   { addTool('shadcn/ui', 'ai-tool', [`${shadcnFound.length} design tokens × ${shadcnTotal} uses (${shadcnFound.slice(0, 4).join(', ')}…)`]); aiPoints += 40 }
-  else if (shadcnModerate) { addTool('shadcn/ui (partial)', 'ai-tool', [`${shadcnFound.length} design tokens found`]); aiPoints += 20 }
-
-  const hasRadix = L.includes('data-radix-') || L.includes('id="radix-') || L.includes("id='radix-")
-  if (hasRadix) { addTool('Radix UI', 'library', ['data-radix-* / radix element ids']); aiPoints += 15 }
-
-  const hasLucide = L.includes('class="lucide') || L.includes('lucide lucide-')
-  if (hasLucide) { addTool('Lucide icons', 'library', ['lucide-* SVG icon classes']); aiPoints += 10 }
-
-  const hasTailwindCdn = L.includes('cdn.tailwindcss.com')
-  if (hasTailwindCdn) { addTool('Tailwind CDN', 'library', ['cdn.tailwindcss.com script (prototype-style build)']); aiPoints += 25 }
-
-  // ChatGPT / Claude single-file artifact patterns: AI chatbots that generate a
-  // full HTML page almost always leave section comments ("<!-- Hero Section -->")
-  // and use placeholder image services.
-  const aiSectionComments = countMatches(html, /<!--\s*(?:hero|navigation|nav bar|navbar|header|footer|features?|testimonials?|pricing|faq|cta|call to action|about(?: us)?|contact(?: us)?|services?|gallery|team)\s*(?:section)?\s*-->/gi)
-  const placeholderServices = L.includes('via.placeholder.com') || L.includes('placehold.co') || L.includes('source.unsplash.com') || L.includes('placekitten.com')
-  const chatbotArtifact = (hasTailwindCdn && aiSectionComments >= 2) || (aiSectionComments >= 4) || (placeholderServices && aiSectionComments >= 2)
-  if (chatbotArtifact) {
-    addTool('ChatGPT / Claude (pattern)', 'ai-tool', [
-      `${aiSectionComments} AI-style section comments${hasTailwindCdn ? ' + Tailwind CDN' : ''}${placeholderServices ? ' + placeholder image service' : ''}`,
-    ])
-    aiPoints += 45
-  } else if (aiSectionComments >= 2) {
-    aiPoints += 15
-  }
-  if (placeholderServices && !chatbotArtifact) aiPoints += 10
-
-  // next/font hashed classes + Geist — the default v0 / AI-scaffolded Next.js look (weak, supporting)
-  const hasNextFontHashes = L.includes('__classname_') || L.includes('__variable_')
-  const hasGeist = /geist(?:_|-|\s|sans|mono)/i.test(html)
-  if (hasNextFontHashes && (shadcnFound.length > 0 || hasGeist)) aiPoints += 10
-
-  // ── Frameworks (neutral context) ──
-  if (L.includes('id="__next"') || L.includes('/_next/') || L.includes('self.__next_f')) addTool('Next.js', 'framework', ['__next root / _next assets'])
-  else if (L.includes('data-reactroot') || L.includes('id="root"') && L.includes('react')) addTool('React', 'framework', ['React root markers'])
-  if (L.includes('__nuxt')) addTool('Nuxt', 'framework', ['__nuxt root'])
-  if (/ng-version=/i.test(html)) addTool('Angular', 'framework', ['ng-version attribute'])
-  if (L.includes('astro-island')) addTool('Astro', 'framework', ['astro-island elements'])
-  if (L.includes('___gatsby')) addTool('Gatsby', 'framework', ['___gatsby root'])
-
-  aiPoints = Math.min(aiPoints, 100)
-  cmsPoints = Math.min(cmsPoints, 100)
-
-  // ── Fixed signal checklists (for the report UI) ──
-  const aiSignals: FingerprintSignal[] = [
-    { name: 'AI generator meta tag',          found: !!aiGenerator,            detail: aiGenerator ? `"${aiGenerator}"` : 'No v0 / Lovable / Bolt generator tag' },
-    { name: 'v0 by Vercel fingerprint',       found: hasV0 || v0PlaceholderAssets, detail: v0Direct ? 'data-v0-t attribute or v0.dev reference' : v0PlaceholderSvg ? 'v0 placeholder.svg asset convention' : v0PlaceholderAssets ? 'v0-style placeholder assets' : 'Not found' },
-    { name: 'Lovable / GPT-Engineer markers', found: hasLovable,               detail: hasLovable ? (L.includes('/lovable-uploads/') ? '/lovable-uploads/ asset paths' : 'Lovable badge or gptengineer script') : 'Not found' },
-    { name: 'Bolt / Base44 / Replit markers', found: hasBolt || hasBase44 || hasReplit, detail: hasBolt || hasBase44 || hasReplit ? 'AI builder hosting references' : 'Not found' },
-    { name: 'ChatGPT / Claude artifact patterns', found: chatbotArtifact,      detail: chatbotArtifact ? `${aiSectionComments} section comments${hasTailwindCdn ? ' + Tailwind CDN' : ''}${placeholderServices ? ' + placeholder images' : ''}` : aiSectionComments > 0 ? `${aiSectionComments} section comment${aiSectionComments > 1 ? 's' : ''} (below threshold)` : 'No AI-style section comments' },
-    { name: 'shadcn/ui design tokens',        found: shadcnStrong || shadcnModerate, detail: shadcnFound.length > 0 ? `${shadcnFound.length} tokens, ${shadcnTotal} uses` : 'None of the signature token classes' },
-    { name: 'Radix UI primitives',            found: hasRadix,                 detail: hasRadix ? 'data-radix-* attributes present' : 'Not found' },
-    { name: 'Lucide icon set',                found: hasLucide,                detail: hasLucide ? 'lucide-* SVG classes present' : 'Not found' },
-    { name: 'Tailwind CDN prototype build',   found: hasTailwindCdn,           detail: hasTailwindCdn ? 'cdn.tailwindcss.com included' : 'Not found' },
-  ]
-
-  const anyOtherCms = otherCms.some((c) => c.test)
-  const cmsSignals: FingerprintSignal[] = [
-    { name: 'WordPress core assets',          found: isWordPress,   detail: isWordPress ? wpEvidence.join(', ') : wpTracesOnly ? `Weak trace only (${wpEvidence[0]}) — not enough to confirm WordPress` : 'No wp-content / wp-includes asset references' },
-    { name: 'Page builder markup',            found: hasElementor || hasDivi || hasWpBakery, detail: hasElementor ? 'Elementor' : hasDivi ? 'Divi' : hasWpBakery ? 'WPBakery' : 'No Elementor / Divi / WPBakery classes' },
-    { name: 'Gutenberg block markup',         found: hasGutenberg,  detail: hasGutenberg ? `${gutenbergBlocks} wp-block-* elements in page body` : 'No block markup (core wp-block-library CSS alone does not count)' },
-    { name: 'Hosted CMS / site builder',      found: anyOtherCms,   detail: anyOtherCms ? otherCms.filter((c) => c.test).map((c) => c.name).join(', ') : 'No Shopify / Wix / Squarespace / Webflow markers' },
-    { name: 'Traditional stack (jQuery / Bootstrap)', found: hasJquery || hasBootstrap, detail: hasJquery || hasBootstrap ? [hasJquery && 'jQuery', hasBootstrap && 'Bootstrap'].filter(Boolean).join(', ') : 'Not found' },
-  ]
-
-  // ── Classification ──
-  // AI fingerprints take precedence: a vibe-coded site that merely references
-  // old CMS assets stays "ai". "cms" additionally requires a confirmed
-  // CMS/builder (cmsStrong) — library points alone never classify.
-  let classification: PlatformDetection['classification']
-  if (aiPoints >= 45) classification = 'ai'
-  else if (cmsStrong && cmsPoints >= 50) classification = 'cms'
-  else if (aiPoints >= 22) classification = 'mixed'
-  else classification = 'custom'
-
-  return { classification, aiPoints, cmsPoints, detected, aiSignals, cmsSignals }
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// SUPPORTING ANALYZERS
-// Heuristic code-pattern audits. These support the verdict but never decide
-// it alone — CMS-generated markup triggers many of the same patterns.
+// LEGACY PATTERN-AUDIT ANALYZERS
+// These power the "Detailed code audits" report section (unchanged design).
+// They no longer decide the verdict on their own — see lib/vibe-detector/
+// for the signal registry + engine that now produce the AI/Human/CMS/Hybrid
+// probabilities. Kept here because they're informational/report-only.
 // ──────────────────────────────────────────────────────────────────────────
 
 // ─── 1. Inline Code Quality ───────────────────────────────────────────────
@@ -876,6 +748,7 @@ function analyzeImages(html: string): AnalyzerScore {
 
 // ─── 8. Metadata & SEO Signals ────────────────────────────────────────────
 const GENERIC_TITLES = ['home', 'welcome', 'page', 'untitled', 'my website', 'website', 'homepage']
+const AI_GENERATOR_NAMES = ['v0', 'vercel v0', 'bolt', 'lovable', 'cursor', 'windsurf', 'replit', 'devin', 'github copilot', 'chatgpt', 'claude', 'gpt-engineer']
 
 function extractGenerators(html: string): string[] {
   const values: string[] = []
@@ -959,57 +832,6 @@ function combineFromFiles(files: FetchedFile[]): { html: string; externalCss: st
   return { html: html.join('\n'), externalCss, externalJs }
 }
 
-// ── Verdict ────────────────────────────────────────────────────────────────
-// Direct platform fingerprints decide the verdict. Code-pattern heuristics
-// only nudge the score — they never turn a CMS site into a "vibe-coded" one.
-
-function computeVerdict(
-  platform: PlatformDetection,
-  analyzers: VibeCodeDetectorResult['analyzers'],
-): VibeCodeDetectorResult['overall'] {
-  // Weighted heuristic base (security & images excluded — not vibe signals)
-  const a = analyzers
-  const base =
-    a.jsPatterns.score    * 0.25 +
-    a.cssQuality.score    * 0.25 +
-    a.inlineCode.score    * 0.15 +
-    a.content.score       * 0.15 +
-    a.htmlStructure.score * 0.10 +
-    a.metadata.score      * 0.10
-
-  const { aiPoints, cmsPoints, classification, detected } = platform
-
-  let score: number
-  let confidence: string
-  let verdictText: string
-
-  const aiTools  = detected.filter((d) => d.type === 'ai-tool').map((d) => d.name)
-  const cmsTools = detected.filter((d) => d.type === 'cms' || d.type === 'site-builder').map((d) => d.name)
-
-  if (classification === 'cms') {
-    score = Math.min(18, Math.round(6 + aiPoints * 0.2))
-    confidence = 'Not vibe-coded — CMS build'
-    verdictText = `This site is built with ${cmsTools.join(' + ')}. Its markup is generated by CMS templates and page-builder tooling — patterns like deep div nesting or inline styles here come from the CMS, not from an AI coding tool. This is not a vibe-coded website.`
-  } else if (classification === 'ai') {
-    score = Math.min(97, Math.max(75, Math.round(55 + aiPoints * 0.3 + base * 0.15)))
-    confidence = 'Vibe-coded'
-    verdictText = `Direct AI-tool fingerprints detected${aiTools.length ? ` (${aiTools.join(', ')})` : ''}. This site carries the signature stack and markup of AI coding tools — it was very likely vibe-coded.`
-  } else if (classification === 'mixed') {
-    score = Math.min(74, Math.max(45, Math.round(35 + aiPoints * 0.5 + base * 0.2)))
-    confidence = 'Possibly vibe-coded'
-    verdictText = `Some AI-tool signals were found${aiTools.length ? ` (${aiTools.join(', ')})` : ''}, but no definitive fingerprint. Parts of this site may have been AI-generated, or it shares libraries popular with AI tools.`
-  } else {
-    // No direct fingerprints either way — heuristics alone, heavily damped
-    score = Math.min(44, Math.round(base * 0.45 + aiPoints))
-    confidence = score >= 30 ? 'Probably human-coded' : 'Likely human-coded'
-    verdictText = cmsTools.length
-      ? `Built with ${cmsTools.join(' + ')} and no AI-tool fingerprints were found. This looks like a conventionally built site.`
-      : `No CMS or AI-tool fingerprints were found, and the code patterns look conventional. This site appears to be human-coded.`
-  }
-
-  return { score, confidence, verdictText }
-}
-
 // ── Handler ────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -1027,30 +849,39 @@ export async function POST(req: NextRequest) {
     let securityHeaders: AnalyzerScore | null = null
     let inputDisplay = ''
     let fetchInfo: VibeCodeDetectorResult['fetchInfo'] = { sourceCount: 1, totalBytes: 0 }
+    let headers: Record<string, string> = {}
+    let finalUrl: string | undefined
+    let hostname: string | undefined
+    let fetchedImageSamples: FetchedImageSample[] = []
+    let githubExtra: { allFilePaths: string[]; packageJson: Record<string, unknown> | null; hasComponentsJson: boolean; readme: string | null } | undefined
 
     if (mode === 'url') {
       const url = normalizeUrl(input)
       let parsed: URL
       try { parsed = new URL(url) } catch { return NextResponse.json({ error: 'Invalid URL format.' }, { status: 400 }) }
-      const { html: fetchedHtml, finalUrl, contentType } = await fetchUrl(url)
+      const { html: fetchedHtml, finalUrl: fu, contentType } = await fetchUrl(url)
       html = fetchedHtml
       inputDisplay = parsed.host
-      fetchInfo = { sourceCount: 1, totalBytes: fetchedHtml.length, finalUrl, contentType }
-      const headers = await headRequest(finalUrl)
+      hostname = parsed.hostname
+      finalUrl = fu
+      fetchInfo = { sourceCount: 1, totalBytes: fetchedHtml.length, finalUrl: fu, contentType }
+      headers = await headRequest(fu)
       securityHeaders = analyzeSecurity(headers)
+      fetchedImageSamples = await fetchImageSamples(html, fu)
     } else if (mode === 'github') {
-      const files = await fetchGithub(input)
-      const combined = combineFromFiles(files)
+      const gh = await fetchGithub(input)
+      const combined = combineFromFiles(gh.files)
       html = combined.html
       externalCss = combined.externalCss
       externalJs = combined.externalJs
       const parsed = parseGithubUrl(input)
       inputDisplay = parsed ? `${parsed.owner}/${parsed.repo}` : input
       fetchInfo = {
-        sourceCount: files.length,
-        totalBytes: files.reduce((s, f) => s + f.bytes, 0),
-        files: files.map((f) => ({ path: f.path, bytes: f.bytes })),
+        sourceCount: gh.files.length,
+        totalBytes: gh.files.reduce((s, f) => s + f.bytes, 0),
+        files: gh.files.map((f) => ({ path: f.path, bytes: f.bytes })),
       }
+      githubExtra = { allFilePaths: gh.allFilePaths, packageJson: gh.packageJson, hasComponentsJson: gh.hasComponentsJson, readme: gh.readme }
     } else {
       if (input.length < 100) return NextResponse.json({ error: 'Please paste at least 100 characters.' }, { status: 400 })
       html = input
@@ -1063,7 +894,6 @@ export async function POST(req: NextRequest) {
     }
 
     const generators = extractGenerators(html)
-    const platform = detectPlatform([html, externalCss.join('\n'), externalJs.join('\n')].join('\n'), generators)
 
     const analyzers: VibeCodeDetectorResult['analyzers'] = {
       inlineCode:      analyzeInlineCode(html),
@@ -1076,14 +906,47 @@ export async function POST(req: NextRequest) {
       metadata:        analyzeMetadata(html),
     }
 
-    const overall = computeVerdict(platform, analyzers)
+    const imageRefs: ImageRef[] = (analyzers.images.details.records as ImageRecord[]).map((r) => ({
+      src: r.src, alt: r.alt, hasAlt: r.hasAlt, hasDimensions: r.hasDimensions, isNextImage: r.isNextImage,
+    }))
+
+    const headHtml = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? html
+    const combinedJs = [
+      (html.match(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi) ?? []).map((b) => b.replace(/^<script[^>]*>|<\/script>$/gi, '')).join('\n'),
+      externalJs.join('\n'),
+    ].filter(Boolean).join('\n')
+    const combinedCss = [
+      (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) ?? []).join('\n'),
+      externalCss.join('\n'),
+    ].filter(Boolean).join('\n')
+
+    const signalContext: SignalContext = {
+      mode,
+      html,
+      htmlLower: html.toLowerCase(),
+      headHtml,
+      css: combinedCss,
+      js: combinedJs,
+      generatorValues: generators,
+      headers,
+      finalUrl,
+      hostname,
+      images: imageRefs,
+      fetchedImageSamples,
+      files: undefined,
+      packageJson: githubExtra?.packageJson ?? null,
+      allFilePaths: githubExtra?.allFilePaths,
+      hasComponentsJson: githubExtra?.hasComponentsJson ?? false,
+      readme: githubExtra?.readme ?? null,
+    }
+
+    const detection = runDetectionEngine(signalContext)
 
     const result: VibeCodeDetectorResult = {
       mode,
       inputDisplay,
       fetchInfo,
-      platform,
-      overall,
+      detection,
       analyzers,
       generatedAt: new Date().toISOString(),
     }

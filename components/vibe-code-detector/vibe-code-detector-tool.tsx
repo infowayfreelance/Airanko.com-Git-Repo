@@ -8,7 +8,8 @@ import {
   ExternalLink, Download, Zap, Fingerprint, Layers, ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { VibeCodeDetectorResult, AnalyzerScore, FingerprintSignal, DetectedTool } from '@/app/api/vibe-code-detector/route'
+import type { VibeCodeDetectorResult, AnalyzerScore } from '@/app/api/vibe-code-detector/route'
+import type { Bucket, TriggeredSignal } from '@/lib/vibe-detector/types'
 
 type Mode = 'url' | 'github' | 'paste'
 type Stage = 'input' | 'analyzing' | 'results'
@@ -41,19 +42,23 @@ function scoreToHex(score: number): string {
   return '#ef4444'
 }
 
-const TOOL_TYPE_STYLE: Record<DetectedTool['type'], string> = {
-  'ai-tool':      'border-red-200 bg-red-50 text-red-700',
-  'cms':          'border-blue-200 bg-blue-50 text-blue-700',
-  'site-builder': 'border-violet-200 bg-violet-50 text-violet-700',
-  'framework':    'border-border bg-muted text-muted-foreground',
-  'library':      'border-border bg-muted text-muted-foreground',
+const BUCKET_COLOR: Record<Bucket, string> = {
+  ai:     '#ef4444',
+  human:  '#10b981',
+  cms:    '#3b82f6',
+  hybrid: '#f59e0b',
 }
-const TOOL_TYPE_LABEL: Record<DetectedTool['type'], string> = {
-  'ai-tool':      'AI tool',
-  'cms':          'CMS',
-  'site-builder': 'Site builder',
-  'framework':    'Framework',
-  'library':      'Library',
+const BUCKET_LABEL: Record<Bucket, string> = {
+  ai:     'AI / Vibe Coded',
+  human:  'Human Coded',
+  cms:    'CMS Generated',
+  hybrid: 'Hybrid (Human + AI)',
+}
+const BUCKET_BADGE_STYLE: Record<Bucket, string> = {
+  ai:     'border-red-200 bg-red-50 text-red-700',
+  human:  'border-emerald-200 bg-emerald-50 text-emerald-700',
+  cms:    'border-blue-200 bg-blue-50 text-blue-700',
+  hybrid: 'border-amber-200 bg-amber-50 text-amber-700',
 }
 
 function ScoreGauge({ score, size = 'lg' }: { score: number; size?: 'sm' | 'md' | 'lg' }) {
@@ -104,29 +109,47 @@ function StatBox({ label, value, hint, positive }: { label: string; value: numbe
   )
 }
 
-function SignalRow({ signal, foundMeans }: { signal: FingerprintSignal; foundMeans: 'ai' | 'cms' }) {
-  const found = signal.found
-  const accent = foundMeans === 'ai'
-    ? (found ? 'border-red-200 bg-red-50' : 'border-border bg-background')
-    : (found ? 'border-blue-200 bg-blue-50' : 'border-border bg-background')
-  const iconColor = foundMeans === 'ai' ? 'text-red-500' : 'text-blue-600'
+function ProbabilityBar({ bucket, value }: { bucket: Bucket; value: number }) {
+  const color = BUCKET_COLOR[bucket]
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="font-semibold text-foreground">{BUCKET_LABEL[bucket]}</span>
+        <span className="font-mono font-bold tabular-nums" style={{ color }}>{value}%</span>
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${value}%`, background: color }} />
+      </div>
+    </div>
+  )
+}
+
+const CONFIDENCE_STYLE: Record<string, string> = {
+  high:   'border-emerald-200 bg-emerald-50 text-emerald-700',
+  medium: 'border-amber-200 bg-amber-50 text-amber-700',
+  low:    'border-border bg-muted text-muted-foreground',
+}
+const RISK_STYLE: Record<string, string> = {
+  low:    'text-muted-foreground',
+  medium: 'text-amber-600',
+  high:   'text-red-600',
+}
+
+function TriggeredSignalRow({ signal, tone }: { signal: TriggeredSignal; tone: 'positive' | 'negative' }) {
+  const accent = tone === 'positive' ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'
+  const Icon = tone === 'positive' ? CheckCircle2 : XCircle
+  const iconColor = tone === 'positive' ? 'text-emerald-500' : 'text-red-500'
   return (
     <div className={cn('flex items-start gap-3 rounded-xl border p-3', accent)}>
-      {found
-        ? <CheckCircle2 className={cn('mt-0.5 h-4 w-4 shrink-0', iconColor)} />
-        : <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/40" />}
+      <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', iconColor)} />
       <div className="min-w-0 flex-1">
-        <p className={cn('text-xs font-semibold', found ? 'text-foreground' : 'text-muted-foreground')}>{signal.name}</p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground break-words">{signal.detail}</p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="text-xs font-semibold text-foreground">{signal.name}</p>
+          <span className={cn('rounded border px-1.5 py-0 text-[9px] font-bold uppercase tracking-wide', CONFIDENCE_STYLE[signal.confidence])}>{signal.confidence} confidence</span>
+          <span className={cn('text-[9px] font-medium', RISK_STYLE[signal.falsePositiveRisk])}>· {signal.falsePositiveRisk} false-positive risk</span>
+        </div>
+        <p className="mt-0.5 text-[11px] text-muted-foreground break-words">{signal.evidence[0] ?? signal.description}</p>
       </div>
-      <span className={cn(
-        'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold',
-        found
-          ? (foundMeans === 'ai' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700')
-          : 'bg-muted text-muted-foreground',
-      )}>
-        {found ? 'FOUND' : '—'}
-      </span>
     </div>
   )
 }
@@ -190,6 +213,7 @@ export default function VibeCodeDetectorTool() {
   const [result, setResult] = useState<VibeCodeDetectorResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showAudits, setShowAudits] = useState(false)
+  const [showAllSignals, setShowAllSignals] = useState(false)
 
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const apiDone = useRef(false)
@@ -304,21 +328,21 @@ export default function VibeCodeDetectorTool() {
           <div className="mx-auto mb-8 max-w-2xl text-center">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
               <Fingerprint className="h-3 w-3" />
-              Platform fingerprinting · CMS-aware · Zero fake scores
+              Probabilistic forensic analysis · 90+ signals · Zero fake scores
             </div>
             <h1 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
               Vibe Code Detector
             </h1>
             <p className="mt-3 leading-relaxed text-muted-foreground text-pretty">
-              Find out if a website was <strong>vibe-coded with AI tools</strong> like v0, Lovable, Bolt, ChatGPT, or Claude. We fingerprint the actual platform first — WordPress, Elementor, Wix, Shopify and other CMS builds are recognized and never misflagged — then verify with real code-pattern audits.
+              Estimate the probability that a website is <strong>Human Coded</strong>, <strong>AI / Vibe Coded</strong>, <strong>CMS Generated</strong>, or a <strong>Hybrid</strong> of the two. This is a deep forensic analysis — hosting, images, HTML/CSS/JS patterns, packages, content, and dozens more signals each cast a weighted vote — not a certainty claim that any specific AI tool was used.
             </p>
           </div>
 
           <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
-              { icon: Fingerprint, label: 'Tool fingerprints' },
+              { icon: Fingerprint, label: '90+ signals' },
               { icon: Layers,      label: 'CMS-aware' },
-              { icon: Cpu,         label: 'No fake scores' },
+              { icon: Cpu,         label: 'Weighted probability' },
               { icon: Download,    label: 'JSON export' },
             ].map((f) => (
               <div key={f.label} className="flex items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
@@ -428,7 +452,7 @@ export default function VibeCodeDetectorTool() {
               </button>
 
               <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                Analysis takes 15–30 seconds. Platform fingerprinting + 8 code audits — no guesswork.
+                Analysis takes 15–30 seconds. Weighted probabilistic scoring across 90+ signals — no guesswork.
               </p>
             </div>
           </div>
@@ -491,10 +515,8 @@ export default function VibeCodeDetectorTool() {
   // ── RESULTS STAGE ─────────────────────────────────────────────────────────
   if (!result) return null
 
-  const verdictColor = scoreToHex(result.overall.score)
-  const aiTools = result.platform.detected.filter((d) => d.type === 'ai-tool')
-  const foundAiSignals = result.platform.aiSignals.filter((s) => s.found).length
-  const foundCmsSignals = result.platform.cmsSignals.filter((s) => s.found).length
+  const det = result.detection
+  const verdictColor = det.classification === 'unknown' ? '#94a3b8' : BUCKET_COLOR[det.classification]
 
   return (
     <section className="px-4 py-8 sm:px-6 lg:px-8">
@@ -525,86 +547,177 @@ export default function VibeCodeDetectorTool() {
         <div className="mb-6 rounded-3xl border border-border bg-card p-6 sm:p-8">
           <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-center">
             <div className="flex flex-col items-center gap-2">
-              <ScoreGauge score={result.overall.score} size="lg" />
-              <p className="text-[10px] text-muted-foreground">0 = not vibe-coded · 100 = vibe-coded</p>
+              <ScoreGauge score={det.classification === 'unknown' ? 0 : det.probabilities[det.classification]} size="lg" />
+              <p className="text-[10px] text-muted-foreground">Probability of the winning classification</p>
             </div>
             <div>
-              <span
-                className="inline-block rounded-full border px-3 py-1 text-sm font-bold"
-                style={{ color: verdictColor, borderColor: `${verdictColor}55`, background: `${verdictColor}14` }}
-              >
-                {result.overall.confidence}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className="inline-block rounded-full border px-3 py-1 text-sm font-bold"
+                  style={{ color: verdictColor, borderColor: `${verdictColor}55`, background: `${verdictColor}14` }}
+                >
+                  {det.classificationLabel}
+                </span>
+                <span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide', CONFIDENCE_STYLE[det.confidence])}>
+                  {det.confidence} confidence
+                </span>
+              </div>
               <p className="mt-3 leading-relaxed text-foreground text-pretty">
-                {result.overall.verdictText}
+                {det.verdictText}
               </p>
-
-              {/* Detected platform badges */}
-              {result.platform.detected.length > 0 && (
-                <div className="mt-4">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Detected stack</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.platform.detected.map((t) => (
-                      <span
-                        key={t.name}
-                        title={t.evidence.join(' · ')}
-                        className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium', TOOL_TYPE_STYLE[t.type])}
-                      >
-                        {t.name}
-                        <span className="rounded bg-black/5 px-1 py-px text-[9px] font-semibold uppercase tracking-wide opacity-70">{TOOL_TYPE_LABEL[t.type]}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <p className="mt-2 text-[11px] italic text-muted-foreground">
+                This is a probabilistic forensic assessment based on {det.totalSignalsTriggered} triggered signals (out of {det.totalSignalsEvaluated} evaluated) — not a certainty claim.
+              </p>
             </div>
           </div>
+
+          {/* Probability breakdown */}
+          <div className="mt-6 grid gap-4 border-t border-border pt-6 sm:grid-cols-2">
+            <ProbabilityBar bucket="ai" value={det.probabilities.ai} />
+            <ProbabilityBar bucket="human" value={det.probabilities.human} />
+            <ProbabilityBar bucket="cms" value={det.probabilities.cms} />
+            <ProbabilityBar bucket="hybrid" value={det.probabilities.hybrid} />
+          </div>
+
+          {/* Detected technologies */}
+          {det.detectedTechnologies.length > 0 && (
+            <div className="mt-6 border-t border-border pt-6">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Detected technologies</p>
+              <div className="flex flex-wrap gap-1.5">
+                {det.detectedTechnologies.map((t) => (
+                  <span
+                    key={t.name}
+                    title={t.evidence.join(' · ')}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground"
+                  >
+                    {t.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reasons */}
+          {det.reasons.length > 0 && (
+            <div className="mt-6 border-t border-border pt-6">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Why we reached this conclusion</p>
+              <ul className="space-y-1.5">
+                {det.reasons.map((r, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary" />
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
-        {/* ── Evidence panels ── */}
+        {/* ── AI-generated image findings ── */}
+        {det.aiImageFindings.length > 0 && (
+          <div className="mb-6 rounded-3xl border border-red-200 bg-red-50/40 p-6">
+            <div className="mb-4 flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                <ImageIcon className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="font-heading text-sm font-bold text-foreground">AI-generated images detected</h2>
+                <p className="text-[11px] text-muted-foreground">Explicit per-image forensic findings, not just a score bump</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {det.aiImageFindings.map((f, i) => (
+                <div key={i} className="rounded-xl border border-red-200 bg-white/60 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">This image is AI Generated</span>
+                    {f.toolGuess && <span className="text-xs font-semibold text-foreground">Likely tool: {f.toolGuess}</span>}
+                  </div>
+                  <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{f.src}</p>
+                  <ul className="mt-1.5 space-y-0.5">
+                    {f.evidence.map((e, j) => (
+                      <li key={j} className="text-[11px] text-foreground">• {e}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Evidence panels: Positive vs Negative signals ── */}
         <div className="mb-6 grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl border border-border bg-card p-6">
             <div className="mb-4 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-500">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                   <Fingerprint className="h-4 w-4" />
                 </div>
                 <div>
-                  <h2 className="font-heading text-sm font-bold text-foreground">AI-tool fingerprints</h2>
-                  <p className="text-[11px] text-muted-foreground">Direct evidence of vibe coding</p>
+                  <h2 className="font-heading text-sm font-bold text-foreground">Positive signals</h2>
+                  <p className="text-[11px] text-muted-foreground">Support the {det.classification === 'unknown' ? 'inconclusive result' : `"${det.classificationLabel}"`} verdict</p>
                 </div>
               </div>
-              <span className={cn('rounded-lg px-2 py-1 text-xs font-bold tabular-nums', foundAiSignals > 0 ? 'bg-red-100 text-red-700' : 'bg-muted text-muted-foreground')}>
-                {foundAiSignals}/{result.platform.aiSignals.length}
+              <span className={cn('rounded-lg px-2 py-1 text-xs font-bold tabular-nums', det.positiveSignals.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground')}>
+                {det.positiveSignals.length}
               </span>
             </div>
             <div className="space-y-2">
-              {result.platform.aiSignals.map((s) => <SignalRow key={s.name} signal={s} foundMeans="ai" />)}
+              {det.positiveSignals.length === 0 && <p className="text-xs text-muted-foreground">No supporting signals fired.</p>}
+              {det.positiveSignals.map((s) => <TriggeredSignalRow key={s.id} signal={s} tone="positive" />)}
             </div>
           </div>
 
           <div className="rounded-3xl border border-border bg-card p-6">
             <div className="mb-4 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-500">
                   <Layers className="h-4 w-4" />
                 </div>
                 <div>
-                  <h2 className="font-heading text-sm font-bold text-foreground">CMS &amp; traditional-stack fingerprints</h2>
-                  <p className="text-[11px] text-muted-foreground">Evidence the site is NOT vibe-coded</p>
+                  <h2 className="font-heading text-sm font-bold text-foreground">Negative signals</h2>
+                  <p className="text-[11px] text-muted-foreground">Fired but pointed away from the winning verdict</p>
                 </div>
               </div>
-              <span className={cn('rounded-lg px-2 py-1 text-xs font-bold tabular-nums', foundCmsSignals > 0 ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground')}>
-                {foundCmsSignals}/{result.platform.cmsSignals.length}
+              <span className={cn('rounded-lg px-2 py-1 text-xs font-bold tabular-nums', det.negativeSignals.length > 0 ? 'bg-red-100 text-red-700' : 'bg-muted text-muted-foreground')}>
+                {det.negativeSignals.length}
               </span>
             </div>
             <div className="space-y-2">
-              {result.platform.cmsSignals.map((s) => <SignalRow key={s.name} signal={s} foundMeans="cms" />)}
+              {det.negativeSignals.length === 0 && <p className="text-xs text-muted-foreground">No contradicting signals fired.</p>}
+              {det.negativeSignals.map((s) => <TriggeredSignalRow key={s.id} signal={s} tone="negative" />)}
             </div>
-            <p className="mt-3 rounded-xl bg-muted/50 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-              CMS and page-builder sites (WordPress, Elementor, Wix, Shopify…) generate template markup that superficially resembles AI output. When these fingerprints are found, code-pattern signals are discounted — a CMS build is not a vibe-coded build.
-            </p>
           </div>
+        </div>
+
+        {/* ── Full detailed report (every triggered signal, grouped by category) ── */}
+        <div className="mb-6 rounded-3xl border border-border bg-card p-6">
+          <button onClick={() => setShowAllSignals((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <FileText className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="font-heading text-sm font-bold text-foreground">Detailed report</h2>
+                <p className="text-[11px] text-muted-foreground">All {det.allTriggeredSignals.length} triggered signals across every category</p>
+              </div>
+            </div>
+            <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', showAllSignals && 'rotate-180')} />
+          </button>
+          {showAllSignals && (
+            <div className="mt-4 space-y-2 border-t border-border pt-4">
+              {det.allTriggeredSignals.length === 0 && <p className="text-xs text-muted-foreground">No signals triggered on this source.</p>}
+              {det.allTriggeredSignals.map((s) => (
+                <div key={s.id} className="rounded-xl border border-border bg-background p-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{s.category}</span>
+                    <p className="text-xs font-semibold text-foreground">{s.name}</p>
+                    <span className={cn('rounded border px-1.5 py-0 text-[9px] font-bold uppercase tracking-wide', CONFIDENCE_STYLE[s.confidence])}>{s.confidence}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{s.evidence.join(' · ')}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* GitHub files panel */}
