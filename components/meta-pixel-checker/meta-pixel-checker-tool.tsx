@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react'
 import {
   Globe, Link2, FileText, Ruler, Sparkles, AlertCircle, CheckCircle2,
   AlertTriangle, XCircle, RefreshCw, Loader2, Download, ChevronDown,
-  Monitor, Smartphone, ExternalLink, Search,
+  Monitor, Smartphone, ExternalLink, Search, Printer,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PIXEL_LIMITS, pixelStatus, type PixelStatus } from '@/lib/meta-pixel/limits'
@@ -45,6 +45,10 @@ const ANALYZING_MESSAGES = [
   'Extracting meta titles & descriptions…',
   'Measuring pixel widths for desktop & mobile…',
 ]
+
+/** Above this many rows, skip auto-expanding SERP preview cards before printing —
+ * keeps very large reports from turning into a hundreds-of-favicon-image PDF. */
+const PDF_PREVIEW_ROW_LIMIT = 30
 
 function measureRow(title: string | null, description: string | null): RowMeasurements {
   const titleDesktopPx = title ? measureTextWidth(title, PIXEL_LIMITS.desktop.title.font) : 0
@@ -325,6 +329,22 @@ export default function MetaPixelCheckerTool() {
     downloadFile(JSON.stringify({ meta, rows }, null, 2), `meta-pixel-checker-${Date.now()}.json`, 'application/json;charset=utf-8')
   }
 
+  function downloadPdf() {
+    if (visibleRows.length > 0 && visibleRows.length <= PDF_PREVIEW_ROW_LIMIT) {
+      const indices = visibleRows.map((r) => rows.indexOf(r))
+      setExpanded((prev) => {
+        const next = new Set(prev)
+        for (const i of indices) next.add(i)
+        return next
+      })
+      // Give the SERP preview cards (and their favicon images) a moment to
+      // lay out before opening the browser's print dialog.
+      setTimeout(() => window.print(), 200)
+    } else {
+      window.print()
+    }
+  }
+
   function toggleExpand(i: number) {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -501,8 +521,14 @@ export default function MetaPixelCheckerTool() {
   if (!meta) return null
 
   return (
-    <section className="px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+    <section className="px-4 py-8 sm:px-6 lg:px-8 print:p-0">
+      <div className="mx-auto max-w-6xl print:max-w-none">
+
+        {/* Print-only masthead */}
+        <div className="mb-6 hidden items-center gap-2 print:flex">
+          <img src="/images/ai-ranko-logo.webp" alt="Ai Ranko" className="h-6 w-auto" />
+          <span className="text-xs text-muted-foreground">Meta Title &amp; Description Pixel Report — generated {new Date().toLocaleString()}</span>
+        </div>
 
         {/* Top bar */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -518,7 +544,11 @@ export default function MetaPixelCheckerTool() {
               </p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 print:hidden" data-print-hide>
+            <button onClick={downloadPdf} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
+              <Printer className="h-3.5 w-3.5" />
+              Download PDF
+            </button>
             <button onClick={exportCsv} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
               <Download className="h-3.5 w-3.5" />
               CSV
@@ -535,7 +565,7 @@ export default function MetaPixelCheckerTool() {
         </div>
 
         {/* Summary */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7 print:break-inside-avoid">
           <StatTile label="Pages" value={summary.total} />
           <StatTile label="Fetch errors" value={summary.errors} />
           <StatTile label="Title too long (desktop)" value={summary.titleDesktopIssues} />
@@ -546,7 +576,7 @@ export default function MetaPixelCheckerTool() {
         </div>
 
         {/* Filters */}
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 print:hidden" data-print-hide>
           <label className="flex items-center gap-2 text-sm font-medium text-foreground">
             <input type="checkbox" checked={showIssuesOnly} onChange={(e) => setShowIssuesOnly(e.target.checked)} className="h-4 w-4 rounded border-border accent-primary" />
             Show only issues
@@ -576,13 +606,13 @@ export default function MetaPixelCheckerTool() {
             const rowIndex = rows.indexOf(r)
             const isOpen = expanded.has(rowIndex)
             return (
-              <div key={r.url + i} className="overflow-hidden rounded-2xl border border-border bg-card">
-                <button onClick={() => toggleExpand(rowIndex)} className="flex w-full items-start gap-3 p-4 text-left transition-colors hover:bg-muted/30">
-                  <Search className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div key={r.url + i} className="overflow-hidden rounded-2xl border border-border bg-card print:break-inside-avoid">
+                <button onClick={() => toggleExpand(rowIndex)} className="flex w-full items-start gap-3 p-4 text-left transition-colors hover:bg-muted/30 print:cursor-default">
+                  <Search className="mt-1 h-4 w-4 shrink-0 text-muted-foreground print:hidden" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate font-mono text-xs text-muted-foreground">{r.url}</span>
-                      <a href={r.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="shrink-0 text-muted-foreground hover:text-primary">
+                      <span className="truncate font-mono text-xs text-muted-foreground print:whitespace-normal print:break-all">{r.url}</span>
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="shrink-0 text-muted-foreground hover:text-primary print:hidden">
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     </div>
@@ -593,13 +623,13 @@ export default function MetaPixelCheckerTool() {
                       </p>
                     ) : (
                       <>
-                        <p className="mt-1.5 truncate text-sm font-semibold text-foreground">{r.title || <em className="text-muted-foreground">Missing title</em>}</p>
+                        <p className="mt-1.5 truncate text-sm font-semibold text-foreground print:whitespace-normal">{r.title || <em className="text-muted-foreground">Missing title</em>}</p>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
                           {r.title !== null && <CharBadge count={r.title.length} />}
                           {r.m && <PixelBadge px={r.m.titleDesktopPx} limit={PIXEL_LIMITS.desktop.title.maxPx} status={r.m.titleDesktopStatus} />}
                           {r.m && <PixelBadge px={r.m.titleMobilePx} limit={PIXEL_LIMITS.mobile.title.maxPx} status={r.m.titleMobileStatus} />}
                         </div>
-                        <p className="mt-2 truncate text-xs text-muted-foreground">{r.description || <em>Missing description</em>}</p>
+                        <p className="mt-2 truncate text-xs text-muted-foreground print:whitespace-normal">{r.description || <em>Missing description</em>}</p>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
                           {r.description !== null && <CharBadge count={r.description.length} />}
                           {r.m && <PixelBadge px={r.m.descDesktopPx} limit={PIXEL_LIMITS.desktop.description.maxPx} status={r.m.descDesktopStatus} />}
@@ -608,11 +638,11 @@ export default function MetaPixelCheckerTool() {
                       </>
                     )}
                   </div>
-                  <ChevronDown className={cn('mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-180')} />
+                  <ChevronDown className={cn('mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform print:hidden', isOpen && 'rotate-180')} />
                 </button>
 
                 {isOpen && r.status === 'success' && (
-                  <div className="grid gap-3 border-t border-border bg-muted/20 p-4 sm:grid-cols-2">
+                  <div className="grid gap-3 border-t border-border bg-muted/20 p-4 sm:grid-cols-2 print:break-inside-avoid">
                     <SerpPreview url={r.url} title={r.title} description={r.description} device="desktop" />
                     <SerpPreview url={r.url} title={r.title} description={r.description} device="mobile" />
                   </div>
