@@ -65,6 +65,7 @@ import {
   Map,
   Bot,
   FileCode2,
+  Ruler,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -221,6 +222,16 @@ const seoTools = [
     color: 'text-orange-600',
     bg: 'bg-orange-50',
   },
+  {
+    icon: Ruler,
+    label: 'Meta Pixel Checker',
+    description: 'Crawl a sitemap or paste URLs to measure meta title & description pixel width for Google desktop and mobile SERPs — in bulk.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/meta-pixel-checker',
+    color: 'text-rose-600',
+    bg: 'bg-rose-50',
+  },
 ]
 
 const stats = [
@@ -265,7 +276,7 @@ const itemListJsonLd = {
   '@type': 'ItemList',
   name: 'Free SEO & AI Tools by Ai Ranko',
   description: 'Complete list of free, AI-powered SEO and image tools available on Ai Ranko.',
-  numberOfItems: 17,
+  numberOfItems: 19,
   itemListElement: [
     { '@type': 'ListItem', position: 1,  name: 'SEO Strategy Maker',                     url: 'https://airanko.com/tools/seo-strategy-maker' },
     { '@type': 'ListItem', position: 2,  name: 'Site Audit Tool',                        url: 'https://airanko.com/tools/site-audit' },
@@ -285,6 +296,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 16, name: 'Vibe Code Detector',                     url: 'https://airanko.com/tools/vibe-code-detector' },
     { '@type': 'ListItem', position: 17, name: 'XML Sitemap Generator',                  url: 'https://airanko.com/tools/xml-sitemap-generator' },
     { '@type': 'ListItem', position: 18, name: 'Website Cloner',                         url: 'https://airanko.com/tools/website-cloner' },
+    { '@type': 'ListItem', position: 19, name: 'Meta Pixel Checker',                     url: 'https://airanko.com/tools/meta-pixel-checker' },
   ],
 }
 
