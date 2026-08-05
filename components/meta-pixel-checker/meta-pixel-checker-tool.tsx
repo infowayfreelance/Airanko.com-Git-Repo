@@ -86,9 +86,17 @@ function csvEscape(v: string): string {
 function PixelBadge({ px, limit, status }: { px: number; limit: number; status: PixelStatus }) {
   const Icon = STATUS_ICON[status]
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-semibold tabular-nums', STATUS_STYLE[status])}>
+    <span className={cn('inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-semibold tabular-nums', STATUS_STYLE[status])} title="Measured with the browser's real canvas text renderer (CanvasRenderingContext2D.measureText) — not an estimate.">
       <Icon className="h-3 w-3" />
       {Math.round(px)}px <span className="opacity-60">/ {limit}px</span>
+    </span>
+  )
+}
+
+function CharBadge({ count }: { count: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+      {count} char{count === 1 ? '' : 's'}
     </span>
   )
 }
@@ -103,28 +111,84 @@ function StatTile({ label, value, hint }: { label: string; value: string | numbe
   )
 }
 
+function siteNameFrom(hostname: string): string {
+  const base = hostname.replace(/^www\./, '').split('.')[0]
+  return base.charAt(0).toUpperCase() + base.slice(1)
+}
+
 function SerpPreview({ url, title, description, device }: { url: string; title: string | null; description: string | null; device: 'desktop' | 'mobile' }) {
   const titleLimit = PIXEL_LIMITS[device].title
   const descLimit = PIXEL_LIMITS[device].description
+  // Truncation uses the SAME real canvas measurement as the pixel badges above —
+  // this is where Google would actually cut the text at the configured limit,
+  // not a character-count approximation.
   const displayTitle = title ? truncateToPixelWidth(title, titleLimit.font, titleLimit.maxPx) : '(missing title)'
   const displayDesc = description ? truncateToPixelWidth(description, descLimit.font, descLimit.maxPx) : '(missing description)'
+
+  let hostname = url
   let breadcrumb = url
   try {
     const u = new URL(url)
+    hostname = u.hostname
     breadcrumb = `${u.hostname}${u.pathname !== '/' ? ' › ' + u.pathname.split('/').filter(Boolean).join(' › ') : ''}`
   } catch { /* keep raw url */ }
 
+  const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(hostname)}`
+  const siteName = siteNameFrom(hostname)
+
   return (
-    <div className={cn('rounded-xl border border-border bg-white p-4', device === 'mobile' && 'max-w-[380px]')}>
-      <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className={cn('rounded-xl border border-border bg-white p-4', device === 'mobile' && 'mx-auto max-w-[380px] shadow-sm')}>
+      <p className="mb-3 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {device === 'desktop' ? <Monitor className="h-3 w-3" /> : <Smartphone className="h-3 w-3" />}
-        {device === 'desktop' ? 'Desktop' : 'Mobile'} preview
+        {device === 'desktop' ? 'Desktop' : 'Mobile'} SERP preview
       </p>
-      <p className="truncate text-xs text-[#4d5156]">{breadcrumb}</p>
-      <p className="mt-0.5 truncate text-[#1a0dab]" style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: device === 'desktop' ? '20px' : '18px', lineHeight: 1.3 }}>
+
+      <div className="flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={faviconUrl}
+          alt=""
+          width={device === 'desktop' ? 18 : 22}
+          height={device === 'desktop' ? 18 : 22}
+          className="shrink-0 rounded-full bg-muted"
+          onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden' }}
+        />
+        <div className="min-w-0">
+          <p className="truncate font-medium text-[#202124]" style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: device === 'desktop' ? '14px' : '13px' }}>
+            {siteName}
+          </p>
+          {device === 'desktop' && (
+            <p className="truncate text-[#4d5156]" style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '12px' }}>
+              {breadcrumb}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {device === 'mobile' && (
+        <p className="mt-0.5 truncate text-[#4d5156]" style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '12px' }}>
+          {hostname}
+        </p>
+      )}
+
+      <p
+        className="mt-1.5 text-[#1558d6] hover:underline"
+        style={{
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontSize: device === 'desktop' ? '20px' : '18px',
+          lineHeight: 1.3,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}
+      >
         {displayTitle}
       </p>
-      <p className="mt-1 text-[#4d5156]" style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '14px', lineHeight: 1.4 }}>
+      <p
+        className="mt-1 text-[#4d5156]"
+        style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '14px', lineHeight: 1.4 }}
+      >
         {displayDesc}
       </p>
     </div>
@@ -188,7 +252,9 @@ export default function MetaPixelCheckerTool() {
       clearInterval(cycle)
       setMeta(response)
       setRows(measuredRows)
-      setExpanded(new Set())
+      // Auto-show the SERP preview immediately for small result sets (single URL,
+      // small bulk lists) — no need to click through when there's only a few rows.
+      setExpanded(measuredRows.length <= 5 ? new Set(measuredRows.map((_, i) => i)) : new Set())
       setStage('results')
     } catch (err: unknown) {
       clearInterval(cycle)
@@ -529,11 +595,13 @@ export default function MetaPixelCheckerTool() {
                       <>
                         <p className="mt-1.5 truncate text-sm font-semibold text-foreground">{r.title || <em className="text-muted-foreground">Missing title</em>}</p>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {r.title !== null && <CharBadge count={r.title.length} />}
                           {r.m && <PixelBadge px={r.m.titleDesktopPx} limit={PIXEL_LIMITS.desktop.title.maxPx} status={r.m.titleDesktopStatus} />}
                           {r.m && <PixelBadge px={r.m.titleMobilePx} limit={PIXEL_LIMITS.mobile.title.maxPx} status={r.m.titleMobileStatus} />}
                         </div>
                         <p className="mt-2 truncate text-xs text-muted-foreground">{r.description || <em>Missing description</em>}</p>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {r.description !== null && <CharBadge count={r.description.length} />}
                           {r.m && <PixelBadge px={r.m.descDesktopPx} limit={PIXEL_LIMITS.desktop.description.maxPx} status={r.m.descDesktopStatus} />}
                           {r.m && <PixelBadge px={r.m.descMobilePx} limit={PIXEL_LIMITS.mobile.description.maxPx} status={r.m.descMobileStatus} />}
                         </div>
@@ -555,7 +623,8 @@ export default function MetaPixelCheckerTool() {
         </div>
 
         <p className="mt-6 text-center text-[11px] text-muted-foreground">
-          Pixel limits: desktop title {PIXEL_LIMITS.desktop.title.maxPx}px · desktop description {PIXEL_LIMITS.desktop.description.maxPx}px · mobile title {PIXEL_LIMITS.mobile.title.maxPx}px · mobile description {PIXEL_LIMITS.mobile.description.maxPx}px. Estimated industry-standard values — Google does not publish an official spec and actual truncation can vary by query and device.
+          Character counts and pixel widths shown above are measured directly from your actual title/description text using the browser&rsquo;s real canvas text renderer — not estimated or guessed.
+          Only the pass/fail thresholds are approximate: desktop title {PIXEL_LIMITS.desktop.title.maxPx}px · desktop description {PIXEL_LIMITS.desktop.description.maxPx}px · mobile title {PIXEL_LIMITS.mobile.title.maxPx}px · mobile description {PIXEL_LIMITS.mobile.description.maxPx}px — industry-standard estimates, since Google does not publish an official spec and actual truncation can vary by query and device.
         </p>
       </div>
     </section>
