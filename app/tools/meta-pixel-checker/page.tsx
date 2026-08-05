@@ -74,11 +74,13 @@ export default function MetaPixelCheckerPage() {
     <div className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      <Navbar />
+      <div className="print:hidden" data-print-hide>
+        <Navbar />
+      </div>
       <ToolSchema name="Meta Title & Description Pixel Checker" slug="meta-pixel-checker" description="Bulk-check meta title and description pixel width against Google desktop and mobile SERP limits, via sitemap crawl, single URL, or a pasted list." />
       <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Meta Pixel Checker', href: '/tools/meta-pixel-checker' }]} />
 
-      <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">
+      <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8 print:hidden" data-print-hide>
         <div className="mx-auto flex max-w-7xl items-center gap-1.5 text-sm text-muted-foreground">
           <Link href="/" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
             <Zap className="h-3.5 w-3.5 text-primary" />
@@ -96,7 +98,7 @@ export default function MetaPixelCheckerPage() {
       </main>
 
       {/* FAQ */}
-      <section className="px-4 py-12 sm:px-6 lg:px-8">
+      <section className="px-4 py-12 sm:px-6 lg:px-8 print:hidden" data-print-hide>
         <div className="mx-auto max-w-3xl">
           <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">Frequently Asked Questions</h2>
           <div className="mt-6 space-y-3">
@@ -117,7 +119,7 @@ export default function MetaPixelCheckerPage() {
         </div>
       </section>
 
-      <footer className="mt-4 border-t border-border bg-card px-4 py-8 sm:px-6 lg:px-8">
+      <footer className="mt-4 border-t border-border bg-card px-4 py-8 sm:px-6 lg:px-8 print:hidden" data-print-hide>
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
           <Link href="/" aria-label="Ai Ranko home">
             <img src="/images/ai-ranko-logo.webp" alt="Ai Ranko" className="h-7 w-auto" />
