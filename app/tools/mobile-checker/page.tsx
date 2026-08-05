@@ -8,18 +8,18 @@ import MobileCheckerTool from '@/components/mobile-checker/mobile-checker-tool'
 import MobileCheckerSeoSections from '@/components/mobile-checker-seo-sections'
 
 export const metadata: Metadata = {
-  title: 'Free Mobile Friendliness Checker — Test Any Website Instantly | Ai Ranko',
+  title: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
   description:
-    'Check how any website looks on iPhone, Android, tablet, or desktop instantly. Test mobile responsiveness free — no install, no signup required.',
+    'Preview any website on real iPhone, Android, tablet, and desktop sizes, plus run a real mobile-friendliness audit — viewport, legibility, Flash/plugin detection, responsive images, and mobile-redirect checks. Compare two URLs or audit a whole sitemap in bulk. Free, no signup.',
   keywords:
-    'mobile friendliness checker, mobile responsive test, website mobile test, mobile preview tool, responsive design tester, mobile-first indexing test, free mobile checker',
+    'mobile friendliness checker, mobile friendliness audit, mobile responsive test, website mobile test, mobile preview tool, responsive design tester, mobile-first indexing test, free mobile checker, bulk mobile audit, sitemap mobile audit',
   alternates: {
     canonical: 'https://airanko.com/tools/mobile-checker',
   },
   openGraph: {
-    title: 'Free Mobile Friendliness Checker — Test Any Website Instantly | Ai Ranko',
+    title: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
     description:
-      'Check how any website looks on iPhone, Android, tablet, or desktop instantly. Test mobile responsiveness free — no install, no signup required.',
+      'Live device preview plus a real mobile-friendliness audit. Compare two URLs side by side, or audit a whole sitemap in bulk. Free, no signup.',
     url: 'https://airanko.com/tools/mobile-checker',
     siteName: 'AI Ranko',
     images: [
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
         url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
         width: 1200,
         height: 630,
-        alt: 'Free Mobile Friendliness Checker — Test Any Website Instantly | Ai Ranko',
+        alt: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
       },
     ],
     locale: 'en_US',
@@ -35,9 +35,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Free Mobile Friendliness Checker — Test Any Website Instantly | Ai Ranko',
+    title: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
     description:
-      'Check how any website looks on iPhone, Android, tablet, or desktop instantly. Test mobile responsiveness free — no install, no signup required.',
+      'Live device preview plus a real mobile-friendliness audit. Compare two URLs side by side, or audit a whole sitemap in bulk. Free, no signup.',
     images: [
       'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
     ],
@@ -56,10 +56,14 @@ const jsonLd = {
   browserRequirements: 'Requires JavaScript. Works in modern browsers.',
   featureList: [
     'Preview on Phone, Tablet, and Desktop',
-    'Real device screen sizes — iPhone SE, iPhone 14, iPhone 14 Pro Max, Galaxy S23, Pixel 7',
+    'Real device screen sizes — iPhone SE, iPhone 14, iPhone 14 Pro Max, Galaxy S23, Pixel 7, plus custom viewport dimensions',
     'Portrait and Landscape orientation toggle',
+    'Grid view compares multiple devices simultaneously',
     'Zoom controls — 50%, 75%, 100%',
-    'Instant browser-based preview',
+    'Real mobile-friendliness audit: viewport configuration, font legibility, tap targets, Flash/plugin detection, responsive images, render-blocking scripts, mobile-redirect consistency — measured from actual fetched HTML, not guessed',
+    'Compare two URLs side by side with independent audits',
+    'Bulk and sitemap-wide audit mode with sortable, filterable results',
+    'CSV, JSON, and PDF report export',
     'No data stored or tracked',
     '100% free with no signup required',
   ],
@@ -156,7 +160,23 @@ const faqJsonLd = {
       name: "How is Ai Ranko's mobile checker different from Google's Mobile-Friendly Test?",
       acceptedAnswer: {
         '@type': 'Answer',
-        text: "Google's tool only gives a pass/fail report — it doesn't show a live visual preview. Ai Ranko gives you a real-time visual preview across multiple specific devices, orientations, and zoom levels — all in one place.",
+        text: "Google's tool only gives a pass/fail report — it doesn't show a live visual preview. Ai Ranko gives you both: a real-time visual preview across multiple devices, orientations, and zoom levels, plus a real audit checklist measured from the page's actual HTML, CSS, and response headers.",
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What does the mobile-friendliness audit actually check?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'It measures viewport meta tag configuration, pinch-to-zoom availability, small/illegible font sizes, fixed-width elements that risk horizontal scrolling, responsive media queries, Flash or unsupported plugin content, responsive image usage (srcset), touch/home-screen icons, HTML document weight, render-blocking scripts, and whether mobile visitors get redirected to a separate URL. Every check runs against the real fetched page — checks that require full browser rendering to measure exactly are clearly labeled "estimated".',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I audit my whole website at once?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes — switch to "Bulk / Sitemap Audit" mode, enter your site\'s URL, and the tool discovers your sitemap.xml (via robots.txt, then conventional locations, following nested sitemap indexes) and audits every page it finds, up to 200 pages per run. Results are sortable, filterable, and exportable as CSV, JSON, or PDF.',
       },
     },
   ],
@@ -172,12 +192,14 @@ export default function MobileCheckerPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />      <Navbar />
-      <ToolSchema name="Mobile Friendliness Checker" slug="mobile-checker" description="Preview any website in real mobile, tablet and desktop frames including iPhone, Galaxy, Pixel and iPad." />
+      />      <div className="print:hidden" data-print-hide>
+        <Navbar />
+      </div>
+      <ToolSchema name="Mobile Friendliness Checker" slug="mobile-checker" description="Preview any website in real mobile, tablet and desktop frames including iPhone, Galaxy, Pixel and iPad, plus a real mobile-friendliness audit." />
       <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Mobile Checker', href: '/tools/mobile-checker' }]} />
 
       {/* Breadcrumb */}
-      <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">
+      <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8 print:hidden" data-print-hide>
         <div className="mx-auto flex max-w-7xl items-center gap-1.5 text-sm text-muted-foreground">
           <Link href="/" className="flex items-center gap-1.5 hover:text-foreground transition-colors">
             <Zap className="h-3.5 w-3.5 text-primary" />
@@ -196,10 +218,12 @@ export default function MobileCheckerPage() {
         <MobileCheckerTool />
       </main>
 
-      <MobileCheckerSeoSections />
+      <div className="print:hidden" data-print-hide>
+        <MobileCheckerSeoSections />
+      </div>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card mt-12 px-4 py-8 sm:px-6 lg:px-8">
+      <footer className="border-t border-border bg-card mt-12 px-4 py-8 sm:px-6 lg:px-8 print:hidden" data-print-hide>
         <div className="mx-auto max-w-7xl flex flex-col items-center justify-between gap-4 sm:flex-row">
           <Link href="/" className="flex items-center" aria-label="Ai Ranko home">
             <img
