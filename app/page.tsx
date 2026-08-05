@@ -66,6 +66,8 @@ import {
   Bot,
   FileCode2,
   Ruler,
+  Eye,
+  Video,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -231,6 +233,36 @@ const seoTools = [
     href: '/tools/meta-pixel-checker',
     color: 'text-rose-600',
     bg: 'bg-rose-50',
+  },
+  {
+    icon: Sparkles,
+    label: 'AI Background Remover',
+    description: 'Instantly remove image backgrounds with on-device AI — no upload, fully private, and free.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/background-remover',
+    color: 'text-fuchsia-600',
+    bg: 'bg-fuchsia-50',
+  },
+  {
+    icon: Eye,
+    label: 'AI Logo Generator',
+    description: 'Generate clean logo concepts for your brand and export in multiple formats.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/logo-generator',
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50',
+  },
+  {
+    icon: Video,
+    label: 'Portfolio Video Recorder',
+    description: 'Turn any URL into a smooth scrolling demo video for your portfolio, case study, or social post.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/portfolio-recorder',
+    color: 'text-sky-600',
+    bg: 'bg-sky-50',
   },
 ]
 

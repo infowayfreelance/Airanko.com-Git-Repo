@@ -91,6 +91,7 @@ const sections: Section[] = [
     subtitle: 'Essential tools for marketers, founders, and creators.',
     tools: [
       { href: '/tools/portfolio-recorder',  label: 'Portfolio Video Recorder',    description: 'Turn any URL into a smooth scrolling demo video for portfolio or social.', icon: Video },
+      { href: '/tools/website-cloner',      label: 'Website Cloner',              description: 'Clone any web page to a self-contained HTML file — inlines CSS & JS, live preview.', icon: Globe },
     ],
   },
 ]
