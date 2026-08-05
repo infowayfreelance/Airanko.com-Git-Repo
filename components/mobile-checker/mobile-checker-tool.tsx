@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { ScoreGauge, GradeBadge, AuditChecklist } from './audit-ui'
+import { ScoreGauge, GradeBadge, AuditChecklist, IssuesAndFixes } from './audit-ui'
 import MobileCheckerBulkAudit from './mobile-checker-bulk-audit'
 import type { MobileCheckerResult } from '@/app/api/mobile-checker/route'
 
@@ -533,6 +533,8 @@ export default function MobileCheckerTool() {
                 onLoad={() => setIframeLoading(false)} onError={() => { setIframeLoading(false); setIframeError(true) }} />
               {showAuditPanel && audit?.audit && (
                 <div className="w-full rounded-2xl border border-border bg-card p-4 print:break-inside-avoid">
+                  <IssuesAndFixes checks={audit.audit.checks} />
+                  <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full checklist</p>
                   <AuditChecklist checks={audit.audit.checks} />
                 </div>
               )}
@@ -548,6 +550,8 @@ export default function MobileCheckerTool() {
                     onLoad={() => setCompareLoading(false)} onError={() => { setCompareLoading(false); setCompareError(true) }} />
                   {showCompareAuditPanel && compareAudit?.audit && (
                     <div className="w-full rounded-2xl border border-border bg-card p-4 print:break-inside-avoid">
+                      <IssuesAndFixes checks={compareAudit.audit.checks} />
+                      <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full checklist</p>
                       <AuditChecklist checks={compareAudit.audit.checks} />
                     </div>
                   )}
@@ -611,6 +615,8 @@ export default function MobileCheckerTool() {
                         </p>
                       </div>
                     </div>
+                    <IssuesAndFixes checks={audit.audit.checks} />
+                    <p className="mb-2 mt-6 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full checklist — every check, by category</p>
                     <AuditChecklist checks={audit.audit.checks} />
                   </>
                 ) : (
