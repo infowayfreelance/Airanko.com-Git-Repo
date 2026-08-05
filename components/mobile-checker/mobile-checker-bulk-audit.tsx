@@ -6,7 +6,7 @@ import {
   RefreshCw, Download, ChevronDown, ExternalLink, Search, Printer,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ScoreGauge, GradeBadge, AuditChecklist } from './audit-ui'
+import { ScoreGauge, GradeBadge, AuditChecklist, IssuesAndFixes } from './audit-ui'
 import type { MobileCheckerResponse, MobileCheckerResult, Mode } from '@/app/api/mobile-checker/route'
 import type { Grade } from '@/lib/mobile-checker/audit'
 
@@ -399,6 +399,8 @@ export default function MobileCheckerBulkAudit() {
 
                 {isOpen && r.status === 'success' && r.audit && (
                   <div className="border-t border-border bg-muted/20 p-4">
+                    <IssuesAndFixes checks={r.audit.checks} />
+                    <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full checklist</p>
                     <AuditChecklist checks={r.audit.checks} />
                   </div>
                 )}

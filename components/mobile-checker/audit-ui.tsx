@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, XCircle, Info, Wrench, Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AuditCheck, CheckStatus, Grade } from '@/lib/mobile-checker/audit'
 
@@ -30,6 +30,9 @@ const STATUS_STYLE: Record<CheckStatus, string> = {
   warning: 'border-amber-200 bg-amber-50 text-amber-700',
   fail: 'border-red-200 bg-red-50 text-red-700',
   info: 'border-border bg-muted/50 text-muted-foreground',
+}
+const STATUS_LABEL: Record<CheckStatus, string> = {
+  pass: 'Passed', warning: 'Warning', fail: 'Failed', info: 'Info',
 }
 
 export function ScoreGauge({ score, size = 'lg' }: { score: number; size?: 'sm' | 'md' | 'lg' }) {
@@ -64,21 +67,93 @@ export function GradeBadge({ grade }: { grade: Grade }) {
   )
 }
 
-export function CheckRow({ check }: { check: AuditCheck }) {
-  const Icon = STATUS_ICON[check.status]
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
   return (
-    <div className={cn('flex items-start gap-3 rounded-xl border p-3', STATUS_STYLE[check.status])}>
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <p className="text-xs font-semibold text-foreground">{check.name}</p>
-          {check.confidence === 'heuristic' && (
-            <span className="rounded border border-border bg-background px-1.5 py-0 text-[9px] font-bold uppercase tracking-wide text-muted-foreground" title="Estimated from static HTML/CSS source — a real answer would require full browser rendering.">
-              estimated
-            </span>
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) })
+      }}
+      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground print:hidden"
+    >
+      {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+      {copied ? 'Copied' : 'Copy'}
+    </button>
+  )
+}
+
+function SolutionBox({ check }: { check: AuditCheck }) {
+  if (!check.solution) return null
+  return (
+    <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+      <div className="flex items-start gap-1.5">
+        <Wrench className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-primary">How to fix</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-foreground">{check.solution}</p>
+          {check.solutionCode && (
+            <div className="relative mt-2">
+              <pre className="overflow-x-auto rounded-md bg-foreground/95 p-2 pr-14 text-[10px] leading-relaxed text-background"><code>{check.solutionCode}</code></pre>
+              <div className="absolute right-1.5 top-1.5">
+                <CopyButton text={check.solutionCode} />
+              </div>
+            </div>
           )}
         </div>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{check.detail}</p>
+      </div>
+    </div>
+  )
+}
+
+export function CheckRow({ check, defaultExpanded = false }: { check: AuditCheck; defaultExpanded?: boolean }) {
+  const Icon = STATUS_ICON[check.status]
+  const hasFix = !!check.solution
+  return (
+    <div className={cn('rounded-xl border p-3', STATUS_STYLE[check.status])}>
+      <div className="flex items-start gap-3">
+        <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-xs font-semibold text-foreground">{check.name}</p>
+            <span className={cn('rounded px-1.5 py-0 text-[9px] font-bold uppercase tracking-wide', STATUS_STYLE[check.status])}>
+              {STATUS_LABEL[check.status]}
+            </span>
+            {check.confidence === 'heuristic' && (
+              <span className="rounded border border-border bg-background px-1.5 py-0 text-[9px] font-bold uppercase tracking-wide text-muted-foreground" title="Estimated from static HTML/CSS source — a real answer would require full browser rendering.">
+                estimated
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{check.detail}</p>
+          {hasFix && <SolutionBox check={check} />}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Prominent "problems + fixes" summary — every non-passing check with its solution, in one place. */
+export function IssuesAndFixes({ checks }: { checks: AuditCheck[] }) {
+  const issues = checks.filter((c) => (c.status === 'fail' || c.status === 'warning') && c.solution)
+  if (issues.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
+        No issues found — every check that affects the score passed.
+      </div>
+    )
+  }
+  const failing = issues.filter((c) => c.status === 'fail')
+  const warning = issues.filter((c) => c.status === 'warning')
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <Wrench className="h-4 w-4 text-primary" />
+        <p className="text-sm font-bold text-foreground">{issues.length} issue{issues.length === 1 ? '' : 's'} found — with fixes</p>
+      </div>
+      <div className="space-y-2">
+        {[...failing, ...warning].map((c) => <CheckRow key={c.id} check={c} />)}
       </div>
     </div>
   )
