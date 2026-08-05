@@ -68,7 +68,7 @@ function isValidUrl(url: string): boolean {
   try { new URL(url); return true } catch { return false }
 }
 
-async function fetchAudit(url: string): Promise<MobileCheckerResult | null> {
+async function fetchAudit(url: string): Promise<MobileCheckerResult> {
   try {
     const res = await fetch('/api/mobile-checker', {
       method: 'POST',
@@ -76,9 +76,11 @@ async function fetchAudit(url: string): Promise<MobileCheckerResult | null> {
       body: JSON.stringify({ mode: 'single', input: url }),
     })
     const data = await res.json()
-    if (!res.ok) return null
-    return data.results?.[0] ?? null
-  } catch { return null }
+    if (!res.ok) return { url, status: 'error', error: data.error ?? `Request failed (HTTP ${res.status})` }
+    return data.results?.[0] ?? { url, status: 'error', error: 'No result returned.' }
+  } catch (err) {
+    return { url, status: 'error', error: err instanceof Error ? err.message : 'Network request failed.' }
+  }
 }
 
 // ── Device frame (reusable — used for main preview, grid tiles, and compare columns) ──
@@ -224,7 +226,11 @@ export default function MobileCheckerTool() {
     setIframeError(false)
     setIframeLoading(true)
     setIframeKey((k) => k + 1)
-    setShowAuditPanel(false)
+    // Show the report panel immediately (it displays its own loading state) —
+    // previously this stayed hidden until the user clicked the score chip,
+    // which read as "no report" to anyone who didn't notice the chip was
+    // clickable.
+    setShowAuditPanel(true)
     runAuditFor(url, setAuditLoading, setAudit)
   }, [inputValue])
 
@@ -236,7 +242,7 @@ export default function MobileCheckerTool() {
     setCompareError(false)
     setCompareLoading(true)
     setCompareIframeKey((k) => k + 1)
-    setShowCompareAuditPanel(false)
+    setShowCompareAuditPanel(true)
     runAuditFor(url, setCompareAuditLoading, setCompareAudit)
   }, [compareInput])
 
@@ -531,11 +537,17 @@ export default function MobileCheckerTool() {
               <DeviceFrame device={selectedDevice} isRotated={isRotated} scale={scale} url={activeUrl} iframeKey={iframeKey}
                 loading={iframeLoading} error={iframeError}
                 onLoad={() => setIframeLoading(false)} onError={() => { setIframeLoading(false); setIframeError(true) }} />
-              {showAuditPanel && audit?.audit && (
+              {showAuditPanel && (
                 <div className="w-full rounded-2xl border border-border bg-card p-4 print:break-inside-avoid">
-                  <IssuesAndFixes checks={audit.audit.checks} />
-                  <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full checklist</p>
-                  <AuditChecklist checks={audit.audit.checks} />
+                  {audit?.audit ? (
+                    <>
+                      <IssuesAndFixes checks={audit.audit.checks} />
+                      <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full checklist</p>
+                      <AuditChecklist checks={audit.audit.checks} />
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{auditLoading ? 'Running audit…' : `Audit unavailable${audit?.error ? `: ${audit.error}` : '.'}`}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -548,11 +560,17 @@ export default function MobileCheckerTool() {
                   <DeviceFrame device={selectedDevice} isRotated={isRotated} scale={scale} url={compareUrl} iframeKey={compareIframeKey}
                     loading={compareLoading} error={compareError}
                     onLoad={() => setCompareLoading(false)} onError={() => { setCompareLoading(false); setCompareError(true) }} />
-                  {showCompareAuditPanel && compareAudit?.audit && (
+                  {showCompareAuditPanel && (
                     <div className="w-full rounded-2xl border border-border bg-card p-4 print:break-inside-avoid">
-                      <IssuesAndFixes checks={compareAudit.audit.checks} />
-                      <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full checklist</p>
-                      <AuditChecklist checks={compareAudit.audit.checks} />
+                      {compareAudit?.audit ? (
+                        <>
+                          <IssuesAndFixes checks={compareAudit.audit.checks} />
+                          <p className="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Full checklist</p>
+                          <AuditChecklist checks={compareAudit.audit.checks} />
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{compareAuditLoading ? 'Running audit…' : `Audit unavailable${compareAudit?.error ? `: ${compareAudit.error}` : '.'}`}</p>
+                      )}
                     </div>
                   )}
                 </>
