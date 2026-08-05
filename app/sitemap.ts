@@ -18,9 +18,11 @@ const tools: { slug: string; priority: number; changeFrequency: MetadataRoute.Si
 
   // Specialized SEO + utility tools
   { slug: 'meta-checker',        priority: 0.8, changeFrequency: 'monthly' },
+  { slug: 'meta-pixel-checker',  priority: 0.8, changeFrequency: 'monthly' },
   { slug: 'mobile-checker',      priority: 0.8, changeFrequency: 'monthly' },
   { slug: 'link-extractor',      priority: 0.8, changeFrequency: 'monthly' },
   { slug: 'portfolio-recorder',  priority: 0.8, changeFrequency: 'monthly' },
+  { slug: 'website-cloner',      priority: 0.7, changeFrequency: 'monthly' },
 
   // Image tools
   { slug: 'image-resizer',       priority: 0.8, changeFrequency: 'monthly' },
@@ -31,6 +33,7 @@ const tools: { slug: string; priority: number; changeFrequency: MetadataRoute.Si
 
 // ── Blog posts ─────────────────────────────────────────────────────────────
 const blogPosts: { slug: string; priority: number }[] = [
+  { slug: 'top-10-free-photo-cropping-tools', priority: 0.8 },
   { slug: 'top-10-mobile-friendly-websites', priority: 0.8 },
 ]
 
