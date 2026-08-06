@@ -68,6 +68,7 @@ import {
   Ruler,
   Eye,
   Video,
+  Tag,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -235,6 +236,16 @@ const seoTools = [
     bg: 'bg-rose-50',
   },
   {
+    icon: Tag,
+    label: 'Meta Title & Description Generator',
+    description: 'AI-generate bulk meta titles & descriptions sized to fit Google desktop or mobile SERP pixel limits — with live pixel-width editing.',
+    badge: 'AI',
+    badgeVariant: 'default' as const,
+    href: '/tools/meta-title-description-generator',
+    color: 'text-violet-600',
+    bg: 'bg-violet-50',
+  },
+  {
     icon: Sparkles,
     label: 'AI Background Remover',
     description: 'Instantly remove image backgrounds with on-device AI — no upload, fully private, and free.',
@@ -308,7 +319,7 @@ const itemListJsonLd = {
   '@type': 'ItemList',
   name: 'Free SEO & AI Tools by Ai Ranko',
   description: 'Complete list of free, AI-powered SEO and image tools available on Ai Ranko.',
-  numberOfItems: 19,
+  numberOfItems: 20,
   itemListElement: [
     { '@type': 'ListItem', position: 1,  name: 'SEO Strategy Maker',                     url: 'https://airanko.com/tools/seo-strategy-maker' },
     { '@type': 'ListItem', position: 2,  name: 'Site Audit Tool',                        url: 'https://airanko.com/tools/site-audit' },
@@ -329,6 +340,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 17, name: 'XML Sitemap Generator',                  url: 'https://airanko.com/tools/xml-sitemap-generator' },
     { '@type': 'ListItem', position: 18, name: 'Website Cloner',                         url: 'https://airanko.com/tools/website-cloner' },
     { '@type': 'ListItem', position: 19, name: 'Meta Pixel Checker',                     url: 'https://airanko.com/tools/meta-pixel-checker' },
+    { '@type': 'ListItem', position: 20, name: 'Meta Title & Description Generator',     url: 'https://airanko.com/tools/meta-title-description-generator' },
   ],
 }
 
