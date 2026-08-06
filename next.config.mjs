@@ -89,6 +89,22 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      // Renamed shortly after launch to lead with "Google Pixel" wording for SEO.
+      {
+        source: '/tools/meta-title-description-generator',
+        destination: '/tools/meta-title-description-pixel-generator',
+        permanent: true,
+      },
+      // Renamed to lead with "meta title & description" wording for SEO consistency.
+      {
+        source: '/tools/meta-pixel-checker',
+        destination: '/tools/meta-title-description-bulk-pixel-checker',
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig

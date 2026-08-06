@@ -18,8 +18,8 @@ const tools: { slug: string; priority: number; changeFrequency: MetadataRoute.Si
 
   // Specialized SEO + utility tools
   { slug: 'meta-checker',        priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'meta-pixel-checker',  priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'meta-title-description-generator', priority: 0.8, changeFrequency: 'monthly' },
+  { slug: 'meta-title-description-bulk-pixel-checker', priority: 0.8, changeFrequency: 'monthly' },
+  { slug: 'meta-title-description-pixel-generator', priority: 0.8, changeFrequency: 'monthly' },
   { slug: 'mobile-checker',      priority: 0.8, changeFrequency: 'monthly' },
   { slug: 'link-extractor',      priority: 0.8, changeFrequency: 'monthly' },
   { slug: 'portfolio-recorder',  priority: 0.8, changeFrequency: 'monthly' },

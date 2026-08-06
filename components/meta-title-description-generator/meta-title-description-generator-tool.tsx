@@ -257,13 +257,13 @@ export default function MetaTitleDescriptionGeneratorTool() {
           <div className="mx-auto mb-8 max-w-2xl text-center">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
               <Sparkles className="h-3 w-3" />
-              AI-generated · Bulk · Pixel-perfect for desktop &amp; mobile
+              AI-generated · Bulk · Fits real Google Pixel limits
             </div>
             <h1 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-              Meta Title &amp; Description Generator
+              Meta Title &amp; Description Generator — Google Pixel Limits
             </h1>
             <p className="mt-3 leading-relaxed text-muted-foreground text-pretty">
-              Paste one topic, keyword, or page brief per line. AI writes meta titles and/or descriptions sized to fit Google&rsquo;s real desktop or mobile SERP pixel limits — generate as many as you need, then fine-tune each one with live pixel-width feedback.
+              Paste one topic, keyword, or page brief per line. AI writes meta titles and/or descriptions sized to fit Google&rsquo;s real Google Pixel width limits for desktop or mobile SERPs — generate as many as you need, then fine-tune each one with live Google Pixel-width feedback.
             </p>
           </div>
 

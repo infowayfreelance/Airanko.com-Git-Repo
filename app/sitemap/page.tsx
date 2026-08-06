@@ -63,8 +63,8 @@ const sections: Section[] = [
       { href: '/tools/mobile-checker',     label: 'Mobile Friendliness Checker', description: 'Preview any website in real mobile, tablet, and desktop view.', icon: Smartphone },
       { href: '/tools/html-sitemap-generator', label: 'HTML Sitemap Generator',  description: 'Generate styled HTML sitemap from any URL — live preview + 5 export formats.', icon: Map },
       { href: '/tools/xml-sitemap-generator',  label: 'XML Sitemap Generator',   description: 'Crawl any site and generate a Google-ready sitemap.xml — up to 500 URLs, changefreq, priority & image tags.', icon: FileCode2 },
-      { href: '/tools/meta-pixel-checker',     label: 'Meta Pixel Checker',      description: 'Bulk-check meta title & description pixel width for Google desktop and mobile SERPs via sitemap crawl.', icon: Ruler },
-      { href: '/tools/meta-title-description-generator', label: 'Meta Title & Description Generator', description: 'AI-generate bulk meta titles & descriptions sized to fit desktop or mobile SERP pixel limits.', icon: Sparkles },
+      { href: '/tools/meta-title-description-bulk-pixel-checker', label: 'Meta Pixel Checker', description: 'Bulk-check meta title & description pixel width for Google desktop and mobile SERPs via sitemap crawl.', icon: Ruler },
+      { href: '/tools/meta-title-description-pixel-generator', label: 'Meta Title & Description Generator', description: 'AI-generate bulk meta titles & descriptions sized to fit Google Pixel limits for desktop or mobile.', icon: Sparkles },
     ],
   },
   {
