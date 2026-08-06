@@ -138,8 +138,8 @@ const categories: Category[] = [
       {
         icon: Tag,
         label: 'Meta Title & Description Generator',
-        description: 'AI-generate bulk meta tags that fit pixel limits.',
-        href: '/tools/meta-title-description-generator',
+        description: 'AI-generate bulk meta tags that fit Google Pixel limits.',
+        href: '/tools/meta-title-description-pixel-generator',
         badge: 'AI',
       },
     ],

@@ -89,6 +89,16 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      // Renamed shortly after launch to lead with "Google Pixel" wording for SEO.
+      {
+        source: '/tools/meta-title-description-generator',
+        destination: '/tools/meta-title-description-pixel-generator',
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig
