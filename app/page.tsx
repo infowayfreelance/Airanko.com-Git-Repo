@@ -231,7 +231,7 @@ const seoTools = [
     description: 'Crawl a sitemap or paste URLs to measure meta title & description pixel width for Google desktop and mobile SERPs — in bulk.',
     badge: 'New',
     badgeVariant: 'default' as const,
-    href: '/tools/meta-pixel-checker',
+    href: '/tools/meta-title-description-bulk-pixel-checker',
     color: 'text-rose-600',
     bg: 'bg-rose-50',
   },
@@ -339,7 +339,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 16, name: 'Vibe Code Detector',                     url: 'https://airanko.com/tools/vibe-code-detector' },
     { '@type': 'ListItem', position: 17, name: 'XML Sitemap Generator',                  url: 'https://airanko.com/tools/xml-sitemap-generator' },
     { '@type': 'ListItem', position: 18, name: 'Website Cloner',                         url: 'https://airanko.com/tools/website-cloner' },
-    { '@type': 'ListItem', position: 19, name: 'Meta Pixel Checker',                     url: 'https://airanko.com/tools/meta-pixel-checker' },
+    { '@type': 'ListItem', position: 19, name: 'Meta Pixel Checker',                     url: 'https://airanko.com/tools/meta-title-description-bulk-pixel-checker' },
     { '@type': 'ListItem', position: 20, name: 'Meta Title & Description Generator',     url: 'https://airanko.com/tools/meta-title-description-pixel-generator' },
   ],
 }

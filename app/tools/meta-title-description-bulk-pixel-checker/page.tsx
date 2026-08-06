@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   keywords:
     'meta title pixel checker, meta description pixel width, serp snippet checker, bulk meta pixel checker, title length checker pixels, google serp preview tool, sitemap meta checker, pixel width calculator seo',
   authors: [{ name: 'Ai Ranko Editorial Team', url: 'https://airanko.com' }],
-  alternates: { canonical: 'https://airanko.com/tools/meta-pixel-checker' },
+  alternates: { canonical: 'https://airanko.com/tools/meta-title-description-bulk-pixel-checker' },
   openGraph: {
     title: 'Meta Title & Description Pixel Length Checker (Bulk) | Ai Ranko',
     description: 'Crawl a sitemap or paste URLs to measure meta title/description pixel width for Google desktop and mobile SERPs — in bulk.',
-    url: 'https://airanko.com/tools/meta-pixel-checker',
+    url: 'https://airanko.com/tools/meta-title-description-bulk-pixel-checker',
     siteName: 'Ai Ranko',
     locale: 'en_US',
     type: 'website',
@@ -40,7 +40,7 @@ const jsonLd = {
   '@context': 'https://schema.org', '@type': 'SoftwareApplication',
   name: 'Meta Title & Description Pixel Checker',
   description: 'Bulk-checks meta title and description pixel width against Google desktop and mobile SERP limits. Discovers and crawls sitemap.xml, or accepts a single URL or a pasted list.',
-  url: 'https://airanko.com/tools/meta-pixel-checker',
+  url: 'https://airanko.com/tools/meta-title-description-bulk-pixel-checker',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'All',
   browserRequirements: 'Requires JavaScript.',
@@ -77,8 +77,8 @@ export default function MetaPixelCheckerPage() {
       <div className="print:hidden" data-print-hide>
         <Navbar />
       </div>
-      <ToolSchema name="Meta Title & Description Pixel Checker" slug="meta-pixel-checker" description="Bulk-check meta title and description pixel width against Google desktop and mobile SERP limits, via sitemap crawl, single URL, or a pasted list." />
-      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Meta Pixel Checker', href: '/tools/meta-pixel-checker' }]} />
+      <ToolSchema name="Meta Title & Description Pixel Checker" slug="meta-title-description-bulk-pixel-checker" description="Bulk-check meta title and description pixel width against Google desktop and mobile SERP limits, via sitemap crawl, single URL, or a pasted list." />
+      <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Meta Pixel Checker', href: '/tools/meta-title-description-bulk-pixel-checker' }]} />
 
       <div className="border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8 print:hidden" data-print-hide>
         <div className="mx-auto flex max-w-7xl items-center gap-1.5 text-sm text-muted-foreground">

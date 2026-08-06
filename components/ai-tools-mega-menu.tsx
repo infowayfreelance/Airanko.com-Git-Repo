@@ -132,7 +132,7 @@ const categories: Category[] = [
         icon: Ruler,
         label: 'Meta Pixel Checker',
         description: 'Bulk-check title & description pixel width.',
-        href: '/tools/meta-pixel-checker',
+        href: '/tools/meta-title-description-bulk-pixel-checker',
         badge: 'New',
       },
       {

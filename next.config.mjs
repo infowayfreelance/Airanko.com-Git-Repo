@@ -97,6 +97,12 @@ const nextConfig = {
         destination: '/tools/meta-title-description-pixel-generator',
         permanent: true,
       },
+      // Renamed to lead with "meta title & description" wording for SEO consistency.
+      {
+        source: '/tools/meta-pixel-checker',
+        destination: '/tools/meta-title-description-bulk-pixel-checker',
+        permanent: true,
+      },
     ]
   },
 }
