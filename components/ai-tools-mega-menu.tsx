@@ -24,6 +24,8 @@ import {
   Map,
   Bot,
   FileCode2,
+  Ruler,
+  Tag,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -125,6 +127,20 @@ const categories: Category[] = [
         description: 'Crawl any site and export a sitemap.xml.',
         href: '/tools/xml-sitemap-generator',
         badge: 'New',
+      },
+      {
+        icon: Ruler,
+        label: 'Meta Pixel Checker',
+        description: 'Bulk-check title & description pixel width.',
+        href: '/tools/meta-pixel-checker',
+        badge: 'New',
+      },
+      {
+        icon: Tag,
+        label: 'Meta Title & Description Generator',
+        description: 'AI-generate bulk meta tags that fit pixel limits.',
+        href: '/tools/meta-title-description-generator',
+        badge: 'AI',
       },
     ],
   },
