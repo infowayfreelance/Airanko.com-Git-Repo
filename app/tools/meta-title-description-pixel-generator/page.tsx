@@ -5,6 +5,7 @@ import Navbar from '@/components/navbar'
 import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import MetaTitleDescriptionGeneratorTool from '@/components/meta-title-description-generator/meta-title-description-generator-tool'
+import MetaTitleDescriptionPixelGeneratorSeoSections from '@/components/meta-title-description-pixel-generator-seo-sections'
 
 export const metadata: Metadata = {
   title: 'AI Meta Title & Description Generator — Google Pixel Limits (Bulk) — Free | Ai Ranko',
@@ -100,6 +101,10 @@ export default function MetaTitleDescriptionGeneratorPage() {
       <main>
         <MetaTitleDescriptionGeneratorTool />
       </main>
+
+      <div className="print:hidden" data-print-hide>
+        <MetaTitleDescriptionPixelGeneratorSeoSections />
+      </div>
 
       {/* FAQ */}
       <section className="px-4 py-12 sm:px-6 lg:px-8 print:hidden" data-print-hide>
