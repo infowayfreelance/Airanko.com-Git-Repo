@@ -4,9 +4,10 @@ import { useState, useMemo, useCallback } from 'react'
 import {
   Link2, FileText, ShieldCheck, AlertCircle, XCircle,
   RefreshCw, Download, ChevronDown, ExternalLink, Printer, ShieldAlert,
+  Files, Gauge, WifiOff, CheckCircle2, ThumbsUp, AlertTriangle, ShieldX,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ScoreGauge, GradeBadge, AuditChecklist, IssuesAndFixes } from '@/components/mobile-checker/audit-ui'
+import { ScoreGauge, GradeBadge, AuditChecklist, IssuesAndFixes, scoreToHex } from '@/components/mobile-checker/audit-ui'
 import type { SecurityScannerResponse, SecurityScannerResult } from '@/app/api/security-scanner/route'
 import type { Grade } from '@/lib/security-scanner/scan'
 
@@ -22,6 +23,29 @@ const ANALYZING_MESSAGES = [
 ]
 
 const GRADE_ORDER: Grade[] = ['Excellent', 'Good', 'Needs Work', 'Poor']
+
+const GRADE_META: Record<Grade, { icon: typeof CheckCircle2; color: string; bg: string; border: string }> = {
+  Excellent: { icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  Good: { icon: ThumbsUp, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+  'Needs Work': { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+  Poor: { icon: ShieldX, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
+}
+
+function StatTile({
+  icon: Icon, value, label, color = 'text-foreground', colorHex, bg = 'bg-primary/10', border,
+}: { icon: typeof CheckCircle2; value: string | number; label: string; color?: string; colorHex?: string; bg?: string; border?: string }) {
+  return (
+    <div className={cn('flex flex-col items-center gap-2 rounded-2xl border bg-card p-4 text-center shadow-sm transition-shadow hover:shadow-md', border ?? 'border-border')}>
+      <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl', bg)}>
+        <Icon className={cn('h-4.5 w-4.5', colorHex ? undefined : color)} style={colorHex ? { color: colorHex } : undefined} />
+      </div>
+      <div>
+        <p className={cn('font-heading text-2xl font-bold tabular-nums leading-none', colorHex ? undefined : color)} style={colorHex ? { color: colorHex } : undefined}>{value}</p>
+        <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  )
+}
 const PDF_ROW_LIMIT = 25
 
 function isValidUrl(s: string): boolean {
@@ -298,25 +322,24 @@ export default function SecurityScannerTool() {
         </div>
 
         {/* Summary */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 print:break-inside-avoid">
-          <div className="rounded-2xl border border-border bg-card p-4 text-center">
-            <p className="font-heading text-2xl font-bold tabular-nums text-foreground">{summary.total}</p>
-            <p className="mt-0.5 text-xs font-semibold text-foreground">Pages</p>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-4 text-center">
-            <p className="font-heading text-2xl font-bold tabular-nums text-foreground">{summary.avgScore}</p>
-            <p className="mt-0.5 text-xs font-semibold text-foreground">Avg. score</p>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-4 text-center">
-            <p className="font-heading text-2xl font-bold tabular-nums text-foreground">{summary.errors}</p>
-            <p className="mt-0.5 text-xs font-semibold text-foreground">Fetch errors</p>
-          </div>
-          {GRADE_ORDER.map((g) => (
-            <div key={g} className="rounded-2xl border border-border bg-card p-4 text-center">
-              <p className="font-heading text-2xl font-bold tabular-nums text-foreground">{summary.byGrade[g]}</p>
-              <p className="mt-0.5 text-xs font-semibold text-foreground">{g}</p>
-            </div>
-          ))}
+        <div className="mb-3 grid grid-cols-3 gap-3 print:break-inside-avoid">
+          <StatTile icon={Files} value={summary.total} label="Pages" bg="bg-primary/10" color="text-primary" />
+          <StatTile
+            icon={Gauge} value={summary.avgScore} label="Avg. score"
+            bg="bg-primary/10" colorHex={scoreToHex(summary.avgScore)}
+          />
+          <StatTile
+            icon={WifiOff} value={summary.errors} label="Fetch errors"
+            bg={summary.errors > 0 ? 'bg-red-50' : 'bg-muted'} color={summary.errors > 0 ? 'text-red-600' : 'text-muted-foreground'}
+          />
+        </div>
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 print:break-inside-avoid">
+          {GRADE_ORDER.map((g) => {
+            const meta = GRADE_META[g]
+            return (
+              <StatTile key={g} icon={meta.icon} value={summary.byGrade[g]} label={g} color={meta.color} bg={meta.bg} border={meta.border} />
+            )
+          })}
         </div>
 
         {/* Filters */}
