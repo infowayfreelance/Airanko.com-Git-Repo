@@ -75,6 +75,7 @@ const sections: Section[] = [
       { href: '/tools/content-optimizer',   label: 'AI Content Optimizer',        description: 'Audit existing content against Google 2024 E-E-A-T + Helpful Content rules.', icon: Cpu },
       { href: '/tools/plagiarism-checker',  label: 'AI Content Detector & Grammar Checker', description: 'Detect AI text, fix grammar, check readability, get word replacements.', icon: ShieldCheck },
       { href: '/tools/vibe-code-detector',  label: 'Vibe Code Detector',                     description: 'Detect vibe-coded sites built with v0, Bolt, Lovable, Cursor or Replit.', icon: Bot },
+      { href: '/tools/vibe-code-security-scanner', label: 'Vibe Code Security Scanner', description: 'Passive security scan for exposed API keys, missing headers, and leaked .env/.git files.', icon: ShieldCheck },
     ],
   },
   {
