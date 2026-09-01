@@ -26,6 +26,7 @@ import {
   FileCode2,
   Ruler,
   Tag,
+  ShieldAlert,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -175,6 +176,13 @@ const categories: Category[] = [
         label: 'Vibe Code Detector',
         description: 'Detect v0, Bolt, Lovable & vibe-coded sites.',
         href: '/tools/vibe-code-detector',
+        badge: 'New',
+      },
+      {
+        icon: ShieldAlert,
+        label: 'Vibe Code Security Scanner',
+        description: 'Passive scan for exposed keys, headers & leaks.',
+        href: '/tools/vibe-code-security-scanner',
         badge: 'New',
       },
       {

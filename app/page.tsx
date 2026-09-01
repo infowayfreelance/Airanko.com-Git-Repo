@@ -69,6 +69,7 @@ import {
   Eye,
   Video,
   Tag,
+  ShieldAlert,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -164,6 +165,16 @@ const seoTools = [
     href: '/tools/vibe-code-detector',
     color: 'text-violet-600',
     bg: 'bg-violet-50',
+  },
+  {
+    icon: ShieldAlert,
+    label: 'Vibe Code Security Scanner',
+    description: 'Passive security scan for AI-built sites — exposed API keys, missing headers, leaked .env/.git files & vulnerable JS libraries.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/vibe-code-security-scanner',
+    color: 'text-red-600',
+    bg: 'bg-red-50',
   },
   {
     icon: Globe,
@@ -319,7 +330,7 @@ const itemListJsonLd = {
   '@type': 'ItemList',
   name: 'Free SEO & AI Tools by Ai Ranko',
   description: 'Complete list of free, AI-powered SEO and image tools available on Ai Ranko.',
-  numberOfItems: 20,
+  numberOfItems: 21,
   itemListElement: [
     { '@type': 'ListItem', position: 1,  name: 'SEO Strategy Maker',                     url: 'https://airanko.com/tools/seo-strategy-maker' },
     { '@type': 'ListItem', position: 2,  name: 'Site Audit Tool',                        url: 'https://airanko.com/tools/site-audit' },
@@ -341,6 +352,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 18, name: 'Website Cloner',                         url: 'https://airanko.com/tools/website-cloner' },
     { '@type': 'ListItem', position: 19, name: 'Meta Pixel Checker',                     url: 'https://airanko.com/tools/meta-title-description-bulk-pixel-checker' },
     { '@type': 'ListItem', position: 20, name: 'Meta Title & Description Generator',     url: 'https://airanko.com/tools/meta-title-description-pixel-generator' },
+    { '@type': 'ListItem', position: 21, name: 'Vibe Code Security Scanner',             url: 'https://airanko.com/tools/vibe-code-security-scanner' },
   ],
 }
 

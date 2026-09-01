@@ -14,6 +14,7 @@ const tools: { slug: string; priority: number; changeFrequency: MetadataRoute.Si
   { slug: 'plagiarism-checker',  priority: 0.9, changeFrequency: 'monthly' },
   { slug: 'html-sitemap-generator', priority: 0.9, changeFrequency: 'monthly' },
   { slug: 'vibe-code-detector',  priority: 0.9, changeFrequency: 'monthly' },
+  { slug: 'vibe-code-security-scanner', priority: 0.9, changeFrequency: 'monthly' },
   { slug: 'xml-sitemap-generator', priority: 0.9, changeFrequency: 'monthly' },
 
   // Specialized SEO + utility tools
