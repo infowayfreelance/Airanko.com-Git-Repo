@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   Link2, FileText, ShieldCheck, AlertCircle, XCircle,
   RefreshCw, Download, ChevronDown, ExternalLink, Printer, ShieldAlert,
   Files, Gauge, WifiOff, CheckCircle2, ThumbsUp, AlertTriangle, ShieldX,
+  PartyPopper, Copy, Check, X, Wand2, FileDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ScoreGauge, GradeBadge, AuditChecklist, IssuesAndFixes, scoreToHex } from '@/components/mobile-checker/audit-ui'
@@ -69,6 +70,92 @@ function csvEscape(v: string): string {
   return v
 }
 
+function severityLabel(weight: number): string {
+  if (weight >= 20) return 'CRITICAL'
+  if (weight >= 12) return 'HIGH'
+  if (weight >= 6) return 'MEDIUM'
+  return 'LOW'
+}
+
+interface AggregatedIssue {
+  id: string
+  name: string
+  weight: number
+  detail: string
+  solution: string
+  solutionCode?: string
+  urls: string[]
+}
+
+/**
+ * Builds a copy-pasteable prompt (for Cursor, Claude, ChatGPT, v0, etc.) that
+ * fixes exactly the issues this scan found — not a generic "harden my site"
+ * prompt. Issues that repeat across multiple scanned pages (e.g. a missing
+ * CSP header) are deduplicated into one entry listing every affected URL,
+ * so a 10-page scan with the same 3 issues everywhere produces a 3-item
+ * prompt, not 30 near-duplicate entries.
+ */
+function buildFixPrompt(rows: SecurityScannerResult[]): { prompt: string; issueCount: number } {
+  const map = new Map<string, AggregatedIssue>()
+  for (const row of rows) {
+    if (row.status !== 'success' || !row.scan) continue
+    for (const check of row.scan.checks) {
+      if ((check.status !== 'fail' && check.status !== 'warning') || !check.solution) continue
+      const existing = map.get(check.id)
+      if (existing) {
+        if (!existing.urls.includes(row.url)) existing.urls.push(row.url)
+      } else {
+        map.set(check.id, { id: check.id, name: check.name, weight: check.weight, detail: check.detail, solution: check.solution, solutionCode: check.solutionCode, urls: [row.url] })
+      }
+    }
+  }
+  const issues = Array.from(map.values()).sort((a, b) => b.weight - a.weight)
+  if (issues.length === 0) return { prompt: '', issueCount: 0 }
+
+  const lines: string[] = []
+  lines.push(`I run a website that was just scanned by Ai Ranko's Vibe Code Security Scanner. Please fix the following ${issues.length} security issue${issues.length === 1 ? '' : 's'} it found — nothing more, nothing less. This site may have been built quickly with an AI page builder, so read the actual code first rather than applying generic boilerplate fixes.`)
+  lines.push('')
+  lines.push('CRITICAL — do not break the site while fixing these:')
+  lines.push('- Before changing or adding ANY security header, especially Content-Security-Policy, first inventory every external resource this site actually loads in production: embedded maps (Google Maps, Mapbox, etc.), analytics/tracking scripts, chat widgets, payment widgets, web fonts, video embeds, and any other third-party embeds or tracking "tags" — then explicitly allow-list each of their required origins in the policy.')
+  lines.push('- A Content-Security-Policy that is too strict is one of the most common ways to silently break a working site: embedded maps stop loading, third-party widgets and analytics tags stop firing, and inline scripts/styles the site actually depends on get blocked — usually with no visible error to a normal visitor, only a warning in the browser devtools console.')
+  lines.push('- After making each change below, reload every affected page yourself and check the browser devtools console for CSP violations, CORS errors, or blocked-resource warnings. Manually confirm that maps, embeds, forms, and any third-party widgets still load and function exactly as before.')
+  lines.push('- Prefer the least disruptive fix that still resolves the issue (e.g. a scoped allow-list, or a nonce/hash-based CSP for inline scripts) over a blanket restrictive policy that disables functionality.')
+  lines.push('- If fixing an issue would require removing or disabling a feature the site currently relies on, stop and ask me first instead of silently breaking it.')
+  lines.push('')
+  lines.push(`ISSUES TO FIX (${issues.length}):`)
+  lines.push('')
+  issues.forEach((issue, i) => {
+    lines.push(`${i + 1}. [${severityLabel(issue.weight)}] ${issue.name}`)
+    lines.push(`   Found on: ${issue.urls.slice(0, 5).join(', ')}${issue.urls.length > 5 ? ` and ${issue.urls.length - 5} more page(s)` : ''}`)
+    lines.push(`   Problem: ${issue.detail}`)
+    lines.push(`   Fix: ${issue.solution}`)
+    if (issue.solutionCode) {
+      lines.push('   Example:')
+      for (const codeLine of issue.solutionCode.split('\n')) lines.push(`   ${codeLine}`)
+    }
+    lines.push('')
+  })
+  lines.push('After applying these fixes:')
+  lines.push('- Re-test the site end-to-end (every affected page, not just the homepage) to confirm nothing broke.')
+  lines.push('- Specifically re-check any embedded maps, third-party widgets, analytics, forms, and inline scripts/styles still load and work correctly.')
+  lines.push('- Tell me exactly which issues you resolved, and flag anything you could not fix without more context from me.')
+
+  return { prompt: lines.join('\n'), issueCount: issues.length }
+}
+
+function CopyPromptButton({ text, className }: { text: string; className?: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={() => { navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }) }}
+      className={cn('inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90', className)}
+    >
+      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+      {copied ? 'Copied!' : 'Copy Fix Prompt'}
+    </button>
+  )
+}
+
 export default function SecurityScannerTool() {
   const [mode, setMode] = useState<Mode>('single')
   const [singleInput, setSingleInput] = useState('')
@@ -84,6 +171,9 @@ export default function SecurityScannerTool() {
   const [gradeFilter, setGradeFilter] = useState<Grade | 'all'>('all')
   const [sortKey, setSortKey] = useState<SortKey>('default')
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+
+  const [showPostScanModal, setShowPostScanModal] = useState(false)
+  const modalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const bulkUrls = useMemo(() => bulkInput.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean), [bulkInput])
 
@@ -125,11 +215,13 @@ export default function SecurityScannerTool() {
   }, [mode, singleInput, bulkInput, canSubmit])
 
   function reset() {
+    if (modalTimerRef.current) clearTimeout(modalTimerRef.current)
     setStage('input')
     setMeta(null)
     setRows([])
     setError(null)
     setExpanded(new Set())
+    setShowPostScanModal(false)
   }
 
   function toggleExpand(i: number) {
@@ -148,6 +240,14 @@ export default function SecurityScannerTool() {
     if (sortKey === 'score-desc') list = [...list].sort((a, b) => (b.scan?.score ?? -1) - (a.scan?.score ?? -1))
     return list
   }, [rows, gradeFilter, sortKey])
+
+  const { prompt: fixPrompt, issueCount } = useMemo(() => buildFixPrompt(rows), [rows])
+
+  useEffect(() => {
+    if (stage !== 'results') return
+    modalTimerRef.current = setTimeout(() => setShowPostScanModal(true), 2500)
+    return () => { if (modalTimerRef.current) clearTimeout(modalTimerRef.current) }
+  }, [stage, meta])
 
   const summary = useMemo(() => {
     const successRows = rows.filter((r) => r.status === 'success' && r.scan)
@@ -412,6 +512,74 @@ export default function SecurityScannerTool() {
           Every check is a passive, read-only inspection of what this site already serves publicly — response headers, page source, linked scripts, and a handful of well-known paths. No exploitation, no injection, no authentication attempts.
         </p>
       </div>
+
+      {showPostScanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4 print:hidden" data-print-hide onClick={() => setShowPostScanModal(false)}>
+          <div
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', issueCount === 0 ? 'bg-emerald-100' : 'bg-primary/10')}>
+                  {issueCount === 0 ? <PartyPopper className="h-5 w-5 text-emerald-600" /> : <Wand2 className="h-5 w-5 text-primary" />}
+                </div>
+                <div>
+                  <h2 className="font-heading text-lg font-bold text-foreground">Scan complete</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {issueCount === 0
+                      ? `No issues found across ${summary.total} page${summary.total === 1 ? '' : 's'} — nice work.`
+                      : `${issueCount} issue${issueCount === 1 ? '' : 's'} found across ${summary.total} page${summary.total === 1 ? '' : 's'} scanned.`}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowPostScanModal(false)} className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-5">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Download report</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={downloadPdf} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
+                  <Printer className="h-3.5 w-3.5" /> PDF
+                </button>
+                <button onClick={exportCsv} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                  <FileDown className="h-3.5 w-3.5" /> CSV
+                </button>
+                <button onClick={exportJson} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                  <FileDown className="h-3.5 w-3.5" /> JSON
+                </button>
+              </div>
+            </div>
+
+            {issueCount > 0 && (
+              <div className="mt-6 border-t border-border pt-5">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Fix prompt — paste into Cursor, Claude, ChatGPT, or v0
+                  </p>
+                  <CopyPromptButton text={fixPrompt} />
+                </div>
+                <p className="mb-2 text-xs leading-relaxed text-muted-foreground">
+                  A ready-to-use prompt covering exactly the {issueCount} issue{issueCount === 1 ? '' : 's'} found above — including an explicit warning to your AI assistant not to break embedded maps, third-party widgets, or other functionality while applying security fixes like CSP headers.
+                </p>
+                <textarea
+                  readOnly
+                  value={fixPrompt}
+                  rows={10}
+                  className="w-full resize-y rounded-xl border border-border bg-muted/30 px-3.5 py-3 font-mono text-[11px] leading-relaxed text-foreground focus:border-primary focus:outline-none"
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+            )}
+
+            <button onClick={() => setShowPostScanModal(false)} className="mt-6 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+              Continue to full report
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
