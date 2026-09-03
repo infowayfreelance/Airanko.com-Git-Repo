@@ -15,7 +15,9 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 - [HTML Sitemap Generator](https://airanko.com/tools/html-sitemap-generator): Generate a beautiful, customizable HTML sitemap from any URL. Reads sitemap.xml first or falls back to crawling. Includes 5 layouts (tree, cards, list, columns, compact), 4 themes (modern, minimal, classic, dark) with custom accent colors, live iframe preview, and 5 export formats (standalone HTML, HTML snippet, Markdown, JSON, plain text). Up to 100 pages per generation with configurable crawl depth.
 - [Vibe Code Detector](https://airanko.com/tools/vibe-code-detector): Detect vibe-coded websites, GitHub repos, or pasted code built with AI tools like v0, Bolt, Lovable, Cursor, Windsurf, Replit, Devin, GitHub Copilot, ChatGPT or Claude. Three input modes plus 8 real measurement-based audits — inline code (incl. data-testid), CSS utility soup, HTML wrapper nesting, JS naming + AI-style comments, AI buzzword copywriting, security headers (URL mode), image quality, and generator-tag metadata. Every Vibe Score derives from real counts, not model probabilities. Full JSON export.
 - [XML Sitemap Generator](https://airanko.com/tools/xml-sitemap-generator): Generate a valid sitemap.xml from any website. Reads existing sitemap.xml or sitemap index files first; falls back to real-crawl up to 500 pages at 1–4 depth levels. Full options: changefreq, priority (0.1–1.0), lastmod dates, image:image extensions, URL exclude patterns. Download as .xml or copy to clipboard.
-- [Meta Pixel Checker](https://airanko.com/tools/meta-pixel-checker): Bulk-checks meta title and description pixel width against Google desktop and mobile SERP limits. Discovers and crawls sitemap.xml (via robots.txt, nested sitemap indexes, up to 300 URLs), or accepts a single URL or a pasted list. Real canvas-measured character counts and pixel widths, simulated Google SERP preview cards, CSV/JSON export, and one-click PDF report generation.
+- [Meta Pixel Checker](https://airanko.com/tools/meta-title-description-bulk-pixel-checker): Bulk-checks meta title and description pixel width against Google desktop and mobile SERP limits. Discovers and crawls sitemap.xml (via robots.txt, nested sitemap indexes, up to 300 URLs), or accepts a single URL or a pasted list. Real canvas-measured character counts and pixel widths, simulated Google SERP preview cards, CSV/JSON export, and one-click PDF report generation.
+- [Meta Title & Description Generator](https://airanko.com/tools/meta-title-description-pixel-generator): AI-generates meta titles and descriptions in bulk, sized to fit Google Pixel width limits for desktop or mobile SERPs. Choose titles, descriptions, or both, pick how many variants per page, and fine-tune each one with live Google Pixel-width feedback before export.
+- [Vibe Code Security Scanner](https://airanko.com/tools/vibe-code-security-scanner): Passive, read-only security scan for AI-built ("vibe-coded") websites. Checks for exposed API keys, missing security headers, leaked .env/.git files, vulnerable JS libraries, and verbose error pages that leak stack traces.
 
 ## AI Content Tools
 
@@ -49,7 +51,7 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 
 ## Key facts
 
-- 19 free tools, no signup required, no watermark
+- 21 free tools, no signup required, no watermark
 - Privacy-first: image tools never upload files to a server
 - AI tools powered by GPT-4o via OpenAI API
 - Real data sources only — no fake or mocked metrics
