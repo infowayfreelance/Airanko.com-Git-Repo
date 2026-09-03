@@ -1,43 +1,87 @@
 import type { MetadataRoute } from 'next'
+import fs from 'fs'
+import path from 'path'
 
 const BASE_URL = 'https://airanko.com'
 
-// ── Tool pages ─────────────────────────────────────────────────────────────
-// changeFrequency + priority chosen by traffic potential and update cadence.
-const tools: { slug: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'] }[] = [
-  // High-priority flagship tools (AI-powered, deeply documented)
-  { slug: 'seo-strategy-maker',  priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'site-audit',          priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'content-optimizer',   priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'keyword-research',    priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'content-writer',      priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'plagiarism-checker',  priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'html-sitemap-generator', priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'vibe-code-detector',  priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'vibe-code-security-scanner', priority: 0.9, changeFrequency: 'monthly' },
-  { slug: 'xml-sitemap-generator', priority: 0.9, changeFrequency: 'monthly' },
+// ──────────────────────────────────────────────────────────────────────────
+// Tool & blog URLs are discovered dynamically from the app directory
+// structure (app/tools/<slug>/page.tsx, app/blog/<slug>/page.tsx) instead
+// of a hand-maintained list — a new tool or blog post folder is picked up
+// automatically the next time this route is requested, so the sitemap can
+// no longer silently drift out of sync with what's actually live.
+//
+// Priority/changeFrequency still come from a small override map below (some
+// tools genuinely deserve higher priority than others), but that map only
+// ever *tunes* an entry that's already guaranteed to be present — it can
+// never cause a live route to be missing from the sitemap.
+// ──────────────────────────────────────────────────────────────────────────
 
-  // Specialized SEO + utility tools
-  { slug: 'meta-checker',        priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'meta-title-description-bulk-pixel-checker', priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'meta-title-description-pixel-generator', priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'mobile-checker',      priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'link-extractor',      priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'portfolio-recorder',  priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'website-cloner',      priority: 0.7, changeFrequency: 'monthly' },
+type ChangeFreq = MetadataRoute.Sitemap[number]['changeFrequency']
 
-  // Image tools
-  { slug: 'image-resizer',       priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'bulk-image-resizer',  priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'background-remover',  priority: 0.8, changeFrequency: 'monthly' },
-  { slug: 'logo-generator',      priority: 0.7, changeFrequency: 'monthly' },
-]
+const DEFAULT_TOOL_PRIORITY = 0.8
+const DEFAULT_TOOL_CHANGEFREQ: ChangeFreq = 'monthly'
+const DEFAULT_BLOG_PRIORITY = 0.7
+const DEFAULT_BLOG_CHANGEFREQ: ChangeFreq = 'monthly'
 
-// ── Blog posts ─────────────────────────────────────────────────────────────
-const blogPosts: { slug: string; priority: number }[] = [
-  { slug: 'top-10-free-photo-cropping-tools', priority: 0.8 },
-  { slug: 'top-10-mobile-friendly-websites', priority: 0.8 },
-]
+// Flagship, deeply-documented, AI-powered tools — worth a higher crawl priority.
+const HIGH_PRIORITY_TOOLS = new Set([
+  'seo-strategy-maker',
+  'site-audit',
+  'content-optimizer',
+  'keyword-research',
+  'content-writer',
+  'plagiarism-checker',
+  'html-sitemap-generator',
+  'vibe-code-detector',
+  'vibe-code-security-scanner',
+  'xml-sitemap-generator',
+])
+
+// Lower-priority utility tools.
+const LOW_PRIORITY_TOOLS = new Set(['website-cloner', 'logo-generator'])
+
+const BLOG_PRIORITY_OVERRIDES: Record<string, number> = {
+  'top-10-free-photo-cropping-tools': 0.8,
+  'top-10-mobile-friendly-websites': 0.8,
+}
+
+function toolPriority(slug: string): number {
+  if (HIGH_PRIORITY_TOOLS.has(slug)) return 0.9
+  if (LOW_PRIORITY_TOOLS.has(slug)) return 0.7
+  return DEFAULT_TOOL_PRIORITY
+}
+
+/** Route groups like (marketing) and files like _components should never surface as URLs. */
+function isRoutableSlug(name: string): boolean {
+  return !name.startsWith('(') && !name.startsWith('_') && !name.startsWith('.')
+}
+
+/** A page.tsx whose body is just a redirect isn't real content — it 30x's straight to another sitemap entry. */
+function isRedirectOnlyPage(pageFile: string): boolean {
+  try {
+    const content = fs.readFileSync(pageFile, 'utf-8')
+    return /\b(permanentRedirect|redirect)\s*\(/.test(content)
+  } catch {
+    return false
+  }
+}
+
+function discoverSlugs(dir: string): string[] {
+  if (!fs.existsSync(dir)) return []
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && isRoutableSlug(entry.name))
+    .map((entry) => entry.name)
+    .filter((slug) => {
+      const pageFile = path.join(dir, slug, 'page.tsx')
+      return fs.existsSync(pageFile) && !isRedirectOnlyPage(pageFile)
+    })
+    .sort()
+}
+
+const toolSlugs = discoverSlugs(path.join(process.cwd(), 'app', 'tools'))
+const blogSlugs = discoverSlugs(path.join(process.cwd(), 'app', 'blog'))
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date()
@@ -85,17 +129,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.7,
     },
-    ...blogPosts.map((p) => ({
-      url: `${BASE_URL}/blog/${p.slug}`,
+    ...blogSlugs.map((slug) => ({
+      url: `${BASE_URL}/blog/${slug}`,
       lastModified,
-      changeFrequency: 'monthly' as const,
-      priority: p.priority,
+      changeFrequency: DEFAULT_BLOG_CHANGEFREQ,
+      priority: BLOG_PRIORITY_OVERRIDES[slug] ?? DEFAULT_BLOG_PRIORITY,
     })),
-    ...tools.map((t) => ({
-      url: `${BASE_URL}/tools/${t.slug}`,
+    ...toolSlugs.map((slug) => ({
+      url: `${BASE_URL}/tools/${slug}`,
       lastModified,
-      changeFrequency: t.changeFrequency,
-      priority: t.priority,
+      changeFrequency: DEFAULT_TOOL_CHANGEFREQ,
+      priority: toolPriority(slug),
     })),
   ]
 }
