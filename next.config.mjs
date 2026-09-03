@@ -22,8 +22,13 @@
 //   third-party URLs in an <iframe>.  Restricting this would break that tool.
 //   frame-ancestors 'self' (below) still prevents THIS site from being framed.
 //
-// • *.huggingface.co            — Background Remover fetches the RMBG-1.4 model
-//   weights from the HuggingFace Hub CDN on first use.
+// • huggingface.co *.huggingface.co — Background Remover and AI Image Upscaler
+//   fetch model config/weights from the HuggingFace Hub on first use. Model
+//   URLs (https://huggingface.co/<org>/<model>/resolve/main/...) hit the bare
+//   apex domain, not a subdomain — `*.huggingface.co` alone does NOT match
+//   the apex in CSP source matching, so both the apex and the wildcard are
+//   listed here. (Large model weights may also be served from a subdomain
+//   like cdn-lfs.huggingface.co, covered by the wildcard.)
 //
 // • vitals.vercel-insights.com  — Vercel Analytics beacon endpoint.
 //
@@ -33,7 +38,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data: blob: hebbkx1anhila5yf.public.blob.vercel-storage.com",
-  "connect-src 'self' vitals.vercel-insights.com *.huggingface.co",
+  "connect-src 'self' vitals.vercel-insights.com huggingface.co *.huggingface.co",
   "worker-src 'self' blob:",
   "frame-src *",
   "media-src 'self' blob:",
