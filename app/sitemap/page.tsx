@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   ChevronRight, Zap, Search, FileText, Globe, ShieldCheck, Cpu, Smartphone,
-  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map, Bot, FileCode2, Ruler,
+  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map, Bot, FileCode2, Ruler, ZoomIn,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 
@@ -85,6 +85,7 @@ const sections: Section[] = [
       { href: '/tools/image-resizer',       label: 'Image Resizer & Converter',   description: 'Resize, crop, convert & optimize images to WebP, PNG, JPEG.', icon: ImageIcon },
       { href: '/tools/bulk-image-resizer',  label: 'Bulk Image Resizer',          description: 'Process unlimited images at once with global or per-image settings.', icon: Images },
       { href: '/tools/background-remover',  label: 'AI Background Remover',       description: 'Instantly remove backgrounds with on-device AI — private and free.', icon: Sparkles },
+      { href: '/tools/ai-image-upscaler',   label: 'AI Image Upscaler',           description: 'Enhance image resolution 2x or 4x with on-device AI — private and free.', icon: ZoomIn },
       { href: '/tools/logo-generator',      label: 'AI Logo Generator',           description: 'Generate logo concepts and export in multiple formats.', icon: Eye },
     ],
   },

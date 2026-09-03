@@ -30,6 +30,7 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 - [Image Resizer & Converter](https://airanko.com/tools/image-resizer): Resize, crop, convert, and optimize images to WebP, PNG, JPEG. Runs fully in your browser.
 - [Bulk Image Resizer](https://airanko.com/tools/bulk-image-resizer): Process unlimited images at once with global settings or per-image tweaks. 100% in-browser, files never leave your device.
 - [AI Background Remover](https://airanko.com/tools/background-remover): Removes image backgrounds with on-device AI (no upload). Private and free.
+- [AI Image Upscaler](https://airanko.com/tools/ai-image-upscaler): Enhances image resolution 2x or 4x using on-device AI super-resolution (no upload). Before/after comparison slider, keeps or converts output format. Private and free.
 - [AI Logo Generator](https://airanko.com/tools/logo-generator): Generate logo concepts and export in multiple formats.
 
 ## Utilities
@@ -51,7 +52,7 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 
 ## Key facts
 
-- 21 free tools, no signup required, no watermark
+- 22 free tools, no signup required, no watermark
 - Privacy-first: image tools never upload files to a server
 - AI tools powered by GPT-4o via OpenAI API
 - Real data sources only — no fake or mocked metrics

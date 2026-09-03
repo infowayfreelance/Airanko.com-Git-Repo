@@ -70,7 +70,7 @@ const categories: Category[] = [
         icon: Wand2,
         label: 'AI Image Upscaler',
         description: 'Enhance image resolution up to 4x.',
-        href: '#',
+        href: '/tools/ai-image-upscaler',
         badge: 'AI',
       },
       {
