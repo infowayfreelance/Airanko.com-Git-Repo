@@ -90,6 +90,11 @@ export default function AiImageUpscalerTool() {
   // clicked "Try another image" while one was still in flight) can detect
   // it's stale and discard its result instead of overwriting newer state.
   const runIdRef = useRef(0)
+  // Same superseded-run guard as runIdRef, but scoped to format re-encodes
+  // (switching PNG -> JPEG -> WebP quickly shouldn't let an earlier, slower
+  // encode overwrite a later one).
+  const reencodeIdRef = useRef(0)
+  const [isReencoding, setIsReencoding] = useState(false)
 
   function setOriginalUrlSafe(url: string | null) {
     if (originalUrlRef.current) URL.revokeObjectURL(originalUrlRef.current)
@@ -245,8 +250,17 @@ export default function AiImageUpscalerTool() {
     // match the newly selected format instead of just the button label.
     const canvas = masterCanvasRef.current
     if (!canvas || status !== 'done') return
+    // canvas.toBlob() is async — until it resolves, `resultUrl` still holds
+    // the *previous* format's bytes. Disable downloading during that window
+    // so a click can't save mislabeled bytes (old content, new extension).
+    const reencodeId = ++reencodeIdRef.current
+    setIsReencoding(true)
     canvas.toBlob(
-      (blob) => { if (blob) setResultUrlSafe(URL.createObjectURL(blob)) },
+      (blob) => {
+        if (reencodeIdRef.current !== reencodeId) return // superseded by a later format switch
+        if (blob) setResultUrlSafe(URL.createObjectURL(blob))
+        setIsReencoding(false)
+      },
       next,
       next === 'image/png' ? undefined : 0.92,
     )
@@ -254,6 +268,7 @@ export default function AiImageUpscalerTool() {
 
   const reset = () => {
     runIdRef.current++ // invalidate any in-flight run so it can't overwrite the fresh idle state below
+    reencodeIdRef.current++ // invalidate any in-flight format re-encode too
     setOriginalUrlSafe(null)
     setResultUrlSafe(null)
     masterCanvasRef.current = null
@@ -262,6 +277,7 @@ export default function AiImageUpscalerTool() {
     setErrorMsg(null)
     setWasDownscaled(false)
     setSliderPos(50)
+    setIsReencoding(false)
     pendingFileRef.current = null
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -474,9 +490,9 @@ export default function AiImageUpscalerTool() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button onClick={download} disabled={!resultUrl} size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download {FORMAT_LABELS[format]}
+                <Button onClick={download} disabled={!resultUrl || isReencoding} size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                  {isReencoding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  {isReencoding ? 'Converting…' : `Download ${FORMAT_LABELS[format]}`}
                 </Button>
                 <Button onClick={reset} variant="outline" size="lg" className="w-full">
                   <RefreshCw className="mr-2 h-4 w-4" />
