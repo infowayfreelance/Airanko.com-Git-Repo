@@ -126,7 +126,7 @@ function buildFixPrompt(rows: SecurityScannerResult[]): { prompt: string; issueC
   lines.push('')
   issues.forEach((issue, i) => {
     lines.push(`${i + 1}. [${severityLabel(issue.weight)}] ${issue.name}`)
-    lines.push(`   Found on: ${issue.urls.slice(0, 5).join(', ')}${issue.urls.length > 5 ? ` and ${issue.urls.length - 5} more page(s)` : ''}`)
+    lines.push(`   Found on: ${issue.urls.join(', ')}`)
     lines.push(`   Problem: ${issue.detail}`)
     lines.push(`   Fix: ${issue.solution}`)
     if (issue.solutionCode) {
@@ -521,15 +521,24 @@ export default function SecurityScannerTool() {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', issueCount === 0 ? 'bg-emerald-100' : 'bg-primary/10')}>
-                  {issueCount === 0 ? <PartyPopper className="h-5 w-5 text-emerald-600" /> : <Wand2 className="h-5 w-5 text-primary" />}
+                <div className={cn(
+                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
+                  issueCount > 0 ? 'bg-primary/10' : summary.errors > 0 ? 'bg-amber-100' : 'bg-emerald-100',
+                )}>
+                  {issueCount > 0
+                    ? <Wand2 className="h-5 w-5 text-primary" />
+                    : summary.errors > 0
+                      ? <AlertTriangle className="h-5 w-5 text-amber-600" />
+                      : <PartyPopper className="h-5 w-5 text-emerald-600" />}
                 </div>
                 <div>
                   <h2 className="font-heading text-lg font-bold text-foreground">Scan complete</h2>
                   <p className="text-xs text-muted-foreground">
-                    {issueCount === 0
-                      ? `No issues found across ${summary.total} page${summary.total === 1 ? '' : 's'} — nice work.`
-                      : `${issueCount} issue${issueCount === 1 ? '' : 's'} found across ${summary.total} page${summary.total === 1 ? '' : 's'} scanned.`}
+                    {issueCount > 0
+                      ? `${issueCount} issue${issueCount === 1 ? '' : 's'} found across ${summary.total} page${summary.total === 1 ? '' : 's'} scanned.`
+                      : summary.errors > 0
+                        ? `No issues found on the ${summary.total - summary.errors} page${summary.total - summary.errors === 1 ? '' : 's'} we could check — but ${summary.errors} page${summary.errors === 1 ? '' : 's'} failed to load and ${summary.errors === 1 ? "wasn't" : "weren't"} actually scanned. Try again or check ${summary.errors === 1 ? 'that URL' : 'those URLs'} individually.`
+                        : `No issues found across ${summary.total} page${summary.total === 1 ? '' : 's'} — nice work.`}
                   </p>
                 </div>
               </div>
