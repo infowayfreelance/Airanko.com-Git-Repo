@@ -70,6 +70,7 @@ import {
   Video,
   Tag,
   ShieldAlert,
+  ZoomIn,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -267,6 +268,16 @@ const seoTools = [
     bg: 'bg-fuchsia-50',
   },
   {
+    icon: ZoomIn,
+    label: 'AI Image Upscaler',
+    description: 'Enhance image resolution 2x or 4x with on-device AI — no upload, fully private, and free.',
+    badge: 'New',
+    badgeVariant: 'default' as const,
+    href: '/tools/ai-image-upscaler',
+    color: 'text-cyan-600',
+    bg: 'bg-cyan-50',
+  },
+  {
     icon: Eye,
     label: 'AI Logo Generator',
     description: 'Generate clean logo concepts for your brand and export in multiple formats.',
@@ -330,7 +341,7 @@ const itemListJsonLd = {
   '@type': 'ItemList',
   name: 'Free SEO & AI Tools by Ai Ranko',
   description: 'Complete list of free, AI-powered SEO and image tools available on Ai Ranko.',
-  numberOfItems: 21,
+  numberOfItems: 22,
   itemListElement: [
     { '@type': 'ListItem', position: 1,  name: 'SEO Strategy Maker',                     url: 'https://airanko.com/tools/seo-strategy-maker' },
     { '@type': 'ListItem', position: 2,  name: 'Site Audit Tool',                        url: 'https://airanko.com/tools/site-audit' },
@@ -353,6 +364,7 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 19, name: 'Meta Pixel Checker',                     url: 'https://airanko.com/tools/meta-title-description-bulk-pixel-checker' },
     { '@type': 'ListItem', position: 20, name: 'Meta Title & Description Generator',     url: 'https://airanko.com/tools/meta-title-description-pixel-generator' },
     { '@type': 'ListItem', position: 21, name: 'Vibe Code Security Scanner',             url: 'https://airanko.com/tools/vibe-code-security-scanner' },
+    { '@type': 'ListItem', position: 22, name: 'AI Image Upscaler',                      url: 'https://airanko.com/tools/ai-image-upscaler' },
   ],
 }
 
