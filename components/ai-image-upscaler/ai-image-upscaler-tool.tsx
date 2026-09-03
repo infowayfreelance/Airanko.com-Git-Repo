@@ -77,9 +77,37 @@ export default function AiImageUpscalerTool() {
   const compareRef = useRef<HTMLDivElement>(null)
   const pendingFileRef = useRef<File | null>(null)
 
-  const runUpscale = useCallback(async (file: File, targetScale: Scale) => {
+  // Latest object URLs, tracked in refs (not just state) so unmount cleanup
+  // and "replace with a new blob" logic always see the current value instead
+  // of whatever was captured by a stale closure.
+  const originalUrlRef = useRef<string | null>(null)
+  const resultUrlRef = useRef<string | null>(null)
+  // The pristine upscaled pixels, kept around so switching output format
+  // re-encodes from this master instead of re-compressing an already-lossy
+  // JPEG/WebP blob (or worse, just relabeling it without re-encoding at all).
+  const masterCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  // Bumped on every new run/reset so a superseded upscale (e.g. the user
+  // clicked "Try another image" while one was still in flight) can detect
+  // it's stale and discard its result instead of overwriting newer state.
+  const runIdRef = useRef(0)
+
+  function setOriginalUrlSafe(url: string | null) {
+    if (originalUrlRef.current) URL.revokeObjectURL(originalUrlRef.current)
+    originalUrlRef.current = url
+    setOriginalUrl(url)
+  }
+
+  function setResultUrlSafe(url: string | null) {
+    if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current)
+    resultUrlRef.current = url
+    setResultUrl(url)
+  }
+
+  const runUpscale = useCallback(async (file: File, targetScale: Scale, targetFormat: OutputFormat) => {
+    const runId = ++runIdRef.current
     setErrorMsg(null)
-    setResultUrl(null)
+    setResultUrlSafe(null)
+    masterCanvasRef.current = null
     setProgress(0)
     setStatus('loading-model')
 
@@ -101,7 +129,7 @@ export default function AiImageUpscalerTool() {
       const downscaleFactor = longestSide > MAX_INPUT_DIMENSION ? MAX_INPUT_DIMENSION / longestSide : 1
       const inputW = Math.round(sourceImg.naturalWidth * downscaleFactor)
       const inputH = Math.round(sourceImg.naturalHeight * downscaleFactor)
-      setWasDownscaled(downscaleFactor < 1)
+      if (runIdRef.current === runId) setWasDownscaled(downscaleFactor < 1)
 
       const inputCanvas = document.createElement('canvas')
       inputCanvas.width = inputW
@@ -110,6 +138,8 @@ export default function AiImageUpscalerTool() {
       if (!inputCtx) throw new Error('Canvas 2D context unavailable')
       inputCtx.drawImage(sourceImg, 0, 0, inputW, inputH)
       URL.revokeObjectURL(objectUrl)
+
+      if (runIdRef.current !== runId) return // superseded before inference even started
 
       const inputBlob: Blob = await new Promise((resolve, reject) =>
         inputCanvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not prepare image'))), 'image/png'),
@@ -120,25 +150,39 @@ export default function AiImageUpscalerTool() {
       const upscaler = await pipeline('image-to-image', modelId, {
         progress_callback: (data: { status?: string; progress?: number }) => {
           // Reserve 0-70% for model download, 70-100% for inference.
-          if (data?.status === 'progress_total' && typeof data.progress === 'number') {
+          if (runIdRef.current === runId && data?.status === 'progress_total' && typeof data.progress === 'number') {
             setProgress(Math.min(70, Math.round((data.progress / 100) * 70)))
           }
         },
       })
 
+      if (runIdRef.current !== runId) return
+
       setStatus('processing')
       setProgress(80)
 
       const output = await upscaler(inputImage)
+
+      if (runIdRef.current !== runId) return // a newer run started while inference was running
+
       setProgress(95)
 
-      const outputBlob: Blob = await output.toBlob(format, format === 'image/png' ? undefined : 0.92)
+      const canvas: HTMLCanvasElement = output.toCanvas()
+      const outputBlob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob((b: Blob | null) => (b ? resolve(b) : reject(new Error('Could not encode image'))), targetFormat, targetFormat === 'image/png' ? undefined : 0.92),
+      )
+
+      if (runIdRef.current !== runId) return // discard — a newer run superseded this one while encoding
+
+      masterCanvasRef.current = canvas
       const resultObjectUrl = URL.createObjectURL(outputBlob)
-      setResultUrl(resultObjectUrl)
+      setResultUrlSafe(resultObjectUrl)
       setResultDims({ w: output.width, h: output.height })
+      setFormat(targetFormat)
       setProgress(100)
       setStatus('done')
     } catch (err) {
+      if (runIdRef.current !== runId) return // a newer run superseded this one — don't surface a stale error
       console.error('[v0] ai-image-upscaler error:', err)
       const raw = err instanceof Error ? err.message : String(err)
       const friendly = /failed to fetch|networkerror|load failed/i.test(raw)
@@ -147,7 +191,7 @@ export default function AiImageUpscalerTool() {
       setErrorMsg(friendly)
       setStatus('error')
     }
-  }, [format])
+  }, [])
 
   const processFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -156,8 +200,9 @@ export default function AiImageUpscalerTool() {
       return
     }
 
+    const detectedFormat = detectFormat(file)
     setFileName(file.name.replace(/\.[^/.]+$/, '') || 'image')
-    setFormat(detectFormat(file))
+    setFormat(detectedFormat)
     pendingFileRef.current = file
 
     const previewImg = new Image()
@@ -166,11 +211,14 @@ export default function AiImageUpscalerTool() {
       setOriginalDims({ w: previewImg.naturalWidth, h: previewImg.naturalHeight })
     }
     previewImg.src = objectUrl
-    setOriginalUrl(objectUrl)
+    setOriginalUrlSafe(objectUrl)
 
-    runUpscale(file, scale)
+    // `scale` is read fresh here (not from a memoized closure), so a scale
+    // chosen for a previous image — and preserved across "Try another image"
+    // — carries over correctly to the next upload.
+    runUpscale(file, scale, detectedFormat)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [scale, runUpscale])
 
   const onSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -187,14 +235,28 @@ export default function AiImageUpscalerTool() {
   function changeScale(next: Scale) {
     if (next === scale || !pendingFileRef.current) { setScale(next); return }
     setScale(next)
-    runUpscale(pendingFileRef.current, next)
+    runUpscale(pendingFileRef.current, next, format)
+  }
+
+  function changeFormat(next: OutputFormat) {
+    setFormat(next)
+    // Re-encode from the pristine upscaled canvas — never from an
+    // already-compressed JPEG/WebP blob — so the downloaded bytes actually
+    // match the newly selected format instead of just the button label.
+    const canvas = masterCanvasRef.current
+    if (!canvas || status !== 'done') return
+    canvas.toBlob(
+      (blob) => { if (blob) setResultUrlSafe(URL.createObjectURL(blob)) },
+      next,
+      next === 'image/png' ? undefined : 0.92,
+    )
   }
 
   const reset = () => {
-    if (originalUrl) URL.revokeObjectURL(originalUrl)
-    if (resultUrl) URL.revokeObjectURL(resultUrl)
-    setOriginalUrl(null)
-    setResultUrl(null)
+    runIdRef.current++ // invalidate any in-flight run so it can't overwrite the fresh idle state below
+    setOriginalUrlSafe(null)
+    setResultUrlSafe(null)
+    masterCanvasRef.current = null
     setStatus('idle')
     setProgress(0)
     setErrorMsg(null)
@@ -214,13 +276,13 @@ export default function AiImageUpscalerTool() {
     document.body.removeChild(a)
   }
 
-  // Cleanup object URLs on unmount
+  // Cleanup object URLs on unmount — reads from refs (always current),
+  // not the state values captured when this effect first ran.
   useEffect(() => {
     return () => {
-      if (originalUrl) URL.revokeObjectURL(originalUrl)
-      if (resultUrl) URL.revokeObjectURL(resultUrl)
+      if (originalUrlRef.current) URL.revokeObjectURL(originalUrlRef.current)
+      if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function handleSliderDrag(clientX: number) {
@@ -399,7 +461,7 @@ export default function AiImageUpscalerTool() {
                     <button
                       key={f}
                       type="button"
-                      onClick={() => setFormat(f)}
+                      onClick={() => changeFormat(f)}
                       className={cn(
                         'flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-all',
                         format === f ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
