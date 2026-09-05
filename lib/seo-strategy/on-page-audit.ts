@@ -81,7 +81,12 @@ export function detectKeywordStuffing(text: string, repeatThreshold = KEYWORD_ST
   const counts = new Map<string, number>()
   for (const w of significant) counts.set(w, (counts.get(w) ?? 0) + 1)
   const max = Math.max(...counts.values())
-  return max >= repeatThreshold || max / significant.length > KEYWORD_STUFFING_PROPORTION_THRESHOLD
+  // The proportional check only makes sense once a word actually repeats —
+  // for a short string with few significant words (e.g. "Emergency
+  // Towing": 2 words, each appearing once), max/significant.length is
+  // already >= 0.5 with zero repetition, which would wrongly flag ordinary
+  // short titles/H1s as stuffed.
+  return max >= repeatThreshold || (max >= 2 && max / significant.length > KEYWORD_STUFFING_PROPORTION_THRESHOLD)
 }
 
 function pickHighestSeverity(severities: Severity[]): Severity {

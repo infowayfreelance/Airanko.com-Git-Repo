@@ -88,20 +88,32 @@ function assessCandidateTitle(candidate: string): boolean {
   return true
 }
 
+/**
+ * Every candidate — including the last resort — is validated with the same
+ * rules used to flag the original issue; a fallback that isn't checked can
+ * itself land below the minimum length or read as generic (e.g. a bare
+ * "Homepage"), handing back a "suggestion" that fails the very audit it's
+ * meant to fix. If nothing validates (topic/business name too short to
+ * pad), the longest attempt is returned as a best-effort rather than
+ * silently accepting an invalid one.
+ */
 export function generateTitleSuggestion(page: PageAnalysis, pageName: string, targetKeyword: string | null, options: SuggestionOptions): string {
   const topic = targetKeyword ? toTitleCase(dedupeRepeatedWords(targetKeyword)) : pageName
   const includeLocation = shouldIncludeLocation(page, topic, options)
   const core = includeLocation ? `${topic} ${options.location}` : topic
   const withBrand = options.businessName ? `${core} | ${options.businessName}` : core
-  const candidate = truncateToBand(withBrand, TITLE_LENGTH.healthyMax + 5)
 
-  if (assessCandidateTitle(candidate)) return candidate
+  const candidates = [
+    truncateToBand(withBrand, TITLE_LENGTH.healthyMax + 5),
+    core,
+    `${topic} — Learn More`,
+    `${topic} — Learn More About This Page`,
+  ].map((c) => truncateToBand(c, TITLE_LENGTH.long))
 
-  const brandOnly = options.businessName ? `${core} | ${options.businessName}`.length <= TITLE_LENGTH.long ? `${core} | ${options.businessName}` : core : core
-  if (assessCandidateTitle(brandOnly)) return brandOnly
-
-  // Last resort: the bare topic, hard-truncated into the healthy band.
-  return truncateToBand(topic, TITLE_LENGTH.healthyMax)
+  for (const c of candidates) {
+    if (assessCandidateTitle(c)) return c
+  }
+  return candidates.reduce((longest, c) => (c.length > longest.length ? c : longest))
 }
 
 // ---------------------------------------------------------------------------
@@ -124,18 +136,20 @@ export function generateDescriptionSuggestion(
   const includeLocation = shouldIncludeLocation(page, topic, options)
   const locationPhrase = includeLocation ? ` in ${options.location}` : ''
   const brandPhrase = options.businessName ? ` from ${options.businessName}` : ''
-  const candidate = truncateToBand(
+
+  // Every candidate is validated in order, including the last resort — an
+  // unvalidated short fallback (e.g. "Information about home.") can itself
+  // land under the minimum length the same audit flags as "very short".
+  const candidates = [
     `Learn more about ${topic}${locationPhrase}${brandPhrase} and get in touch today.`,
-    DESCRIPTION_LENGTH.healthyMax,
-  )
+    `Find out more about ${topic}${locationPhrase} and get in touch with our team today.`,
+    `${toTitleCase(topic)}${locationPhrase} — get in touch with our team today to find out more about how we can help.`,
+  ].map((c) => truncateToBand(c, DESCRIPTION_LENGTH.healthyMax))
 
-  if (assessCandidateDescription(candidate)) return candidate
-
-  const fallback = `Find out more about ${topic}${locationPhrase}.`
-  if (assessCandidateDescription(fallback)) return fallback
-
-  const lastResort = truncateToBand(`Information about ${topic}.`, DESCRIPTION_LENGTH.healthyMax)
-  return assessCandidateDescription(lastResort) ? lastResort : `Information about ${pageName.toLowerCase()}.`
+  for (const c of candidates) {
+    if (assessCandidateDescription(c)) return c
+  }
+  return candidates.reduce((longest, c) => (c.length > longest.length ? c : longest))
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +172,22 @@ export function generateH1Suggestion(page: PageAnalysis, pageName: string, targe
   return pageName
 }
 
+/**
+ * H1 issue text that means the H1's *wording* needs to change. Deliberately
+ * excludes purely structural findings (multiple H1 tags present, extra
+ * empty H1 tags) — rewriting the main H1's text doesn't fix "there are too
+ * many H1 elements"; that needs tags removed/demoted, not new copy. A
+ * missing/empty H1 (status "poor") always needs new text regardless, since
+ * there's nothing to keep.
+ */
+const H1_TEXT_QUALITY_ISSUE_RE = /generic|keyword stuffing|target keyword|identical h1 used/i
+
+function h1NeedsTextSuggestion(h1: PageOnPageAudit['h1']): boolean {
+  if (h1.status === 'poor') return true
+  if (h1.status !== 'needs_improvement') return false
+  return h1.issues.some((i) => H1_TEXT_QUALITY_ISSUE_RE.test(i))
+}
+
 // ---------------------------------------------------------------------------
 // Attach suggestions to already-built audits (kept as a separate pass from
 // buildOnPageAudits() in on-page-audit.ts to avoid a circular import — this
@@ -176,7 +206,7 @@ export function attachOnPageSuggestions(
 
     const needsTitleSuggestion = audit.metaTitle.status !== 'good' && audit.metaTitle.status !== 'not_evaluated'
     const needsDescriptionSuggestion = audit.metaDescription.status !== 'good' && audit.metaDescription.status !== 'not_evaluated'
-    const needsH1Suggestion = audit.h1.status !== 'good' && audit.h1.status !== 'not_evaluated'
+    const needsH1Suggestion = h1NeedsTextSuggestion(audit.h1)
 
     return {
       ...audit,

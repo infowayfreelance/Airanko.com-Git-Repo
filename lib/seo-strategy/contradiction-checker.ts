@@ -325,17 +325,21 @@ export function runOnPageContradictionChecks(
     if (!onPage) continue
     const correction: PageByPageSuggestionCorrection = { url: item.url }
 
-    // Title: already good but AI proposed a change -> revert. Needs
-    // improvement but AI didn't actually change anything -> use the
-    // deterministic suggestion instead.
+    // Title: already good but AI proposed a change -> revert to current.
+    // Needs improvement -> the deterministic suggestion is the only one
+    // that has passed validation, so ANY AI value that doesn't match it
+    // exactly gets replaced — not just a no-op "AI left it unchanged" case.
+    // Otherwise an AI rewrite that differs from both the current value and
+    // the validated suggestion (an arbitrary, unvalidated rewrite) would
+    // silently survive.
     if (onPage.metaTitle.status === 'good') {
       if (item.currentTitle && !sameValue(item.suggestedTitle, item.currentTitle)) {
         contradictions.push(`Page ${item.url}: title is already good but the AI suggested a rewrite — reverted to the current title.`)
         correction.suggestedTitle = item.currentTitle
       }
-    } else if (onPage.metaTitle.suggestedValue && sameValue(item.suggestedTitle, item.currentTitle)) {
+    } else if (onPage.metaTitle.suggestedValue && !sameValue(item.suggestedTitle, onPage.metaTitle.suggestedValue)) {
       contradictions.push(
-        `Page ${item.url}: title needs improvement (${onPage.metaTitle.issues.join('; ')}) but the AI did not propose a real change — used the deterministic suggestion.`,
+        `Page ${item.url}: title needs improvement (${onPage.metaTitle.issues.join('; ')}) — the AI's suggestion ("${item.suggestedTitle}") didn't match the validated deterministic one, so it was used instead.`,
       )
       correction.suggestedTitle = onPage.metaTitle.suggestedValue
     }
@@ -351,9 +355,9 @@ export function runOnPageContradictionChecks(
         )
         correction.suggestedMetaDescription = item.currentMetaDescription
       }
-    } else if (onPage.metaDescription.suggestedValue && sameValue(item.suggestedMetaDescription, item.currentMetaDescription)) {
+    } else if (onPage.metaDescription.suggestedValue && !sameValue(item.suggestedMetaDescription, onPage.metaDescription.suggestedValue)) {
       contradictions.push(
-        `Page ${item.url}: description needs improvement (${onPage.metaDescription.issues.join('; ')}) but the AI did not propose a real change — used the deterministic suggestion.`,
+        `Page ${item.url}: description needs improvement (${onPage.metaDescription.issues.join('; ')}) — the AI's suggestion didn't match the validated deterministic one, so it was used instead.`,
       )
       correction.suggestedMetaDescription = onPage.metaDescription.suggestedValue
     }
