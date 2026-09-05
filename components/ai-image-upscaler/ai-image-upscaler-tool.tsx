@@ -48,6 +48,27 @@ function detectFormat(file: File): OutputFormat {
   return 'image/png'
 }
 
+// @huggingface/transformers' RawImage.toCanvas() creates an OffscreenCanvas
+// in the browser (see its createCanvasFunction), not an HTMLCanvasElement —
+// only the plain <canvas> we create ourselves (e.g. inputCanvas) is one of
+// those. OffscreenCanvas has convertToBlob() instead of toBlob(), so any
+// canvas that might have come from the model's output needs both encode
+// paths handled.
+type ModelCanvas = HTMLCanvasElement | OffscreenCanvas
+
+function encodeCanvasToBlob(canvas: ModelCanvas, type: OutputFormat, quality?: number): Promise<Blob> {
+  if (typeof (canvas as OffscreenCanvas).convertToBlob === 'function') {
+    return (canvas as OffscreenCanvas).convertToBlob({ type, quality })
+  }
+  return new Promise<Blob>((resolve, reject) => {
+    ;(canvas as HTMLCanvasElement).toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('Could not encode image'))),
+      type,
+      quality,
+    )
+  })
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
@@ -85,7 +106,7 @@ export default function AiImageUpscalerTool() {
   // The pristine upscaled pixels, kept around so switching output format
   // re-encodes from this master instead of re-compressing an already-lossy
   // JPEG/WebP blob (or worse, just relabeling it without re-encoding at all).
-  const masterCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const masterCanvasRef = useRef<ModelCanvas | null>(null)
   // Bumped on every new run/reset so a superseded upscale (e.g. the user
   // clicked "Try another image" while one was still in flight) can detect
   // it's stale and discard its result instead of overwriting newer state.
@@ -172,10 +193,8 @@ export default function AiImageUpscalerTool() {
 
       setProgress(95)
 
-      const canvas: HTMLCanvasElement = output.toCanvas()
-      const outputBlob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob((b: Blob | null) => (b ? resolve(b) : reject(new Error('Could not encode image'))), targetFormat, targetFormat === 'image/png' ? undefined : 0.92),
-      )
+      const canvas: ModelCanvas = output.toCanvas()
+      const outputBlob = await encodeCanvasToBlob(canvas, targetFormat, targetFormat === 'image/png' ? undefined : 0.92)
 
       if (runIdRef.current !== runId) return // discard — a newer run superseded this one while encoding
 
@@ -243,27 +262,33 @@ export default function AiImageUpscalerTool() {
     runUpscale(pendingFileRef.current, next, format)
   }
 
-  function changeFormat(next: OutputFormat) {
+  async function changeFormat(next: OutputFormat) {
+    const previousFormat = format
     setFormat(next)
     // Re-encode from the pristine upscaled canvas — never from an
     // already-compressed JPEG/WebP blob — so the downloaded bytes actually
     // match the newly selected format instead of just the button label.
     const canvas = masterCanvasRef.current
     if (!canvas || status !== 'done') return
-    // canvas.toBlob() is async — until it resolves, `resultUrl` still holds
+    // The encode is async — until it resolves, `resultUrl` still holds
     // the *previous* format's bytes. Disable downloading during that window
     // so a click can't save mislabeled bytes (old content, new extension).
     const reencodeId = ++reencodeIdRef.current
     setIsReencoding(true)
-    canvas.toBlob(
-      (blob) => {
-        if (reencodeIdRef.current !== reencodeId) return // superseded by a later format switch
-        if (blob) setResultUrlSafe(URL.createObjectURL(blob))
-        setIsReencoding(false)
-      },
-      next,
-      next === 'image/png' ? undefined : 0.92,
-    )
+    try {
+      const blob = await encodeCanvasToBlob(canvas, next, next === 'image/png' ? undefined : 0.92)
+      if (reencodeIdRef.current !== reencodeId) return // superseded by a later format switch
+      setResultUrlSafe(URL.createObjectURL(blob))
+    } catch (err) {
+      if (reencodeIdRef.current !== reencodeId) return
+      // Keep the still-valid result and preview on screen — only the format
+      // switch failed, so don't flip `status` to 'error' and blow away the
+      // working before/after comparison. Just roll the format selector back.
+      console.error('[v0] ai-image-upscaler re-encode error:', err)
+      setFormat(previousFormat)
+    } finally {
+      if (reencodeIdRef.current === reencodeId) setIsReencoding(false)
+    }
   }
 
   const reset = () => {
