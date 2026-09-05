@@ -6,8 +6,16 @@ import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
 import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
-import { runContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
-import type { HealthScoreBreakdown, KpiTarget, KeywordPageMapping } from '@/lib/seo-strategy/types'
+import { runContradictionChecks, runOnPageContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
+import { buildOnPageAudits, aggregateOnPageIssues } from '@/lib/seo-strategy/on-page-audit'
+import { attachOnPageSuggestions } from '@/lib/seo-strategy/on-page-suggestions'
+import type {
+  HealthScoreBreakdown,
+  KpiTarget,
+  KeywordPageMapping,
+  OnPageSummary,
+  PageOnPageAudit,
+} from '@/lib/seo-strategy/types'
 
 export const maxDuration = 300
 
@@ -269,11 +277,18 @@ type RawAiStrategy = z.infer<typeof strategySchema>
  * - `keywordPageMappings` is the deterministic keyword→page relevance data
  *   (see lib/seo-strategy/keyword-mapping.ts) that also drives the
  *   corrected `keywordStrategy.primaryKeywords[].targetPage` values.
+ * - `onPageAudits`/`onPageSummary` (Phase 2A) are the fully deterministic,
+ *   page-by-page meta title/meta description/H1/heading-structure audit
+ *   (see lib/seo-strategy/on-page-audit.ts) — the AI never produces these,
+ *   it only supplies prose in `pageByPageAudit` that gets cross-checked
+ *   against them.
  */
 export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown' | 'kpiTargets'> & {
   healthScoreBreakdown: HealthScoreBreakdown
   kpiTargets: KpiTarget[]
   keywordPageMappings: KeywordPageMapping[]
+  onPageAudits: PageOnPageAudit[]
+  onPageSummary: OnPageSummary
 }
 
 // ---------------------------------------------------------------------------
@@ -324,6 +339,17 @@ export async function POST(req: Request) {
     const robots = evaluateRobotsTxt(analysis?.robotsTxt ?? null)
     const responseTime = evaluateResponseTime(analysis?.technicalSummary.averageLoadTimeMs ?? null)
 
+    // Phase 2A — deterministic page-by-page meta title / meta description /
+    // H1 / heading-structure audit, computed the same way as everything
+    // else above: entirely from crawl data before the AI ever runs.
+    const onPageAuditsRaw = buildOnPageAudits(pagesForMapping, keywordMappings, analysis?.finalUrl ?? null)
+    const onPageAudits = attachOnPageSuggestions(
+      onPageAuditsRaw,
+      new Map(pagesForMapping.map((p) => [p.url, p])),
+      { businessName: input.businessName, location: input.location, isLocalBusiness: localCtx.isLocalBusiness },
+    )
+    const onPageSummary = aggregateOnPageIssues(onPageAudits)
+
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
       : 'No automated site analysis available. Generate strategy based on the business inputs alone.'
@@ -361,6 +387,24 @@ export async function POST(req: Request) {
 ${keywordMappingLines || '  (no keywords provided)'}
 - Metrics with NO verified data source available (no GSC/GA4/backlink API connected): organic traffic, impressions, click-through rate, keyword rankings, conversion rate, bounce rate, backlinks, referring domains, Domain Authority/Rating. Do not invent baseline numbers for these in kpiTargets — use "Not Available" as the baseline, or a suggested future target only, never a fabricated current measurement.`
 
+    const onPageAuditLines = onPageAudits
+      .map((a) => {
+        const titleLine =
+          a.metaTitle.status === 'good'
+            ? `Title OK ("${a.metaTitle.currentValue}", ${a.metaTitle.characterCount} chars) — do not suggest a different title.`
+            : `Title needs work (${a.metaTitle.issues.join('; ') || 'see status'}). Deterministic suggestion already generated: "${a.metaTitle.suggestedValue}" — reuse it verbatim as suggestedTitle.`
+        const descLine =
+          a.metaDescription.status === 'good'
+            ? `Description OK (${a.metaDescription.characterCount} chars) — do not suggest a different description.`
+            : `Description needs work (${a.metaDescription.issues.join('; ') || 'see status'}). Deterministic suggestion already generated: "${a.metaDescription.suggestedValue}" — reuse it verbatim as suggestedMetaDescription.`
+        return `- ${a.url}\n  ${titleLine}\n  ${descLine}`
+      })
+      .join('\n')
+
+    const onPageFactsBlock = `ON-PAGE AUDIT GROUND TRUTH (per page — deterministic, do not re-decide any of this):
+${onPageAuditLines || '  (no crawled pages)'}
+For pageByPageAudit: when a page is listed as "OK", set suggestedTitle/suggestedMetaDescription equal to the current value (no change) — never rewrite something that's already good. When a page "needs work", the deterministic suggestion given above has already passed length/genericness/keyword-stuffing validation — reuse it verbatim rather than inventing your own. A later automated pass will overwrite anything that doesn't match this anyway.`
+
     const prompt = `You are a senior SEO strategist with 15+ years of experience producing client-ready strategy reports. Generate a comprehensive, professional, data-driven SEO strategy that will impress an enterprise client.
 
 CLIENT INFORMATION
@@ -378,6 +422,8 @@ ${localContext}
 ${keywordsSection}
 
 ${deterministicFactsBlock}
+
+${onPageFactsBlock}
 
 LIVE SITE ANALYSIS (real data crawled from the actual website — base your audit on this)
 ${analysisDigest}
@@ -416,7 +462,8 @@ Hard rules — a later automated validation pass checks these and will overwrite
 5. Do not assign a keyword to a different URL than its validated mapping above.
 6. Do not claim something was verified (e.g. "audited the entire site") if it was not.
 7. Use "Not Available" for KPI baselines you cannot verify, and reflect "not evaluated" findings honestly rather than guessing.
-8. Keep factual findings (what the crawl found) separate from strategic recommendations (what to do about it).`
+8. Keep factual findings (what the crawl found) separate from strategic recommendations (what to do about it).
+9. Follow the ON-PAGE AUDIT GROUND TRUTH above exactly for suggestedTitle/suggestedMetaDescription — do not propose a change for a page marked OK, and do not invent your own rewrite for a page that needs one when a deterministic suggestion is already given.`
 
     let strategy: RawAiStrategy
     try {
@@ -481,6 +528,11 @@ Hard rules — a later automated validation pass checks these and will overwrite
       contradictionResult.keywordTargetCorrections.map((c) => [normalizeKeyword(c.keyword), c.correctedTargetPage]),
     )
 
+    // Phase 2A — cross-check the AI's per-page title/description
+    // suggestions against the deterministic on-page audit computed earlier.
+    const onPageContradictionResult = runOnPageContradictionChecks(strategy.pageByPageAudit, onPageAudits)
+    const suggestionCorrectionByUrl = new Map(onPageContradictionResult.corrections.map((c) => [c.url, c]))
+
     const correctedStrategy: SeoStrategy = {
       ...strategy,
       localSeo: { ...strategy.localSeo, applicable: contradictionResult.localSeoApplicable },
@@ -500,16 +552,26 @@ Hard rules — a later automated validation pass checks these and will overwrite
           return correctedTargetPage ? { ...k, targetPage: correctedTargetPage } : k
         }),
       },
+      pageByPageAudit: strategy.pageByPageAudit.map((p) => {
+        const correction = suggestionCorrectionByUrl.get(p.url)
+        if (!correction) return p
+        return {
+          ...p,
+          suggestedTitle: correction.suggestedTitle ?? p.suggestedTitle,
+          suggestedMetaDescription: correction.suggestedMetaDescription ?? p.suggestedMetaDescription,
+        }
+      }),
       kpiTargets: sanitizeKpiTargets(strategy.kpiTargets),
       keywordPageMappings: keywordMappings,
+      onPageAudits,
+      onPageSummary,
     }
 
     // Contradiction details are diagnostic-only — never exposed to
     // production users, only helpful in development.
+    const allContradictions = [...contradictionResult.contradictions, ...onPageContradictionResult.contradictions]
     const debug =
-      process.env.NODE_ENV !== 'production' && contradictionResult.contradictions.length > 0
-        ? { contradictions: contradictionResult.contradictions }
-        : undefined
+      process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined
 
     return Response.json({ strategy: correctedStrategy, ...(debug ? { debug } : {}) })
   } catch (err) {
