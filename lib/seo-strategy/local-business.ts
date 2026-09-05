@@ -29,17 +29,17 @@ export function resolveLocalBusinessContext(
     }
   }
 
-  const hasContactSignal =
-    !!analysis &&
-    (analysis.contactInfo.phones.length > 0 ||
-      analysis.contactInfo.addresses.length > 0 ||
-      analysis.contactInfo.emails.length > 0)
+  // NAP = Name/Address/Phone. An email address alone isn't NAP evidence —
+  // it doesn't establish a physical presence or a contactable local phone
+  // number, so it must not be enough to mark local data as "evaluated".
+  const hasNapSignal =
+    !!analysis && (analysis.contactInfo.phones.length > 0 || analysis.contactInfo.addresses.length > 0)
 
   return {
     isLocalBusiness: true,
-    dataSufficiency: hasContactSignal ? 'evaluated' : 'not_evaluated',
-    reason: hasContactSignal
-      ? 'NAP contact details were found on the crawled pages.'
-      : "No phone, address, or email was found on the crawled pages, so the local score can't be fully evaluated. This is still treated as a local business per the user's selection.",
+    dataSufficiency: hasNapSignal ? 'evaluated' : 'not_evaluated',
+    reason: hasNapSignal
+      ? 'A phone number or address was found on the crawled pages.'
+      : "No phone number or address was found on the crawled pages (an email alone isn't sufficient NAP evidence), so the local score can't be fully evaluated. This is still treated as a local business per the user's selection.",
   }
 }

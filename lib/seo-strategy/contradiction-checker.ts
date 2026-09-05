@@ -186,11 +186,13 @@ function correctChecklistItem(
 ): ChecklistItemLike {
   let corrected = raw
 
-  if (/mobile|responsive|viewport/i.test(raw.item)) {
-    corrected = applyDeterministicSeverity(corrected, ctx.mobile.severity, ctx.mobile.finding, contradictions, 'mobile-friendliness')
-  } else if (/robots\.txt/i.test(raw.item)) {
-    corrected = applyDeterministicSeverity(corrected, ctx.robots.severity, ctx.robots.finding, contradictions, 'robots.txt')
-  } else if (/page speed|load time|response time|server speed/i.test(raw.item)) {
+  // Speed is checked first and is the most specific pattern: a title like
+  // "Mobile Page Speed" would otherwise also match the mobile-friendliness
+  // pattern below and get overwritten with a viewport verdict, discarding a
+  // genuinely slow response-time finding. robots.txt and mobile categories
+  // don't overlap with each other or with speed wording, so their order
+  // relative to one another doesn't matter.
+  if (/page speed|load time|response time|server speed/i.test(raw.item)) {
     corrected = applyDeterministicSeverity(
       corrected,
       ctx.responseTime.severity,
@@ -198,6 +200,10 @@ function correctChecklistItem(
       contradictions,
       'response time',
     )
+  } else if (/robots\.txt/i.test(raw.item)) {
+    corrected = applyDeterministicSeverity(corrected, ctx.robots.severity, ctx.robots.finding, contradictions, 'robots.txt')
+  } else if (/mobile|responsive|viewport/i.test(raw.item)) {
+    corrected = applyDeterministicSeverity(corrected, ctx.mobile.severity, ctx.mobile.finding, contradictions, 'mobile-friendliness')
   }
 
   // Generic contradiction, independent of category: a passing check can

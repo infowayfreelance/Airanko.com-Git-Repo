@@ -50,11 +50,26 @@ function slugTokens(url: string): string[] {
   }
 }
 
-/** Fraction (0-1) of `needleTokens` that appear in `haystack`, allowing substring matches so "jumpstart" credits both "jump" and "start". */
+// Below this length, a token is only credited on an exact match — allowing
+// substring containment for short tokens caused false positives like "car"
+// (from "car service") matching "carpet" (a carpet-cleaning page) purely
+// because "carpet".includes("car"). Compound service names that get split
+// differently in URLs than in a keyword (e.g. keyword "jump start" vs slug
+// "jumpstart") still match via containment once both sides are at least
+// this long, which real service words like "jump"/"start"/"fuel" clear.
+const MIN_SUBSTRING_MATCH_LENGTH = 4
+
+function tokensMatch(a: string, b: string): boolean {
+  if (a === b) return true
+  if (a.length < MIN_SUBSTRING_MATCH_LENGTH || b.length < MIN_SUBSTRING_MATCH_LENGTH) return false
+  return a.includes(b) || b.includes(a)
+}
+
+/** Fraction (0-1) of `needleTokens` that appear in `haystack`, allowing substring matches (above MIN_SUBSTRING_MATCH_LENGTH) so "jumpstart" credits both "jump" and "start". */
 function overlapScore(needleTokens: string[], haystack: Set<string>): number {
   if (needleTokens.length === 0) return 0
   const haystackArr = Array.from(haystack)
-  const hits = needleTokens.filter((t) => haystackArr.some((h) => h === t || h.includes(t) || t.includes(h))).length
+  const hits = needleTokens.filter((t) => haystackArr.some((h) => tokensMatch(t, h))).length
   return hits / needleTokens.length
 }
 
@@ -62,7 +77,7 @@ function overlapScore(needleTokens: string[], haystack: Set<string>): number {
 function strongestTokenMatch(serviceTokens: string[], ...haystacks: Set<string>[]): boolean {
   if (serviceTokens.length === 0) return false
   const strongest = [...serviceTokens].sort((a, b) => b.length - a.length)[0]
-  return haystacks.some((h) => Array.from(h).some((tok) => tok.includes(strongest) || strongest.includes(tok)))
+  return haystacks.some((h) => Array.from(h).some((tok) => tokensMatch(strongest, tok)))
 }
 
 function describeMatch(scores: {
