@@ -22,15 +22,20 @@
 //   third-party URLs in an <iframe>.  Restricting this would break that tool.
 //   frame-ancestors 'self' (below) still prevents THIS site from being framed.
 //
-// • huggingface.co *.huggingface.co *.xethub.hf.co — Background Remover and
-//   AI Image Upscaler fetch model config/weights from the HuggingFace Hub on
-//   first use. Model URLs (https://huggingface.co/<org>/<model>/resolve/main/...)
-//   hit the bare apex domain, not a subdomain — `*.huggingface.co` alone does
-//   NOT match the apex in CSP source matching, so both the apex and the
-//   wildcard are listed here. Large model weights are additionally served
-//   through HuggingFace's Xet storage backend, which redirects the /resolve/
-//   request to a completely different domain — cas-bridge.xethub.hf.co — so
-//   that's allow-listed too (via a subdomain wildcard on xethub.hf.co).
+// • huggingface.co *.huggingface.co *.xethub.hf.co *.cdn.hf.co — Background
+//   Remover and AI Image Upscaler fetch model config/weights from the
+//   HuggingFace Hub on first use. Model URLs
+//   (https://huggingface.co/<org>/<model>/resolve/main/...) hit the bare
+//   apex domain, not a subdomain — `*.huggingface.co` alone does NOT match
+//   the apex in CSP source matching, so both the apex and the wildcard are
+//   listed here. Large model weights are additionally served through
+//   HuggingFace's Xet storage backend, which redirects the /resolve/
+//   request to one of two separate domain families depending on the
+//   backing region/CDN: cas-bridge.xethub.hf.co (xethub.hf.co subdomain)
+//   and, for the CDN-fronted path, hosts like us.aws.cdn.hf.co (cdn.hf.co
+//   subdomain) — both are allow-listed via subdomain wildcards. Neither
+//   wildcard's apex (xethub.hf.co / cdn.hf.co) is used directly, so only
+//   the subdomain forms are listed, not the bare apexes.
 //
 // • vitals.vercel-insights.com  — Vercel Analytics beacon endpoint.
 //
@@ -40,7 +45,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data: blob: hebbkx1anhila5yf.public.blob.vercel-storage.com",
-  "connect-src 'self' vitals.vercel-insights.com huggingface.co *.huggingface.co *.xethub.hf.co",
+  "connect-src 'self' vitals.vercel-insights.com huggingface.co *.huggingface.co *.xethub.hf.co *.cdn.hf.co",
   "worker-src 'self' blob:",
   "frame-src *",
   "media-src 'self' blob:",
