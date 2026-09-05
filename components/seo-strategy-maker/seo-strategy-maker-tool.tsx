@@ -1470,13 +1470,25 @@ function HealthScoreCard({
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (score / 100) * circumference
 
-  const items: { label: string; value: number; key: keyof typeof breakdown }[] = [
+  const items: { label: string; value: number | null; key: string }[] = [
     { label: 'Technical', value: breakdown.technical, key: 'technical' },
     { label: 'On-Page', value: breakdown.onPage, key: 'onPage' },
     { label: 'Content', value: breakdown.content, key: 'content' },
     { label: 'Off-Page', value: breakdown.offPage, key: 'offPage' },
-    { label: 'Local', value: breakdown.local, key: 'local' },
+    {
+      label: 'Local',
+      value: breakdown.local,
+      key: 'local',
+    },
   ]
+  // Local can be null (not applicable / not evaluated) — a fabricated 0
+  // would misleadingly render as a failing score instead of "no data".
+  const localNotEvaluatedLabel =
+    breakdown.local === null
+      ? breakdown.localStatus === 'not_applicable'
+        ? 'Not Applicable'
+        : 'Not Evaluated'
+      : null
 
   return (
     <div className="grid gap-8 lg:grid-cols-[auto_1fr] items-center">
@@ -1519,12 +1531,14 @@ function HealthScoreCard({
           <div key={item.key}>
             <div className="flex items-center justify-between text-sm mb-1.5">
               <span className="font-medium">{item.label}</span>
-              <span className="text-muted-foreground">{item.value}/100</span>
+              <span className="text-muted-foreground">
+                {item.value === null ? localNotEvaluatedLabel : `${item.value}/100`}
+              </span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full"
-                style={{ width: `${item.value}%` }}
+                style={{ width: `${item.value ?? 0}%` }}
               />
             </div>
           </div>

@@ -2,6 +2,12 @@ import { generateText, Output, NoObjectGeneratedError } from 'ai'
 import { openai } from '@ai-sdk/openai'
 import * as z from 'zod'
 import type { SiteAnalysis } from './analyze/route'
+import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
+import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
+import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
+import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
+import { runContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
+import type { HealthScoreBreakdown, KpiTarget, KeywordPageMapping } from '@/lib/seo-strategy/types'
 
 export const maxDuration = 300
 
@@ -249,7 +255,26 @@ const strategySchema = z.object({
   conclusion: z.string(),
 })
 
-export type SeoStrategy = z.infer<typeof strategySchema>
+/** Raw shape the AI is asked to produce. Not exported — the AI's output always goes through the deterministic accuracy layer (severity/local-business/keyword-mapping/KPI corrections) before it becomes a `SeoStrategy`. */
+type RawAiStrategy = z.infer<typeof strategySchema>
+
+/**
+ * The final, corrected report shape returned to the client and rendered by
+ * the UI. Identical to the AI's raw output except:
+ * - `healthScoreBreakdown.local` can be `null` (never a fabricated 0) and
+ *   carries a `localStatus`.
+ * - `kpiTargets` carries `status`/`source`/`sourceType` so unsupported
+ *   metrics (organic traffic, DA, conversion rate, etc.) are never
+ *   presented as measured baselines.
+ * - `keywordPageMappings` is the deterministic keyword→page relevance data
+ *   (see lib/seo-strategy/keyword-mapping.ts) that also drives the
+ *   corrected `keywordStrategy.primaryKeywords[].targetPage` values.
+ */
+export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown' | 'kpiTargets'> & {
+  healthScoreBreakdown: HealthScoreBreakdown
+  kpiTargets: KpiTarget[]
+  keywordPageMappings: KeywordPageMapping[]
+}
 
 // ---------------------------------------------------------------------------
 // Input validation
@@ -282,6 +307,23 @@ export async function POST(req: Request) {
     const input = parsed.data
     const analysis = input.analysis as SiteAnalysis | null
 
+    // -----------------------------------------------------------------------
+    // Deterministic accuracy layer — computed BEFORE the AI call so the
+    // prompt can hand the model verified facts instead of asking it to
+    // guess, and again used AFTER generation (see runContradictionChecks
+    // below) to force-correct anything the AI got wrong anyway. The AI is
+    // never the source of truth for these.
+    // -----------------------------------------------------------------------
+    const localCtx = resolveLocalBusinessContext(input.isLocal, analysis)
+
+    const keywordList = parseKeywordList(input.keywords)
+    const pagesForMapping = analysis ? [analysis.homepage, ...analysis.pages].filter((p) => p !== null) : []
+    const keywordMappings = mapKeywordsToPages(keywordList, pagesForMapping, { location: input.location })
+
+    const mobile = evaluateMobileFriendliness(analysis)
+    const robots = evaluateRobotsTxt(analysis?.robotsTxt ?? null)
+    const responseTime = evaluateResponseTime(analysis?.technicalSummary.averageLoadTimeMs ?? null)
+
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
       : 'No automated site analysis available. Generate strategy based on the business inputs alone.'
@@ -295,12 +337,29 @@ export async function POST(req: Request) {
       ? `User-provided keywords (from Semrush/Ahrefs/Google Keyword Planner — use these as the foundation):\n${input.keywords.trim()}`
       : 'No user keywords provided. Generate realistic keywords based on the business and analyzed content.'
 
-    const localContext =
-      input.isLocal && input.gmbUrl
-        ? `LOCAL BUSINESS — GMB URL: ${input.gmbUrl}. Location: ${input.location || 'not specified'}. Pay close attention to NAP consistency between the website and Google Business Profile. Recommend a thorough local SEO strategy including citations, reviews, and local content.`
-        : input.isLocal
-          ? `LOCAL BUSINESS — Location: ${input.location || 'not specified'}. No GMB URL provided — recommend setting one up.`
-          : 'Not a local business — set localSeo.applicable to false but still populate every array with at least 1 brief generic best-practice item so the schema is valid.'
+    const localContext = localCtx.isLocalBusiness
+      ? input.gmbUrl
+        ? `LOCAL BUSINESS (fixed — do not change this) — GMB URL: ${input.gmbUrl}. Location: ${input.location || 'not specified'}. Pay close attention to NAP consistency between the website and Google Business Profile. Recommend a thorough local SEO strategy including citations, reviews, and local content.`
+        : `LOCAL BUSINESS (fixed — do not change this) — Location: ${input.location || 'not specified'}. No GMB URL provided — recommend setting one up.`
+      : 'Not a local business — set localSeo.applicable to false but still populate every array with at least 1 brief generic best-practice item so the schema is valid.'
+
+    const keywordMappingLines = keywordMappings
+      .map((m) =>
+        m.status === 'mapped'
+          ? `- "${m.keyword}" → ${m.mappedUrl} (relevance ${m.relevanceScore}/100, confidence ${m.confidence})`
+          : `- "${m.keyword}" → NO SUITABLE EXISTING PAGE (best match only ${m.relevanceScore}/100). Recommend creating a dedicated page instead of using an unrelated one.`,
+      )
+      .join('\n')
+
+    const deterministicFactsBlock = `DETERMINISTIC GROUND TRUTH — verified by code, not by you. Your job is to narrate and strategize around these facts, never to contradict, restate differently, or override them:
+- Local business status: ${localCtx.isLocalBusiness ? 'YES — treat as local throughout the entire report' : 'NO — this is not a local business'}. This is fixed by the client's own selection; do not say the opposite anywhere in the report, and do not decide this yourself from the crawled content.
+- Local data sufficiency: ${localCtx.dataSufficiency} (${localCtx.reason})
+- Mobile friendliness (viewport-based check): ${mobile.mobileFriendly === null ? 'could not be evaluated' : mobile.mobileFriendly ? 'PASS' : 'FAIL'} — ${mobile.finding}
+- robots.txt: ${robots.finding}
+- Server response time: ${responseTime.finding}
+- Keyword → page mapping (validated deterministically — reuse these EXACT target pages verbatim in keywordStrategy.primaryKeywords; the system will overwrite anything else anyway):
+${keywordMappingLines || '  (no keywords provided)'}
+- Metrics with NO verified data source available (no GSC/GA4/backlink API connected): organic traffic, impressions, click-through rate, keyword rankings, conversion rate, bounce rate, backlinks, referring domains, Domain Authority/Rating. Do not invent baseline numbers for these in kpiTargets — use "Not Available" as the baseline, or a suggested future target only, never a fabricated current measurement.`
 
     const prompt = `You are a senior SEO strategist with 15+ years of experience producing client-ready strategy reports. Generate a comprehensive, professional, data-driven SEO strategy that will impress an enterprise client.
 
@@ -317,6 +376,8 @@ CLIENT INFORMATION
 ${localContext}
 
 ${keywordsSection}
+
+${deterministicFactsBlock}
 
 LIVE SITE ANALYSIS (real data crawled from the actual website — base your audit on this)
 ${analysisDigest}
@@ -345,9 +406,19 @@ Important content rules:
 4. offPageStrategy.costDisclaimer must explicitly state that backlink work is among the most expensive line items but delivers the highest ROI when done with quality (DR40+, topical relevance), and that cheap link-building is risky.
 5. sixMonthRoadmap progression: M1 foundation/fixes → M2 on-page + content launch → M3 content scaling + first link building → M4 authority + technical refinement → M5 content + outreach → M6 consolidation, conversion optimization, reporting.
 6. overallHealthScore: be honest. 0-100 — sites with many critical issues = 30-50, polished sites = 70-90.
-7. Tone: confident, prescriptive, professional. No fluff.`
+7. Tone: confident, prescriptive, professional. No fluff.
 
-    let strategy: SeoStrategy
+Hard rules — a later automated validation pass checks these and will overwrite anything that violates them, so following them the first time avoids a corrected/inconsistent-looking report:
+1. Do not override the deterministic findings above (local business status, mobile-friendliness, robots.txt, keyword→page mappings).
+2. Do not invent metrics or numeric baselines you cannot verify from the live site analysis.
+3. Do not invent crawl results (pages, tags, schema, etc.) beyond what LIVE SITE ANALYSIS shows.
+4. Do not change the local business state from what DETERMINISTIC GROUND TRUTH states.
+5. Do not assign a keyword to a different URL than its validated mapping above.
+6. Do not claim something was verified (e.g. "audited the entire site") if it was not.
+7. Use "Not Available" for KPI baselines you cannot verify, and reflect "not evaluated" findings honestly rather than guessing.
+8. Keep factual findings (what the crawl found) separate from strategic recommendations (what to do about it).`
+
+    let strategy: RawAiStrategy
     try {
       const { output } = await generateText({
         model: openai('gpt-4o-mini'),
@@ -391,7 +462,56 @@ Important content rules:
       throw err
     }
 
-    return Response.json({ strategy })
+    // -----------------------------------------------------------------------
+    // Contradiction validation + final corrections. This runs on every
+    // response — the AI output above is treated as a draft, never as the
+    // source of truth for local-business status, severities, keyword→page
+    // targets, or KPI baselines. See lib/seo-strategy/contradiction-checker.ts
+    // for the priority rule this enforces.
+    // -----------------------------------------------------------------------
+    const contradictionResult = runContradictionChecks({
+      strategy,
+      isLocalBusiness: localCtx.isLocalBusiness,
+      localDataSufficiency: localCtx.dataSufficiency,
+      analysis,
+      keywordMappings,
+    })
+
+    const targetPageCorrectionByKeyword = new Map(
+      contradictionResult.keywordTargetCorrections.map((c) => [normalizeKeyword(c.keyword), c.correctedTargetPage]),
+    )
+
+    const correctedStrategy: SeoStrategy = {
+      ...strategy,
+      localSeo: { ...strategy.localSeo, applicable: contradictionResult.localSeoApplicable },
+      healthScoreBreakdown: {
+        ...strategy.healthScoreBreakdown,
+        local: contradictionResult.healthScoreLocal,
+        localStatus: contradictionResult.healthScoreLocalStatus,
+      },
+      technicalSeoAudit: {
+        ...strategy.technicalSeoAudit,
+        checklist: contradictionResult.correctedChecklist,
+      },
+      keywordStrategy: {
+        ...strategy.keywordStrategy,
+        primaryKeywords: strategy.keywordStrategy.primaryKeywords.map((k) => {
+          const correctedTargetPage = targetPageCorrectionByKeyword.get(normalizeKeyword(k.keyword))
+          return correctedTargetPage ? { ...k, targetPage: correctedTargetPage } : k
+        }),
+      },
+      kpiTargets: sanitizeKpiTargets(strategy.kpiTargets),
+      keywordPageMappings: keywordMappings,
+    }
+
+    // Contradiction details are diagnostic-only — never exposed to
+    // production users, only helpful in development.
+    const debug =
+      process.env.NODE_ENV !== 'production' && contradictionResult.contradictions.length > 0
+        ? { contradictions: contradictionResult.contradictions }
+        : undefined
+
+    return Response.json({ strategy: correctedStrategy, ...(debug ? { debug } : {}) })
   } catch (err) {
     console.error('[v0] SEO strategy generation error:', err)
     const message =
