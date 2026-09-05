@@ -4,7 +4,11 @@ const fs = require('fs');
 const { pathToFileURL } = require('url');
 const { execFileSync } = require('child_process');
 const dir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-const BAKED = "/root/.npm/_npx/b7f45974acf31384/node_modules/@nanonets/graft/dist/claude";
+// No baked-in absolute path here on purpose: earlier revisions embedded the
+// installing machine's node_modules path, which does not exist on any other
+// checkout. @nanonets/graft is a devDependency in package.json/pnpm-lock.yaml
+// instead, so `fromPkg(dir)` below resolves it correctly on any machine that
+// has run `pnpm install`.
 
 // The dist/claude dir of @nanonets/graft resolved from a base whose node_modules is searched.
 function fromPkg(base) {
@@ -55,7 +59,7 @@ function best(dirs, name) {
 
 function entry(name) {
   // Cheap candidates first, and only shell out to npm when every one of them misses.
-  const cheap = [BAKED, fromPkg(dir), fromPkg(path.join(path.dirname(process.execPath), '..', 'lib'))];
+  const cheap = [fromPkg(dir), fromPkg(path.join(path.dirname(process.execPath), '..', 'lib'))];
   const hit = best(cheap, name);
   if (hit) return path.join(hit, name);
   const gr = globalRoot();
