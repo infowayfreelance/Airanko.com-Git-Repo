@@ -37,15 +37,23 @@
 //   wildcard's apex (xethub.hf.co / cdn.hf.co) is used directly, so only
 //   the subdomain forms are listed, not the bare apexes.
 //
+// • cdn.jsdelivr.net             — onnxruntime-web (used by the Background
+//   Remover and AI Image Upscaler) dynamically imports its WASM runtime
+//   module (ort-wasm-simd-threaded.asyncify.mjs) and the matching .wasm
+//   binary from jsDelivr at runtime instead of bundling them. The module
+//   import is a script fetch (needs script-src), and the .wasm binary
+//   fetch inside it is a connect fetch (needs connect-src) — both are
+//   required or the runtime falls back to "no available backend found".
+//
 // • vitals.vercel-insights.com  — Vercel Analytics beacon endpoint.
 //
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data: blob: hebbkx1anhila5yf.public.blob.vercel-storage.com",
-  "connect-src 'self' vitals.vercel-insights.com huggingface.co *.huggingface.co *.xethub.hf.co *.cdn.hf.co",
+  "connect-src 'self' vitals.vercel-insights.com huggingface.co *.huggingface.co *.xethub.hf.co *.cdn.hf.co cdn.jsdelivr.net",
   "worker-src 'self' blob:",
   "frame-src *",
   "media-src 'self' blob:",
