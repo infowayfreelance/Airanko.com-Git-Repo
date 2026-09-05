@@ -1,0 +1,16 @@
+allowBuilds:
+  '@davisvaughan/tree-sitter-r': true
+  '@nanonets/graft': true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true
+  tree-sitter: true
+  tree-sitter-cli: true
+  tree-sitter-go: true
+  tree-sitter-java: true
+  tree-sitter-javascript: true
+  tree-sitter-kotlin: true
+  tree-sitter-php: true
+  tree-sitter-python: true
+  tree-sitter-swift: true
+  tree-sitter-typescript: true
