@@ -32,6 +32,8 @@ export interface PageAnalysis {
   internalLinkCount: number
   externalLinkCount: number
   wordCount: number
+  /** First ~1500 chars of visible body text — used for deterministic keyword-to-page relevance scoring (see lib/seo-strategy/keyword-mapping.ts). */
+  contentSnippet: string
   contactInfo: {
     phones: string[]
     emails: string[]
@@ -336,6 +338,7 @@ function analyzeHtml(
     internalLinkCount,
     externalLinkCount,
     wordCount,
+    contentSnippet: text.slice(0, 1500),
     contactInfo,
     issues,
   }
