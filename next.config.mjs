@@ -45,11 +45,18 @@
 //   fetch inside it is a connect fetch (needs connect-src) — both are
 //   required or the runtime falls back to "no available backend found".
 //
+// • script-src blob:            — after fetching that jsDelivr module,
+//   onnxruntime-web wraps it in a `blob:` URL and loads/executes it from
+//   there (`Loading the script 'blob:https://...'`) rather than executing
+//   the jsDelivr response directly. worker-src already allows blob: below
+//   for any Worker it spins up from the same blob URL; script-src needs
+//   the same allowance for the non-worker script-load path.
+//
 // • vitals.vercel-insights.com  — Vercel Analytics beacon endpoint.
 //
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net blob:",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data: blob: hebbkx1anhila5yf.public.blob.vercel-storage.com",
