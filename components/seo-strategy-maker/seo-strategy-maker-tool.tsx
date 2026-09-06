@@ -2142,6 +2142,7 @@ function PageByPageAudit({
                 </div>
               </div>
             )}
+            {onPage && <Phase2BSummaryBlock onPage={onPage} />}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-destructive mb-1.5">
@@ -2174,6 +2175,93 @@ function PageByPageAudit({
         </div>
         )
       })}
+    </div>
+  )
+}
+
+/** Compact per-page Content / Images / Internal Linking / Technical summary (Phase 2B) — same visual language as the meta/heading blocks above, no new report section. */
+function Phase2BMiniCard({
+  label,
+  status,
+  lines,
+  issues,
+}: {
+  label: string
+  status: 'good' | 'needs_improvement' | 'poor' | 'not_evaluated'
+  lines: string[]
+  issues: string[]
+}) {
+  return (
+    <div className="rounded-lg border bg-muted/20 p-3 space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+        <OnPageStatusPill status={status} />
+      </div>
+      {lines.map((line, i) => (
+        <p key={i} className="text-xs text-muted-foreground">
+          {line}
+        </p>
+      ))}
+      {issues.length > 0 && (
+        <ul className="text-xs space-y-1 pt-1">
+          {issues.map((iss, j) => (
+            <li key={j} className="flex items-start gap-1.5">
+              <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+              <span className="text-pretty">{iss}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function Phase2BSummaryBlock({ onPage }: { onPage: SeoStrategy['onPageAudits'][number] }) {
+  const { content, images, internalLinks, technicalOnPage } = onPage
+  return (
+    <div className="grid sm:grid-cols-2 gap-3">
+      <Phase2BMiniCard
+        label="Content"
+        status={content.status}
+        lines={[
+          `${content.wordCount} words (${content.pageType} page)`,
+          ...(content.keywordRelevance ? [`Keyword relevance: ${content.keywordRelevance.score}/100`] : []),
+          ...(content.searchIntent ? [`Intent: ${content.searchIntent.intent.replace('_', ' ')} (${content.searchIntent.match ? 'matches' : 'may not match'})`] : []),
+        ]}
+        issues={content.issues}
+      />
+      <Phase2BMiniCard
+        label="Images"
+        status={images.status}
+        lines={[`${images.total} image(s) — ${images.missingAlt} missing alt, ${images.weakAlt} weak alt, ${images.oversized} oversized`]}
+        issues={images.issues.flatMap((i) => i.issues.map((iss) => `${i.filename}: ${iss}`)).slice(0, 6)}
+      />
+      <Phase2BMiniCard
+        label="Internal Linking"
+        status={internalLinks.status}
+        lines={[
+          `${internalLinks.incoming} incoming, ${internalLinks.outgoing} outgoing (${internalLinks.contextualIncoming} contextual incoming)`,
+        ]}
+        issues={[
+          ...internalLinks.issues,
+          ...internalLinks.brokenLinks.map((b) => `Broken link: "${b.anchor || '(no anchor)'}" → ${b.target} (${b.statusCode ?? 'failed'})`),
+        ]}
+      />
+      <Phase2BMiniCard
+        label="Technical"
+        status={technicalOnPage.status}
+        lines={[
+          `HTTP ${technicalOnPage.statusCode.code} · Canonical ${technicalOnPage.canonical.exists ? (technicalOnPage.canonical.isSelfReferencing ? 'self-referencing' : 'set') : 'missing'} · ${technicalOnPage.indexability.result.replace('_', ' ')}`,
+        ]}
+        issues={[
+          ...technicalOnPage.canonical.issues,
+          ...technicalOnPage.statusCode.issues,
+          ...technicalOnPage.schema.issues,
+          ...technicalOnPage.openGraph.issues,
+          ...technicalOnPage.twitter.issues,
+          ...technicalOnPage.urlStructure.issues,
+        ]}
+      />
     </div>
   )
 }

@@ -12,19 +12,19 @@
 //     -> aggregateOnPageIssues() (site-wide summary)
 // ──────────────────────────────────────────────────────────────────────────
 import type { PageAnalysis } from '@/app/api/seo-strategy/analyze/route'
-import { SEVERITY_RANK } from './severity'
+import { pickHighestSeverity } from './severity'
 import type {
   H1Audit,
   HeadingNode,
   HeadingStructureAudit,
   KeywordPageMapping,
   MetaDescriptionAudit,
+  MetaHeadingPageAudit,
+  MetaHeadingSummary,
   MetaTitleAudit,
   OnPageIssueCategorySummary,
   OnPageStatus,
-  OnPageSummary,
   PageImportance,
-  PageOnPageAudit,
   Severity,
 } from './types'
 import {
@@ -87,11 +87,6 @@ export function detectKeywordStuffing(text: string, repeatThreshold = KEYWORD_ST
   // already >= 0.5 with zero repetition, which would wrongly flag ordinary
   // short titles/H1s as stuffed.
   return max >= repeatThreshold || (max >= 2 && max / significant.length > KEYWORD_STUFFING_PROPORTION_THRESHOLD)
-}
-
-function pickHighestSeverity(severities: Severity[]): Severity {
-  if (severities.length === 0) return 'pass'
-  return severities.reduce((best, s) => (SEVERITY_RANK[s] > SEVERITY_RANK[best] ? s : best))
 }
 
 /** Groups pages by the normalized value of `selector(page)` — the basis for exact cross-page duplicate detection (title/description/H1). */
@@ -541,7 +536,7 @@ export function buildOnPageAudits(
   pages: PageAnalysis[],
   keywordMappings: KeywordPageMapping[],
   homepageUrl: string | null,
-): PageOnPageAudit[] {
+): MetaHeadingPageAudit[] {
   const importanceByUrl = new Map(pages.map((p) => [p.url, derivePageImportance(p.url, homepageUrl, keywordMappings)]))
   const ctx: OnPageEvalContext = { keywordMappings, importanceByUrl }
 
@@ -564,11 +559,11 @@ export function buildOnPageAudits(
   })
 }
 
-function emptyCategorySummary(): OnPageIssueCategorySummary {
+export function emptyCategorySummary(): OnPageIssueCategorySummary {
   return { total: 0, critical: 0, high: 0, medium: 0, low: 0, affectedPages: [] }
 }
 
-function addToSummary(summary: OnPageIssueCategorySummary, severity: Severity, url: string): void {
+export function addToSummary(summary: OnPageIssueCategorySummary, severity: Severity, url: string): void {
   if (severity === 'pass' || severity === 'not_evaluated' || severity === 'info') return
   summary.total += 1
   if (severity === 'critical') summary.critical += 1
@@ -579,8 +574,8 @@ function addToSummary(summary: OnPageIssueCategorySummary, severity: Severity, u
 }
 
 /** Site-wide issue counts + affected URLs per category, for future report phases (e.g. an on-page overview dashboard — not built in this phase). */
-export function aggregateOnPageIssues(audits: PageOnPageAudit[]): OnPageSummary {
-  const summary: OnPageSummary = {
+export function aggregateOnPageIssues(audits: MetaHeadingPageAudit[]): MetaHeadingSummary {
+  const summary: MetaHeadingSummary = {
     titleIssues: emptyCategorySummary(),
     metaDescriptionIssues: emptyCategorySummary(),
     h1Issues: emptyCategorySummary(),

@@ -22,7 +22,7 @@ import {
   type ChecklistPriority,
   type ChecklistStatus,
 } from './severity'
-import type { KeywordPageMapping, LocalDataSufficiency, PageOnPageAudit, Severity } from './types'
+import type { KeywordPageMapping, LocalDataSufficiency, OnPageSummary, PageOnPageAudit, Severity } from './types'
 import { normalizeKeyword } from './keyword-mapping'
 import { normalizeForDuplicateCheck } from './on-page-audit'
 
@@ -377,4 +377,60 @@ export function runOnPageContradictionChecks(
   }
 
   return { corrections, contradictions }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 2B — narrative sanity checks for the AI's onPageAudit prose
+// (imageOptimization/internalLinking/schemaMarkup/openGraph findings)
+// against the deterministic content/image/internal-link/technical summary.
+// Same posture as P0's narrative checks above: logged for debugging, not
+// auto-rewritten — safely correcting free-form prose isn't possible without
+// another generation pass.
+// ─────────────────────────────────────────────────────────────────────────
+export interface Phase2BNarrativeLike {
+  onPageAudit: {
+    schemaMarkup: { finding: string }
+    openGraph: { finding: string }
+    imageOptimization: { finding: string }
+    internalLinking: { finding: string }
+  }
+}
+
+export function runPhase2BContradictionChecks(strategy: Phase2BNarrativeLike, onPageSummary: OnPageSummary): string[] {
+  const contradictions: string[] = []
+  const { onPageAudit } = strategy
+
+  if (onPageSummary.imageIssues.missingAlt > 0 && /no images? (are |is )?missing alt|all images have alt/i.test(onPageAudit.imageOptimization.finding)) {
+    contradictions.push(
+      `onPageAudit.imageOptimization.finding claims no images are missing alt text, but ${onPageSummary.imageIssues.missingAlt} image(s) sitewide are missing or have an empty alt attribute.`,
+    )
+  }
+  if (
+    onPageSummary.internalLinkIssues.brokenLinks > 0 &&
+    /no broken (internal )?links|internal links? (are|is) (all )?(working|fine|healthy)/i.test(onPageAudit.internalLinking.finding)
+  ) {
+    contradictions.push(
+      `onPageAudit.internalLinking.finding claims no broken links, but ${onPageSummary.internalLinkIssues.brokenLinks} broken internal link(s) were found.`,
+    )
+  }
+  if (onPageSummary.internalLinkIssues.orphanPages > 0 && /no orphan(ed)? pages/i.test(onPageAudit.internalLinking.finding)) {
+    contradictions.push(
+      `onPageAudit.internalLinking.finding claims no orphan pages, but ${onPageSummary.internalLinkIssues.orphanPages} orphan-candidate page(s) were found.`,
+    )
+  }
+  if (onPageSummary.technicalIssues.openGraph === 0 && /missing (open graph|og )/i.test(onPageAudit.openGraph.finding)) {
+    contradictions.push(
+      'onPageAudit.openGraph.finding claims missing Open Graph tags, but the deterministic audit found no Open Graph issues across crawled pages.',
+    )
+  }
+  if (onPageSummary.technicalIssues.schema === 0 && /no (structured data|schema)|lacks schema/i.test(onPageAudit.schemaMarkup.finding)) {
+    contradictions.push(
+      'onPageAudit.schemaMarkup.finding claims missing schema, but the deterministic audit found no schema opportunities/issues across crawled pages.',
+    )
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Phase 2B narrative contradiction checker found the following:', contradictions)
+  }
+  return contradictions
 }

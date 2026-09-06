@@ -18,7 +18,7 @@
 import type { PageAnalysis } from '@/app/api/seo-strategy/analyze/route'
 import { detectKeywordStuffing, isGenericPhrase } from './on-page-audit'
 import { DESCRIPTION_LENGTH, INFORMATIONAL_PATH_PATTERNS, TITLE_LENGTH } from './on-page-thresholds'
-import type { PageOnPageAudit } from './types'
+import type { MetaHeadingPageAudit } from './types'
 
 export interface SuggestionOptions {
   businessName: string
@@ -182,7 +182,7 @@ export function generateH1Suggestion(page: PageAnalysis, pageName: string, targe
  */
 const H1_TEXT_QUALITY_ISSUE_RE = /generic|keyword stuffing|target keyword|identical h1 used/i
 
-function h1NeedsTextSuggestion(h1: PageOnPageAudit['h1']): boolean {
+function h1NeedsTextSuggestion(h1: MetaHeadingPageAudit['h1']): boolean {
   if (h1.status === 'poor') return true
   if (h1.status !== 'needs_improvement') return false
   return h1.issues.some((i) => H1_TEXT_QUALITY_ISSUE_RE.test(i))
@@ -196,10 +196,10 @@ function h1NeedsTextSuggestion(h1: PageOnPageAudit['h1']): boolean {
 // show a suggestion if the existing value is already good".
 // ---------------------------------------------------------------------------
 export function attachOnPageSuggestions(
-  audits: PageOnPageAudit[],
+  audits: MetaHeadingPageAudit[],
   pagesByUrl: Map<string, PageAnalysis>,
   options: SuggestionOptions,
-): PageOnPageAudit[] {
+): MetaHeadingPageAudit[] {
   return audits.map((audit) => {
     const page = pagesByUrl.get(audit.url)
     if (!page) return audit
