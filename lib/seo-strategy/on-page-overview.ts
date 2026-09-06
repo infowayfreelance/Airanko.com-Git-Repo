@@ -18,7 +18,15 @@ import {
   SEVERITY_SCORE_PENALTY,
   type ScoreStatus,
 } from './on-page-score-thresholds'
-import type { PageImportance, PageOnPageAudit, Severity } from './types'
+import type { PageImportance, PageOnPageAudit, Severity, SerpPixelStatus } from './types'
+
+/** Phase 4 — sitewide count of pages whose CURRENT title/description falls into each SERP display-fit bucket (never the raw issue count — one page contributes to at most one bucket, or none if "good"/"not_available"). */
+export interface PixelDisplaySummary {
+  tooLong: number
+  tooShort: number
+  /** borderline_short + borderline_long combined, per the Phase 4 overview's flat "Borderline" bucket. */
+  borderline: number
+}
 
 export interface OnPageCategorySlice {
   /** Number of pages with at least one issue in this category — never the raw issue count. */
@@ -48,6 +56,9 @@ export interface OnPageOverview {
   /** Deterministic 0-100 on-page health score — see computeSiteOnPageScore(). Never AI-generated. */
   score: number
   scoreStatus: ScoreStatus
+  /** Phase 4 — sitewide SERP pixel-width display-fit counts for current titles/descriptions. */
+  titleDisplay: PixelDisplaySummary
+  descriptionDisplay: PixelDisplaySummary
 }
 
 export interface PageOnPageAuditWithScore extends PageOnPageAudit {
@@ -133,6 +144,17 @@ function countIndexabilityIssues(indexability: PageOnPageAudit['technicalOnPage'
   return isCountableIssueSeverity(indexability.severity) ? indexability.reasons.length : 0
 }
 
+function emptyPixelDisplaySummary(): PixelDisplaySummary {
+  return { tooLong: 0, tooShort: 0, borderline: 0 }
+}
+
+/** Tallies one page's CURRENT title/description pixel status into the sitewide display-fit summary — "good" and "not_available" contribute to neither bucket. */
+function addPixelDisplayStatus(summary: PixelDisplaySummary, status: SerpPixelStatus): void {
+  if (status === 'too_long') summary.tooLong += 1
+  else if (status === 'too_short') summary.tooShort += 1
+  else if (status === 'borderline_short' || status === 'borderline_long') summary.borderline += 1
+}
+
 export function buildOnPageOverview(analysis: SiteAnalysis, audits: PageOnPageAudit[]): OnPageOverview {
   const categories: OnPageOverview['categories'] = {
     metaTitle: emptySlice(),
@@ -144,6 +166,8 @@ export function buildOnPageOverview(analysis: SiteAnalysis, audits: PageOnPageAu
     technical: emptySlice(),
   }
   const bySeverity = { critical: 0, high: 0, medium: 0, low: 0 }
+  const titleDisplay = emptyPixelDisplaySummary()
+  const descriptionDisplay = emptyPixelDisplaySummary()
   let pagesWithIssues = 0
 
   for (const a of audits) {
@@ -158,6 +182,12 @@ export function buildOnPageOverview(analysis: SiteAnalysis, audits: PageOnPageAu
       accumulateSlice(categories.metaDescription, bySeverity, a.metaDescription.severity, a.metaDescription.issues.length)
       pageHasIssue = true
     }
+    // Phase 4 — SERP display-fit is a separate signal from the semantic
+    // quality issues above (see types.ts's MetaTitleAudit note), so it's
+    // tallied independently rather than folded into the metaTitle/
+    // metaDescription category slices.
+    addPixelDisplayStatus(titleDisplay, a.metaTitle.pixelStatus)
+    addPixelDisplayStatus(descriptionDisplay, a.metaDescription.pixelStatus)
 
     // Headings — combines H1 + H2/H3 structure into a single presentation
     // category per the Phase 3 overview shape; each keeps its own severity.
@@ -237,6 +267,8 @@ export function buildOnPageOverview(analysis: SiteAnalysis, audits: PageOnPageAu
     categories,
     score,
     scoreStatus: scoreToStatus(score),
+    titleDisplay,
+    descriptionDisplay,
   }
 }
 

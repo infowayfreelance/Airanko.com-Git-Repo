@@ -7,7 +7,9 @@
 // happens to return.
 // ──────────────────────────────────────────────────────────────────────────
 import type { HeadingNode } from '@/app/api/seo-strategy/analyze/route'
+import type { SerpPixelStatus } from './serp-pixel-thresholds'
 export type { HeadingNode }
+export type { SerpPixelStatus }
 
 /** Centralized severity enum. AI-generated text must never set this directly. */
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info' | 'pass' | 'not_evaluated'
@@ -70,6 +72,10 @@ export type PageImportance = 'high' | 'medium' | 'low'
 export interface MetaTitleAudit {
   currentValue: string | null
   characterCount: number
+  /** Phase 4 — approximate Google desktop SERP pixel width (Arial-metric based, deterministic). Null only when currentValue is missing/empty. */
+  pixelWidth: number | null
+  /** Phase 4 — SERP display-fit status, a signal SEPARATE from `status`/`severity` (semantic quality) — a title can be pixel-good but semantically poor, or vice versa. See lib/seo-strategy/serp-pixel.ts. */
+  pixelStatus: SerpPixelStatus
   status: OnPageStatus
   severity: Severity
   issues: string[]
@@ -78,11 +84,19 @@ export interface MetaTitleAudit {
   targetKeywordPresent: boolean | null
   /** Only populated when status is not "good"/"pass" — see "don't suggest what's already good". */
   suggestedValue: string | null
+  suggestedCharacterCount: number | null
+  /** Phase 4 — measured from the same validated suggestedValue shown to the user; never independently generated, so it can't contradict what's displayed. */
+  suggestedPixelWidth: number | null
+  suggestedPixelStatus: SerpPixelStatus | null
 }
 
 export interface MetaDescriptionAudit {
   currentValue: string | null
   characterCount: number
+  pixelWidth: number | null
+  /** Phase 4 — approximate line count if laid out in the SERP (ceil(pixelWidth / lineWidthPx)) — an estimate of likely wrapping, not a guarantee. Null only when currentValue is missing/empty. */
+  estimatedLines: number | null
+  pixelStatus: SerpPixelStatus
   status: OnPageStatus
   severity: Severity
   issues: string[]
@@ -90,6 +104,10 @@ export interface MetaDescriptionAudit {
   duplicateWith: string[]
   targetKeywordPresent: boolean | null
   suggestedValue: string | null
+  suggestedCharacterCount: number | null
+  suggestedPixelWidth: number | null
+  suggestedEstimatedLines: number | null
+  suggestedPixelStatus: SerpPixelStatus | null
 }
 
 export interface H1Audit {

@@ -13,6 +13,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 import type { PageAnalysis } from '@/app/api/seo-strategy/analyze/route'
 import { pickHighestSeverity } from './severity'
+import { measureDescriptionPixels, measureTitlePixels } from './serp-pixel'
 import type {
   H1Audit,
   HeadingNode,
@@ -223,9 +224,13 @@ export function evaluateMetaTitle(
 
   if (issues.length === 0) severities.push('pass')
 
+  const { pixelWidth, pixelStatus } = measureTitlePixels(title)
+
   return {
     currentValue: title,
     characterCount,
+    pixelWidth,
+    pixelStatus,
     status,
     severity: pickHighestSeverity(severities),
     issues,
@@ -233,6 +238,9 @@ export function evaluateMetaTitle(
     duplicateWith,
     targetKeywordPresent,
     suggestedValue: null,
+    suggestedCharacterCount: null,
+    suggestedPixelWidth: null,
+    suggestedPixelStatus: null,
   }
 }
 
@@ -311,9 +319,14 @@ export function evaluateMetaDescription(
 
   if (issues.length === 0) severities.push('pass')
 
+  const { pixelWidth, estimatedLines, pixelStatus } = measureDescriptionPixels(description)
+
   return {
     currentValue: description,
     characterCount,
+    pixelWidth,
+    estimatedLines,
+    pixelStatus,
     status,
     severity: pickHighestSeverity(severities),
     issues,
@@ -321,6 +334,10 @@ export function evaluateMetaDescription(
     duplicateWith,
     targetKeywordPresent,
     suggestedValue: null,
+    suggestedCharacterCount: null,
+    suggestedPixelWidth: null,
+    suggestedEstimatedLines: null,
+    suggestedPixelStatus: null,
   }
 }
 
