@@ -6,9 +6,10 @@ import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
 import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
-import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
+import { buildTechnicalCrawlSummary, type TechnicalCrawlSummary } from '@/lib/seo-strategy/technical-summary'
 import type {
   HealthScoreBreakdown,
   KpiTarget,
@@ -297,6 +298,8 @@ export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown' | 'kpiTarge
   onPageSummary: OnPageSummary
   onPageOverview: OnPageOverview
   onPagePriorityFixes: PriorityFix[]
+  /** Phase 5 — deterministic sitewide crawl/technical summary (lib/seo-strategy/technical-summary.ts). Pure aggregation of analysis.crawlStats/sitemapAudit/robotsTxt + the Phase 2B technical audit; never AI-generated. */
+  technicalCrawlSummary: TechnicalCrawlSummary
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +390,30 @@ export async function POST(req: Request) {
           descriptionDisplay: { tooLong: 0, tooShort: 0, borderline: 0 },
         }
     const onPagePriorityFixes: PriorityFix[] = buildPriorityFixes(onPageAuditsRaw)
+
+    // Phase 5 — deterministic sitewide crawl/technical summary. Never
+    // computed by, or shown to, the AI.
+    const technicalCrawlSummary: TechnicalCrawlSummary = analysis
+      ? buildTechnicalCrawlSummary(analysis, onPageAuditsRaw)
+      : {
+          crawlMode: 'quick',
+          discovered: 0,
+          crawled: 0,
+          failed: 0,
+          redirected: 0,
+          excluded: 0,
+          audited: 0,
+          coverageNote: 'No automated site analysis was performed.',
+          indexable: 0,
+          nonIndexable: 0,
+          blocked: 0,
+          notEvaluatedIndexability: 0,
+          sitemapIssues: 0,
+          robotsIssues: 0,
+          canonicalIssues: 0,
+          brokenUrls: 0,
+          schemaIssues: 0,
+        }
 
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
@@ -619,6 +646,10 @@ Hard rules — a later automated validation pass checks these and will overwrite
     // internally consistent (see contradiction-checker.ts's header note).
     const serpPixelContradictions = runSerpPixelContradictionChecks(onPageAudits)
 
+    // Phase 5 — the AI must never claim complete/full-site crawl coverage
+    // when the deterministic crawl actually skipped discovered URLs.
+    const crawlCoverageContradictions = runCrawlCoverageContradictionChecks(strategy, analysis)
+
     const correctedStrategy: SeoStrategy = {
       ...strategy,
       localSeo: { ...strategy.localSeo, applicable: contradictionResult.localSeoApplicable },
@@ -653,6 +684,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       onPageSummary,
       onPageOverview,
       onPagePriorityFixes,
+      technicalCrawlSummary,
     }
 
     // Contradiction details are diagnostic-only — never exposed to
@@ -662,6 +694,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...onPageContradictionResult.contradictions,
       ...phase2bContradictions,
       ...serpPixelContradictions,
+      ...crawlCoverageContradictions,
     ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined

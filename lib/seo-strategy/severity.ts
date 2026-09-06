@@ -132,6 +132,53 @@ export function evaluateRobotsTxt(robotsTxt: SiteAnalysis['robotsTxt'] | null | 
 }
 
 // ---------------------------------------------------------------------------
+// Phase 5 — robots.txt: specific important pages blocked (as distinct from
+// evaluateRobotsTxt()'s whole-site checks above, which stay untouched).
+// Never penalizes an intentionally-excluded low-importance utility page
+// (e.g. /thank-you, /cart) — only pages P0 already treats as "high"
+// importance (homepage, pages with a validated keyword mapping).
+// ---------------------------------------------------------------------------
+export interface ImportantPagesBlockedResult {
+  severity: Severity
+  finding: string
+  blockedImportantUrls: string[]
+}
+
+export function evaluateImportantPagesBlocked(
+  pages: { url: string; importance: 'high' | 'medium' | 'low' }[],
+  robotsTxt: SiteAnalysis['robotsTxt'] | null | undefined,
+): ImportantPagesBlockedResult {
+  if (!robotsTxt || !robotsTxt.found) {
+    return { severity: 'not_evaluated', finding: 'robots.txt could not be checked for page-specific blocks.', blockedImportantUrls: [] }
+  }
+  if (robotsTxt.disallowsAll) {
+    // Already 'critical' via evaluateRobotsTxt() — don't double-report the whole-site block as a page-specific finding too.
+    return { severity: 'not_evaluated', finding: 'Whole site is blocked — see the sitewide robots.txt finding.', blockedImportantUrls: [] }
+  }
+
+  const blockedImportantUrls: string[] = []
+  for (const page of pages) {
+    if (page.importance !== 'high') continue
+    let pathname: string
+    try {
+      pathname = new URL(page.url).pathname
+    } catch {
+      continue
+    }
+    if (robotsTxt.disallowedPaths.some((p) => pathname.startsWith(p))) blockedImportantUrls.push(page.url)
+  }
+
+  if (blockedImportantUrls.length > 0) {
+    return {
+      severity: 'high',
+      finding: `robots.txt blocks ${blockedImportantUrls.length} important page(s) from being crawled: ${blockedImportantUrls.join(', ')}.`,
+      blockedImportantUrls,
+    }
+  }
+  return { severity: 'pass', finding: 'No important pages are blocked by robots.txt.', blockedImportantUrls: [] }
+}
+
+// ---------------------------------------------------------------------------
 // Server / crawl response time
 //
 // This crawler measures a single fetch's response time, not a full Page

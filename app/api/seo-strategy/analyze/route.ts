@@ -117,11 +117,15 @@ export interface SiteAnalysis {
     sitemapUrls: string[]
     disallowsAll: boolean
     content: string | null
+    /** Disallow path prefixes under `User-agent: *` (excluding a bare `/`, already captured by disallowsAll) — lets downstream code check whether a SPECIFIC page is blocked, not just the whole site. */
+    disallowedPaths: string[]
   }
   sitemapXml: {
     found: boolean
     urlCount: number
     sampleUrls: string[]
+    /** Actual page URLs from the sitemap (sitemap-index children already resolved), bounded — used for the sitemap audit and, in 'full' crawl mode, as the primary URL discovery source. */
+    allUrls: string[]
   }
   htmlSitemap: {
     found: boolean
@@ -183,6 +187,61 @@ export interface SiteAnalysis {
    * every discovered URL was actually audited.
    */
   discoveredUrlCount: number
+  /** 'quick' (default) = homepage + a handful of linked pages, bounded low. 'full' = prefers the XML sitemap as the discovery source (falling back to homepage links), bounded higher — still never unbounded. Stored so the report can say "Quick Audit" / "Full Site Audit" rather than imply the same coverage either way. */
+  crawlMode: 'quick' | 'full'
+  /**
+   * Phase 5 — transparent crawl coverage. `discovered` mirrors
+   * discoveredUrlCount; `crawled`/`failed`/`redirected` describe what
+   * actually happened to each URL the crawler attempted; `excluded` is
+   * URLs that were discovered but never attempted at all because of the
+   * crawl-mode cap; `audited` is how many of the crawled pages made it
+   * into the on-page audit (currently always equal to `crawled`, since
+   * every successfully crawled page is audited).
+   */
+  crawlStats: {
+    discovered: number
+    crawled: number
+    failed: number
+    redirected: number
+    excluded: number
+    audited: number
+  }
+  /** Bounded list of pages whose fetch followed one or more redirects, with the hop chain traced separately from the main crawl (see traceUrlStatus) so a chain/loop is visible even though the main crawl only ever sees the final destination's content. */
+  redirects: {
+    source: string
+    finalUrl: string
+    hops: { status: number; location: string }[]
+    isLoop: boolean
+  }[]
+  /** Phase 5 — sitemap health: a bounded set of sitemap URLs status-checked, plus cross-referenced against crawled pages for noindex/canonical issues. Null when no sitemap was found at all. */
+  sitemapAudit: SitemapAuditResult | null
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 — sitemap audit + redirect tracing types
+// ---------------------------------------------------------------------------
+export type SitemapUrlIssue = 'unreachable' | 'redirect' | 'client_error' | 'server_error' | 'noindex_in_sitemap' | 'blocked_by_robots' | 'canonical_mismatch'
+
+export interface SitemapFlaggedUrl {
+  url: string
+  issue: SitemapUrlIssue
+  status: number | null
+}
+
+export interface SitemapAuditResult {
+  /** Total URLs listed in the sitemap(s) (after resolving a sitemap index), before the status-check bound below. */
+  totalUrls: number
+  /** How many of those `totalUrls` actually had their live status checked — a large sitemap is sampled, not exhaustively probed, to stay within a safe request budget. */
+  checkedUrls: number
+  valid200: number
+  redirects: number
+  clientErrors: number
+  serverErrors: number
+  unreachable: number
+  /** Sitemap URLs that were never reached by the crawl at all (checked purely by URL-set membership, not by content). */
+  notCrawledCount: number
+  /** Bounded list of specific problem URLs with a reason — never just an aggregate count. */
+  flaggedUrls: SitemapFlaggedUrl[]
 }
 
 // ---------------------------------------------------------------------------
@@ -406,6 +465,68 @@ async function checkLinkStatus(url: string, timeoutMs = 5000): Promise<number | 
   } catch {
     return null
   }
+}
+
+/**
+ * Follows redirects one hop at a time (HEAD, falling back to GET on
+ * 405/501) so the actual chain — not just the final destination `fetch`
+ * with `redirect: 'follow'` would silently resolve to — is visible: initial
+ * status, each hop's status/target, and whether it loops back on itself.
+ * Bounded to `maxHops` so a real loop can't hang the request.
+ */
+async function traceUrlStatus(
+  url: string,
+  timeoutMs = 5000,
+  maxHops = 5,
+): Promise<{ initialStatus: number | null; finalStatus: number | null; finalUrl: string; hops: { status: number; location: string }[]; isLoop: boolean }> {
+  const hops: { status: number; location: string }[] = []
+  const seen = new Set<string>()
+  let currentUrl = url
+  let initialStatus: number | null = null
+
+  for (let i = 0; i <= maxHops; i++) {
+    if (seen.has(currentUrl)) {
+      return { initialStatus, finalStatus: null, finalUrl: currentUrl, hops, isLoop: true }
+    }
+    seen.add(currentUrl)
+
+    let res: Response
+    try {
+      res = await fetch(currentUrl, {
+        method: 'HEAD',
+        headers: { 'User-Agent': USER_AGENT },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      if (res.status === 405 || res.status === 501) {
+        res = await fetch(currentUrl, {
+          method: 'GET',
+          headers: { 'User-Agent': USER_AGENT },
+          redirect: 'manual',
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+      }
+    } catch {
+      return { initialStatus, finalStatus: null, finalUrl: currentUrl, hops, isLoop: false }
+    }
+
+    if (initialStatus === null) initialStatus = res.status
+    const location = res.headers.get('location')
+    if (res.status >= 300 && res.status < 400 && location) {
+      let nextUrl: string
+      try {
+        nextUrl = new URL(location, currentUrl).toString()
+      } catch {
+        return { initialStatus, finalStatus: null, finalUrl: currentUrl, hops, isLoop: false }
+      }
+      hops.push({ status: res.status, location: nextUrl })
+      currentUrl = nextUrl
+      continue
+    }
+    return { initialStatus, finalStatus: res.status, finalUrl: currentUrl, hops, isLoop: false }
+  }
+  // Exceeded maxHops without settling — a very long (if not looping) chain; not evaluated further.
+  return { initialStatus, finalStatus: null, finalUrl: currentUrl, hops, isLoop: false }
 }
 
 /** Tracking pixels, spacer GIFs, and other non-content images the image SEO audit shouldn't waste an "issue" on. */
@@ -722,10 +843,12 @@ async function checkRobotsTxt(baseUrl: URL) {
       hasSitemap: false,
       sitemapUrls: [],
       disallowsAll: false,
+      disallowedPaths: [],
       content: null,
     }
   }
   const sitemapUrls: string[] = []
+  const disallowedPaths: string[] = []
   const lines = content.split('\n')
   let disallowsAll = false
   let inUserAgentAll = false
@@ -738,14 +861,37 @@ async function checkRobotsTxt(baseUrl: URL) {
     if (/^user-agent:\s*\*/i.test(l)) inUserAgentAll = true
     else if (/^user-agent:/i.test(l)) inUserAgentAll = false
     if (inUserAgentAll && /^disallow:\s*\/\s*$/i.test(l)) disallowsAll = true
+    else if (inUserAgentAll) {
+      const m = l.match(/^disallow:\s*(\S+)/i)
+      if (m && m[1] !== '/') disallowedPaths.push(m[1].trim())
+    }
   }
   return {
     found: true,
     hasSitemap: sitemapUrls.length > 0,
     sitemapUrls,
     disallowsAll,
+    disallowedPaths: Array.from(new Set(disallowedPaths)),
     content: content.slice(0, 2000),
   }
+}
+
+const SITEMAP_MAX_CHILD_SITEMAPS = 5
+const SITEMAP_MAX_URLS = 200
+
+/** Fetches one sitemap document; if it's a sitemap INDEX (not a plain urlset), recurses into a bounded number of child sitemaps so `allUrls` always ends up as actual page URLs, never sub-sitemap URLs. */
+async function fetchSitemapUrls(sitemapUrl: string, depth = 0): Promise<string[]> {
+  const content = await fetchText(sitemapUrl, 8000)
+  if (!content) return []
+  const locs = Array.from(content.matchAll(/<loc>([^<]+)<\/loc>/g)).map((m) => m[1].trim())
+  if (content.includes('<sitemapindex')) {
+    if (depth >= 1) return [] // one level of recursion is enough for the sites this tool targets
+    const childSitemaps = locs.slice(0, SITEMAP_MAX_CHILD_SITEMAPS)
+    const childResults = await Promise.all(childSitemaps.map((u) => fetchSitemapUrls(u, depth + 1)))
+    return childResults.flat().slice(0, SITEMAP_MAX_URLS)
+  }
+  if (content.includes('<urlset')) return locs.slice(0, SITEMAP_MAX_URLS)
+  return []
 }
 
 async function checkSitemap(baseUrl: URL, robotsUrls: string[]) {
@@ -755,17 +901,17 @@ async function checkSitemap(baseUrl: URL, robotsUrls: string[]) {
     `${baseUrl.protocol}//${baseUrl.hostname}/sitemap_index.xml`,
   ]
   for (const url of candidates) {
-    const content = await fetchText(url, 8000)
-    if (content && content.includes('<urlset') || (content && content.includes('<sitemapindex'))) {
-      const urls = Array.from(content.matchAll(/<loc>([^<]+)<\/loc>/g)).map((m) => m[1])
+    const allUrls = await fetchSitemapUrls(url)
+    if (allUrls.length > 0) {
       return {
         found: true,
-        urlCount: urls.length,
-        sampleUrls: urls.slice(0, 10),
+        urlCount: allUrls.length,
+        sampleUrls: allUrls.slice(0, 10),
+        allUrls,
       }
     }
   }
-  return { found: false, urlCount: 0, sampleUrls: [] }
+  return { found: false, urlCount: 0, sampleUrls: [], allUrls: [] }
 }
 
 async function checkHtmlSitemap(baseUrl: URL) {
@@ -788,15 +934,112 @@ async function checkHtmlSitemap(baseUrl: URL) {
   return { found: false, url: null }
 }
 
+const SITEMAP_STATUS_CHECK_LIMIT = 30
+const SITEMAP_FLAGGED_URL_LIMIT = 20
+
+function stripTrailingSlash(url: string): string {
+  return url.replace(/\/$/, '')
+}
+
+/** A page's path is blocked if it starts with any robots.txt Disallow prefix for `User-agent: *`. */
+function isPathDisallowed(pathname: string, disallowedPaths: string[]): boolean {
+  return disallowedPaths.some((p) => pathname.startsWith(p))
+}
+
+/**
+ * Phase 5 — sitemap health check. Status-checks a bounded sample of sitemap
+ * URLs (never the whole sitemap for a large site — that's a request budget
+ * a single report generation can't afford) and cross-references sitemap
+ * URLs that WERE crawled against their own noindex/canonical data, which we
+ * already have for free from the crawl itself.
+ */
+async function auditSitemap(
+  sitemapUrls: string[],
+  crawledByUrl: Map<string, PageAnalysis>,
+  disallowedPaths: string[],
+  disallowsAll: boolean,
+): Promise<SitemapAuditResult> {
+  const toCheck = sitemapUrls.slice(0, SITEMAP_STATUS_CHECK_LIMIT)
+  const traces = await mapWithConcurrency(toCheck, 6, (u) => traceUrlStatus(u))
+
+  let valid200 = 0
+  let redirects = 0
+  let clientErrors = 0
+  let serverErrors = 0
+  let unreachable = 0
+  const flaggedUrls: SitemapFlaggedUrl[] = []
+
+  for (let i = 0; i < toCheck.length; i++) {
+    const url = toCheck[i]
+    const { finalStatus } = traces[i]
+
+    if (finalStatus === null) {
+      unreachable++
+      flaggedUrls.push({ url, issue: 'unreachable', status: null })
+    } else if (finalStatus >= 200 && finalStatus < 300) {
+      valid200++
+    } else if (finalStatus >= 300 && finalStatus < 400) {
+      redirects++
+      flaggedUrls.push({ url, issue: 'redirect', status: finalStatus })
+    } else if (finalStatus >= 400 && finalStatus < 500) {
+      clientErrors++
+      flaggedUrls.push({ url, issue: 'client_error', status: finalStatus })
+    } else {
+      serverErrors++
+      flaggedUrls.push({ url, issue: 'server_error', status: finalStatus })
+    }
+
+    const crawledPage = crawledByUrl.get(url)
+    if (crawledPage) {
+      if (crawledPage.metaRobotsNoindex) flaggedUrls.push({ url, issue: 'noindex_in_sitemap', status: finalStatus })
+      let pathname: string | null = null
+      try {
+        pathname = new URL(url).pathname
+      } catch {
+        /* ignore */
+      }
+      if (pathname && (disallowsAll || isPathDisallowed(pathname, disallowedPaths))) {
+        flaggedUrls.push({ url, issue: 'blocked_by_robots', status: finalStatus })
+      }
+      if (crawledPage.canonical && stripTrailingSlash(crawledPage.canonical) !== stripTrailingSlash(url)) {
+        flaggedUrls.push({ url, issue: 'canonical_mismatch', status: finalStatus })
+      }
+    }
+  }
+
+  const crawledUrlSet = new Set(crawledByUrl.keys())
+  const notCrawledCount = sitemapUrls.filter((u) => !crawledUrlSet.has(u)).length
+
+  return {
+    totalUrls: sitemapUrls.length,
+    checkedUrls: toCheck.length,
+    valid200,
+    redirects,
+    clientErrors,
+    serverErrors,
+    unreachable,
+    notCrawledCount,
+    flaggedUrls: flaggedUrls.slice(0, SITEMAP_FLAGGED_URL_LIMIT),
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main analyze handler
 // ---------------------------------------------------------------------------
+const QUICK_DISCOVER_CAP = 12
+const QUICK_CRAWL_CAP = 8
+const FULL_DISCOVER_CAP = 60
+const FULL_CRAWL_CAP = 40
+/** Bound on how many redirected pages get their full chain traced (see traceUrlStatus) — the redirect itself is already known from the main crawl fetch; this only bounds the extra diagnostic hop-tracing requests. */
+const REDIRECT_TRACE_LIMIT = 15
+
 export async function POST(req: Request) {
   try {
-    const { websiteUrl } = (await req.json()) as { websiteUrl: string }
+    const { websiteUrl, crawlMode: crawlModeInput } = (await req.json()) as { websiteUrl: string; crawlMode?: string }
     if (!websiteUrl) {
       return Response.json({ error: 'websiteUrl is required' }, { status: 400 })
     }
+    const crawlMode: 'quick' | 'full' = crawlModeInput === 'full' ? 'full' : 'quick'
 
     const normalized = normalizeUrl(websiteUrl)
     let baseUrl: URL
@@ -835,20 +1078,54 @@ export async function POST(req: Request) {
     // its already-capped length would understate discovery on any site with
     // more than 12 internal links found on the homepage.
     const allDiscoveredLinks = extractInternalLinks(home.html, finalBase).filter((u) => u !== finalUrl)
-    const internalLinks = allDiscoveredLinks.slice(0, 12)
 
-    // Crawl up to 8 internal pages in parallel
-    const toCrawl = internalLinks.slice(0, 8)
-    const crawled = await Promise.all(
+    // Robots / sitemap / html sitemap — moved ahead of the crawl-list
+    // decision below because 'full' mode prefers the sitemap (a far more
+    // complete URL list than homepage-only link extraction) as its
+    // discovery source when one is available.
+    const [robotsTxt, htmlSitemap] = await Promise.all([
+      checkRobotsTxt(finalBase),
+      checkHtmlSitemap(finalBase),
+    ])
+    const sitemapXml = await checkSitemap(finalBase, robotsTxt.sitemapUrls)
+
+    let internalLinks: string[]
+    if (crawlMode === 'full') {
+      const sitemapPageUrls = sitemapXml.allUrls.filter((u) => u !== finalUrl)
+      const source = sitemapPageUrls.length > 0 ? sitemapPageUrls : allDiscoveredLinks
+      internalLinks = source.slice(0, FULL_DISCOVER_CAP)
+    } else {
+      internalLinks = allDiscoveredLinks.slice(0, QUICK_DISCOVER_CAP)
+    }
+
+    // Crawl the selected internal pages in parallel, tracking success/
+    // failure/redirect per URL so crawl coverage can be reported honestly
+    // instead of silently dropping failed fetches.
+    const toCrawl = internalLinks.slice(0, crawlMode === 'full' ? FULL_CRAWL_CAP : QUICK_CRAWL_CAP)
+    const crawlResults = await Promise.all(
       toCrawl.map(async (url) => {
         const r = await fetchWithTimeout(url, 10000)
-        if (!r) return null
-        return analyzeHtml(url, r.html, r.status, r.loadTimeMs, r.byteSize, finalBase, r.headers['x-robots-tag'] ?? null)
+        if (!r) return { url, ok: false as const }
+        const page = analyzeHtml(url, r.html, r.status, r.loadTimeMs, r.byteSize, finalBase, r.headers['x-robots-tag'] ?? null)
+        return { url, ok: true as const, page, redirected: r.finalUrl !== url }
       }),
     )
-    const pageAnalyses: PageAnalysis[] = crawled.filter((p): p is PageAnalysis => p !== null)
+    const pageAnalyses: PageAnalysis[] = crawlResults.filter((c): c is Extract<typeof c, { ok: true }> => c.ok).map((c) => c.page)
+    const failedCrawlCount = crawlResults.filter((c) => !c.ok).length
+    const redirectedCrawlUrls = crawlResults.filter((c): c is Extract<typeof c, { ok: true }> => c.ok && c.redirected).map((c) => c.url)
 
     const allPages = [homepageAnalysis, ...pageAnalyses]
+
+    // Phase 5 — redirect chain tracing. The main crawl fetch above already
+    // tells us WHETHER a URL redirected (r.finalUrl !== url); this traces
+    // the actual hop-by-hop chain (and loop detection) for a bounded subset
+    // of those, plus the homepage itself if the input URL redirected.
+    const homeRedirected = home.finalUrl !== normalized
+    const urlsToTrace = [...(homeRedirected ? [normalized] : []), ...redirectedCrawlUrls].slice(0, REDIRECT_TRACE_LIMIT)
+    const redirectTraces = await mapWithConcurrency(urlsToTrace, 6, (u) => traceUrlStatus(u))
+    const redirects: SiteAnalysis['redirects'] = urlsToTrace
+      .map((source, i) => ({ source, finalUrl: redirectTraces[i].finalUrl, hops: redirectTraces[i].hops, isLoop: redirectTraces[i].isLoop }))
+      .filter((r) => r.hops.length > 0 || r.isLoop)
 
     // -----------------------------------------------------------------------
     // Phase 2B — image probing (file size + intrinsic dimensions).
@@ -898,17 +1175,34 @@ export async function POST(req: Request) {
       }
     }
 
-    // A bounded crawl (homepage + up to 8 internal pages) only counts as
-    // "full" coverage when there was nothing more to find — otherwise
-    // orphan-page claims need to be qualified as lower-confidence.
+    // A bounded crawl only counts as "full" coverage when there was nothing
+    // more to find — otherwise orphan-page claims need to be qualified as
+    // lower-confidence.
     const crawlCoverage: SiteAnalysis['crawlCoverage'] = internalLinks.length <= toCrawl.length ? 'full' : 'partial'
 
-    // Robots / sitemap / html sitemap
-    const [robotsTxt, htmlSitemap] = await Promise.all([
-      checkRobotsTxt(finalBase),
-      checkHtmlSitemap(finalBase),
-    ])
-    const sitemapXml = await checkSitemap(finalBase, robotsTxt.sitemapUrls)
+    // Phase 5 — sitemap audit: status-check a bounded sample of sitemap URLs
+    // and cross-reference against the pages we actually crawled.
+    const crawledByUrl = new Map(allPages.map((p) => [p.url, p]))
+    const sitemapAudit: SiteAnalysis['sitemapAudit'] = sitemapXml.found
+      ? await auditSitemap(sitemapXml.allUrls, crawledByUrl, robotsTxt.disallowedPaths, robotsTxt.disallowsAll)
+      : null
+
+    // Phase 5 — transparent crawl coverage. `discovered` reflects the
+    // sitemap-driven count in 'full' mode when a sitemap was used as the
+    // discovery source, otherwise the homepage-link-based count — matching
+    // whichever source actually determined `internalLinks` above.
+    const discoveredUrlCount =
+      crawlMode === 'full' && sitemapXml.allUrls.filter((u) => u !== finalUrl).length > 0
+        ? sitemapXml.allUrls.length
+        : allDiscoveredLinks.length + 1
+    const crawlStats: SiteAnalysis['crawlStats'] = {
+      discovered: discoveredUrlCount,
+      crawled: allPages.length,
+      failed: failedCrawlCount,
+      redirected: redirectedCrawlUrls.length + (homeRedirected ? 1 : 0),
+      excluded: Math.max(0, discoveredUrlCount - 1 - toCrawl.length),
+      audited: allPages.length,
+    }
 
     // Aggregate contact info from all pages
     const allPhones = new Set<string>()
@@ -968,7 +1262,11 @@ export async function POST(req: Request) {
       technicalSummary,
       brokenInternalLinks,
       crawlCoverage,
-      discoveredUrlCount: allDiscoveredLinks.length + 1,
+      discoveredUrlCount,
+      crawlMode,
+      crawlStats,
+      redirects,
+      sitemapAudit,
     }
 
     return Response.json({ analysis })
