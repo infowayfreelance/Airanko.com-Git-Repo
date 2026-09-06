@@ -65,6 +65,7 @@ import type { SeoStrategy } from '@/app/api/seo-strategy/route'
 import type { SiteAnalysis } from '@/app/api/seo-strategy/analyze/route'
 import { SCORE_STATUS_LABEL, type ScoreStatus } from '@/lib/seo-strategy/on-page-score-thresholds'
 import { pageOverallSeverity } from '@/lib/seo-strategy/on-page-overview'
+import { SERP_PIXEL_STATUS_LABEL, type SerpPixelStatus as SerpPixelStatusValue } from '@/lib/seo-strategy/serp-pixel-thresholds'
 import type { Severity } from '@/lib/seo-strategy/types'
 
 /**
@@ -2204,6 +2205,70 @@ function OnPageOverviewSection({ overview }: { overview: SeoStrategy['onPageOver
           <CategorySummaryCard key={key} label={label} icon={icon} slice={overview.categories[key]} />
         ))}
       </div>
+
+      <PixelDisplaySummarySection titleDisplay={overview.titleDisplay} descriptionDisplay={overview.descriptionDisplay} />
+    </div>
+  )
+}
+
+/** Phase 4 — sitewide "Title Display Issues" / "Meta Description Display Issues" counts, from OnPageOverview.titleDisplay/descriptionDisplay. Framed as SERP display optimization, not a ranking factor. Hidden entirely when nothing to report. */
+function PixelDisplaySummarySection({
+  titleDisplay,
+  descriptionDisplay,
+}: {
+  titleDisplay: SeoStrategy['onPageOverview']['titleDisplay']
+  descriptionDisplay: SeoStrategy['onPageOverview']['descriptionDisplay']
+}) {
+  const hasAny = (d: typeof titleDisplay) => d.tooLong + d.tooShort + d.borderline > 0
+  if (!hasAny(titleDisplay) && !hasAny(descriptionDisplay)) return null
+
+  const rows: { label: string; d: typeof titleDisplay }[] = [
+    { label: 'Title Display Issues', d: titleDisplay },
+    { label: 'Meta Description Display Issues', d: descriptionDisplay },
+  ]
+
+  return (
+    <div className="rounded-xl border bg-card p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Gauge className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold">SERP Display Width</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Approximate SERP display fit for current titles/descriptions — a display-optimization signal, not a ranking factor.
+      </p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {rows.map(({ label, d }) =>
+          hasAny(d) ? (
+            <div key={label} className="rounded-lg border bg-muted/20 p-3 space-y-1.5">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {d.tooLong > 0 && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${SERP_PIXEL_STATUS_CLS.too_long}`}>
+                    {d.tooLong} Too Long
+                  </span>
+                )}
+                {d.tooShort > 0 && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${SERP_PIXEL_STATUS_CLS.too_short}`}>
+                    {d.tooShort} Too Short
+                  </span>
+                )}
+                {d.borderline > 0 && (
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${SERP_PIXEL_STATUS_CLS.borderline_short}`}
+                  >
+                    {d.borderline} Borderline
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div key={label} className="rounded-lg border bg-muted/20 p-3 flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              {label.replace(' Issues', '')}: no display-width issues
+            </div>
+          ),
+        )}
+      </div>
     </div>
   )
 }
@@ -2252,17 +2317,65 @@ function OnPageStatusPill({ status }: { status: 'good' | 'needs_improvement' | '
 }
 
 /** A current-value / suggested-value pair for one deterministic on-page field. Shows "No change required" instead of a suggestion when the field is already good — never rewrites what isn't broken. */
+/** Phase 4 — Green/Orange/Red/Gray SERP pixel-width status badge. Text label is mandatory (never color-only). */
+const SERP_PIXEL_STATUS_CLS: Record<SerpPixelStatusValue, string> = {
+  good: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  borderline_short: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30',
+  borderline_long: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30',
+  too_short: 'bg-destructive/10 text-destructive border-destructive/30',
+  too_long: 'bg-destructive/10 text-destructive border-destructive/30',
+  not_available: 'bg-muted text-muted-foreground border-border',
+}
+
+function SerpPixelStatusBadge({ status }: { status: SerpPixelStatusValue }) {
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${SERP_PIXEL_STATUS_CLS[status]}`}>
+      {SERP_PIXEL_STATUS_LABEL[status]}
+    </span>
+  )
+}
+
+/** One title/description's character count + SERP pixel width + status — the pixel width is the primary SERP-display signal, character count is secondary. This is a presentation-only formatter: every number comes from the deterministic audit (lib/seo-strategy/serp-pixel.ts), never recalculated here. */
+interface SerpPixelInfo {
+  characterCount: number
+  pixelWidth: number | null
+  pixelStatus: SerpPixelStatusValue
+  /** Descriptions only — approximate SERP line count. */
+  estimatedLines?: number | null
+}
+
+function SerpPixelLine({ info }: { info: SerpPixelInfo }) {
+  const parts = [`${info.characterCount} character${info.characterCount === 1 ? '' : 's'}`]
+  if (info.pixelWidth !== null) {
+    parts.push(
+      info.estimatedLines != null ? `~${info.pixelWidth.toLocaleString()}px total` : `${info.pixelWidth.toLocaleString()}px`,
+    )
+    if (info.estimatedLines != null) parts.push(`~${info.estimatedLines} line${info.estimatedLines === 1 ? '' : 's'}`)
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-muted-foreground tabular-nums">{parts.join(' · ')}</span>
+      <SerpPixelStatusBadge status={info.pixelStatus} />
+    </div>
+  )
+}
+
 function OnPageFieldBlock({
   label,
   status,
   currentValue,
+  currentPixels,
   suggestedValue,
+  suggestedPixels,
   issues,
 }: {
   label: string
   status: 'good' | 'needs_improvement' | 'poor' | 'not_evaluated'
   currentValue: string | null
+  /** Phase 4 — omit for fields with no pixel model (e.g. H1, which reuses this component without SERP measurement). */
+  currentPixels?: SerpPixelInfo
   suggestedValue: string | null
+  suggestedPixels?: SerpPixelInfo
   issues: string[]
 }) {
   return (
@@ -2274,6 +2387,7 @@ function OnPageFieldBlock({
       <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
         {currentValue || <em className="text-muted-foreground">Missing</em>}
       </p>
+      {currentPixels && <SerpPixelLine info={currentPixels} />}
       {issues.length > 0 && (
         <ul className="text-xs space-y-1 text-muted-foreground">
           {issues.map((iss, j) => (
@@ -2287,9 +2401,10 @@ function OnPageFieldBlock({
       {status === 'good' ? (
         <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">No change required.</p>
       ) : suggestedValue ? (
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-primary mb-1">Suggested</div>
+        <div className="space-y-1.5">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-primary">Suggested</div>
           <p className="text-sm bg-primary/5 border border-primary/20 rounded-lg p-3 text-pretty">{suggestedValue}</p>
+          {suggestedPixels && <SerpPixelLine info={suggestedPixels} />}
         </div>
       ) : null}
     </div>
@@ -2420,7 +2535,21 @@ function PageByPageAudit({
                   label="Meta Title"
                   status={onPage.metaTitle.status}
                   currentValue={onPage.metaTitle.currentValue}
+                  currentPixels={{
+                    characterCount: onPage.metaTitle.characterCount,
+                    pixelWidth: onPage.metaTitle.pixelWidth,
+                    pixelStatus: onPage.metaTitle.pixelStatus,
+                  }}
                   suggestedValue={onPage.metaTitle.suggestedValue}
+                  suggestedPixels={
+                    onPage.metaTitle.suggestedValue
+                      ? {
+                          characterCount: onPage.metaTitle.suggestedCharacterCount ?? 0,
+                          pixelWidth: onPage.metaTitle.suggestedPixelWidth,
+                          pixelStatus: onPage.metaTitle.suggestedPixelStatus ?? 'not_available',
+                        }
+                      : undefined
+                  }
                   issues={onPage.metaTitle.issues}
                 />
               ) : (
@@ -2448,7 +2577,23 @@ function PageByPageAudit({
                   label="Meta Description"
                   status={onPage.metaDescription.status}
                   currentValue={onPage.metaDescription.currentValue}
+                  currentPixels={{
+                    characterCount: onPage.metaDescription.characterCount,
+                    pixelWidth: onPage.metaDescription.pixelWidth,
+                    pixelStatus: onPage.metaDescription.pixelStatus,
+                    estimatedLines: onPage.metaDescription.estimatedLines,
+                  }}
                   suggestedValue={onPage.metaDescription.suggestedValue}
+                  suggestedPixels={
+                    onPage.metaDescription.suggestedValue
+                      ? {
+                          characterCount: onPage.metaDescription.suggestedCharacterCount ?? 0,
+                          pixelWidth: onPage.metaDescription.suggestedPixelWidth,
+                          pixelStatus: onPage.metaDescription.suggestedPixelStatus ?? 'not_available',
+                          estimatedLines: onPage.metaDescription.suggestedEstimatedLines,
+                        }
+                      : undefined
+                  }
                   issues={onPage.metaDescription.issues}
                 />
               ) : (

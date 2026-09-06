@@ -6,7 +6,7 @@ import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
 import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
-import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
 import type {
@@ -383,6 +383,8 @@ export async function POST(req: Request) {
           },
           score: 0,
           scoreStatus: 'critical',
+          titleDisplay: { tooLong: 0, tooShort: 0, borderline: 0 },
+          descriptionDisplay: { tooLong: 0, tooShort: 0, borderline: 0 },
         }
     const onPagePriorityFixes: PriorityFix[] = buildPriorityFixes(onPageAuditsRaw)
 
@@ -613,6 +615,10 @@ Hard rules — a later automated validation pass checks these and will overwrite
     // deterministic content/image/internal-link/technical summary.
     const phase2bContradictions = runPhase2BContradictionChecks(strategy, onPageSummary)
 
+    // Phase 4 — defense-in-depth check that pixelWidth/pixelStatus stayed
+    // internally consistent (see contradiction-checker.ts's header note).
+    const serpPixelContradictions = runSerpPixelContradictionChecks(onPageAudits)
+
     const correctedStrategy: SeoStrategy = {
       ...strategy,
       localSeo: { ...strategy.localSeo, applicable: contradictionResult.localSeoApplicable },
@@ -651,7 +657,12 @@ Hard rules — a later automated validation pass checks these and will overwrite
 
     // Contradiction details are diagnostic-only — never exposed to
     // production users, only helpful in development.
-    const allContradictions = [...contradictionResult.contradictions, ...onPageContradictionResult.contradictions, ...phase2bContradictions]
+    const allContradictions = [
+      ...contradictionResult.contradictions,
+      ...onPageContradictionResult.contradictions,
+      ...phase2bContradictions,
+      ...serpPixelContradictions,
+    ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined
 

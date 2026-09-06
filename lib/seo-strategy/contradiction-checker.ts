@@ -434,3 +434,46 @@ export function runPhase2BContradictionChecks(strategy: Phase2BNarrativeLike, on
   }
   return contradictions
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 4 — SERP pixel measurement internal-consistency check. The
+// current/suggested pixelWidth/pixelStatus fields are always computed
+// together, from the same source string, by lib/seo-strategy/serp-pixel.ts
+// (see attachOnPageSuggestions()/evaluateMetaTitle()/evaluateMetaDescription()),
+// so a real contradiction here would mean a regression in that wiring, not
+// a live AI mismatch — this is a defense-in-depth assertion, logged in
+// development, never auto-corrected (there's no independent "wrong" value
+// to correct it to).
+// ─────────────────────────────────────────────────────────────────────────
+export function runSerpPixelContradictionChecks(onPageAudits: PageOnPageAudit[]): string[] {
+  const contradictions: string[] = []
+
+  const checkPixelPair = (label: string, pixelWidth: number | null, status: string): void => {
+    if (pixelWidth === null && status !== 'not_available') {
+      contradictions.push(`${label}: pixelWidth is null but pixelStatus is "${status}" (expected "not_available").`)
+    }
+    if (pixelWidth !== null && status === 'not_available') {
+      contradictions.push(`${label}: pixelWidth is ${pixelWidth}px but pixelStatus is "not_available".`)
+    }
+  }
+
+  for (const a of onPageAudits) {
+    checkPixelPair(`Page ${a.url}: metaTitle`, a.metaTitle.pixelWidth, a.metaTitle.pixelStatus)
+    checkPixelPair(`Page ${a.url}: metaDescription`, a.metaDescription.pixelWidth, a.metaDescription.pixelStatus)
+    if (a.metaTitle.suggestedValue !== null) {
+      checkPixelPair(`Page ${a.url}: metaTitle.suggestedValue`, a.metaTitle.suggestedPixelWidth, a.metaTitle.suggestedPixelStatus ?? 'not_available')
+    }
+    if (a.metaDescription.suggestedValue !== null) {
+      checkPixelPair(
+        `Page ${a.url}: metaDescription.suggestedValue`,
+        a.metaDescription.suggestedPixelWidth,
+        a.metaDescription.suggestedPixelStatus ?? 'not_available',
+      )
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] SERP pixel contradiction checker found the following:', contradictions)
+  }
+  return contradictions
+}

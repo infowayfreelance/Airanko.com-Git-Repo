@@ -18,6 +18,7 @@
 import type { PageAnalysis } from '@/app/api/seo-strategy/analyze/route'
 import { detectKeywordStuffing, isGenericPhrase } from './on-page-audit'
 import { DESCRIPTION_LENGTH, INFORMATIONAL_PATH_PATTERNS, TITLE_LENGTH } from './on-page-thresholds'
+import { measureDescriptionPixels, measureTitlePixels } from './serp-pixel'
 import type { MetaHeadingPageAudit } from './types'
 
 export interface SuggestionOptions {
@@ -80,11 +81,20 @@ function shouldIncludeLocation(page: PageAnalysis, topic: string, options: Sugge
 // ---------------------------------------------------------------------------
 // Title
 // ---------------------------------------------------------------------------
+/**
+ * Phase 4 — a candidate that passes every character-length/wording check
+ * can still measure as too_short/too_long in actual SERP pixels (short
+ * words in a long string, or a handful of wide characters); reject those
+ * too, so a validated suggestion never displays a "Too Long"/"Too Short"
+ * pixel status without an explicit fallback note (see generateTitleSuggestion).
+ */
 function assessCandidateTitle(candidate: string): boolean {
   const len = candidate.length
   if (len < TITLE_LENGTH.veryShort || len > TITLE_LENGTH.long) return false
   if (isGenericPhrase(candidate)) return false
   if (detectKeywordStuffing(candidate)) return false
+  const { pixelStatus } = measureTitlePixels(candidate)
+  if (pixelStatus === 'too_short' || pixelStatus === 'too_long') return false
   return true
 }
 
@@ -119,10 +129,13 @@ export function generateTitleSuggestion(page: PageAnalysis, pageName: string, ta
 // ---------------------------------------------------------------------------
 // Meta description
 // ---------------------------------------------------------------------------
+/** Phase 4 — same pixel-fit guard as assessCandidateTitle(), for descriptions. */
 function assessCandidateDescription(candidate: string): boolean {
   const len = candidate.length
   if (len < DESCRIPTION_LENGTH.veryShort) return false
   if (detectKeywordStuffing(candidate)) return false
+  const { pixelStatus } = measureDescriptionPixels(candidate)
+  if (pixelStatus === 'too_short' || pixelStatus === 'too_long') return false
   return true
 }
 
@@ -208,17 +221,37 @@ export function attachOnPageSuggestions(
     const needsDescriptionSuggestion = audit.metaDescription.status !== 'good' && audit.metaDescription.status !== 'not_evaluated'
     const needsH1Suggestion = h1NeedsTextSuggestion(audit.h1)
 
+    let metaTitle = audit.metaTitle
+    if (needsTitleSuggestion) {
+      const suggestedValue = generateTitleSuggestion(page, audit.pageName, audit.targetKeyword, options)
+      const { pixelWidth, pixelStatus } = measureTitlePixels(suggestedValue)
+      metaTitle = {
+        ...audit.metaTitle,
+        suggestedValue,
+        suggestedCharacterCount: suggestedValue.trim().length,
+        suggestedPixelWidth: pixelWidth,
+        suggestedPixelStatus: pixelStatus,
+      }
+    }
+
+    let metaDescription = audit.metaDescription
+    if (needsDescriptionSuggestion) {
+      const suggestedValue = generateDescriptionSuggestion(page, audit.pageName, audit.targetKeyword, options)
+      const { pixelWidth, estimatedLines, pixelStatus } = measureDescriptionPixels(suggestedValue)
+      metaDescription = {
+        ...audit.metaDescription,
+        suggestedValue,
+        suggestedCharacterCount: suggestedValue.trim().length,
+        suggestedPixelWidth: pixelWidth,
+        suggestedEstimatedLines: estimatedLines,
+        suggestedPixelStatus: pixelStatus,
+      }
+    }
+
     return {
       ...audit,
-      metaTitle: needsTitleSuggestion
-        ? { ...audit.metaTitle, suggestedValue: generateTitleSuggestion(page, audit.pageName, audit.targetKeyword, options) }
-        : audit.metaTitle,
-      metaDescription: needsDescriptionSuggestion
-        ? {
-            ...audit.metaDescription,
-            suggestedValue: generateDescriptionSuggestion(page, audit.pageName, audit.targetKeyword, options),
-          }
-        : audit.metaDescription,
+      metaTitle,
+      metaDescription,
       h1: needsH1Suggestion
         ? { ...audit.h1, suggestedValue: generateH1Suggestion(page, audit.pageName, audit.targetKeyword, options) }
         : audit.h1,
