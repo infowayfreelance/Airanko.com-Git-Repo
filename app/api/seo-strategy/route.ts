@@ -8,6 +8,7 @@ import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } f
 import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
 import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
+import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
 import type {
   HealthScoreBreakdown,
   KpiTarget,
@@ -281,13 +282,21 @@ type RawAiStrategy = z.infer<typeof strategySchema>
  *   (see lib/seo-strategy/on-page-audit.ts) — the AI never produces these,
  *   it only supplies prose in `pageByPageAudit` that gets cross-checked
  *   against them.
+ * - `onPageOverview`/`onPagePriorityFixes` (Phase 3) are the deterministic
+ *   sitewide on-page report overview + top actionable fixes (see
+ *   lib/seo-strategy/on-page-overview.ts) — pure aggregation/sorting of the
+ *   same onPageAudits/onPageSummary data above; the AI never sees or
+ *   influences these values. `onPageAudits` here carries the deterministic
+ *   per-page `onPageScore`/`onPageScoreStatus` attached by that module.
  */
 export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown' | 'kpiTargets'> & {
   healthScoreBreakdown: HealthScoreBreakdown
   kpiTargets: KpiTarget[]
   keywordPageMappings: KeywordPageMapping[]
-  onPageAudits: PageOnPageAudit[]
+  onPageAudits: PageOnPageAuditWithScore[]
   onPageSummary: OnPageSummary
+  onPageOverview: OnPageOverview
+  onPagePriorityFixes: PriorityFix[]
 }
 
 // ---------------------------------------------------------------------------
@@ -345,10 +354,37 @@ export async function POST(req: Request) {
     // needed for its crawl-wide fields (crawlCoverage, brokenInternalLinks,
     // robotsTxt), which are never touched when there's nothing to crawl.
     const suggestionOptions = { businessName: input.businessName, location: input.location, isLocalBusiness: localCtx.isLocalBusiness }
-    const onPageAudits: PageOnPageAudit[] = analysis
+    const onPageAuditsRaw: PageOnPageAudit[] = analysis
       ? buildFullPageAudits(analysis, pagesForMapping, keywordMappings, analysis.finalUrl, suggestionOptions)
       : []
-    const onPageSummary: OnPageSummary = aggregateFullPageIssues(onPageAudits)
+    const onPageSummary: OnPageSummary = aggregateFullPageIssues(onPageAuditsRaw)
+
+    // Phase 3 — deterministic on-page report overview + priority fix list,
+    // pure aggregation/sorting on top of the Phase 2A/2B audit above. Never
+    // computed by, or shown to, the AI.
+    const onPageAudits: PageOnPageAuditWithScore[] = attachPageScores(onPageAuditsRaw)
+    const onPageOverview: OnPageOverview = analysis
+      ? buildOnPageOverview(analysis, onPageAuditsRaw)
+      : {
+          pagesDiscovered: 0,
+          pagesCrawled: 0,
+          pagesAudited: 0,
+          pagesWithIssues: 0,
+          totalIssues: 0,
+          bySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+          categories: {
+            metaTitle: emptyOnPageCategorySlice(),
+            metaDescription: emptyOnPageCategorySlice(),
+            headings: emptyOnPageCategorySlice(),
+            content: emptyOnPageCategorySlice(),
+            images: emptyOnPageCategorySlice(),
+            internalLinks: emptyOnPageCategorySlice(),
+            technical: emptyOnPageCategorySlice(),
+          },
+          score: 0,
+          scoreStatus: 'critical',
+        }
+    const onPagePriorityFixes: PriorityFix[] = buildPriorityFixes(onPageAuditsRaw)
 
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
@@ -609,6 +645,8 @@ Hard rules — a later automated validation pass checks these and will overwrite
       keywordPageMappings: keywordMappings,
       onPageAudits,
       onPageSummary,
+      onPageOverview,
+      onPagePriorityFixes,
     }
 
     // Contradiction details are diagnostic-only — never exposed to

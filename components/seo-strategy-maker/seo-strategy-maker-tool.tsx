@@ -50,6 +50,9 @@ import {
   Eye,
   EyeOff,
   Undo2,
+  ChevronDown,
+  ChevronUp,
+  Gauge,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,6 +63,9 @@ import { Switch } from '@/components/ui/switch'
 import { Spinner } from '@/components/ui/spinner'
 import type { SeoStrategy } from '@/app/api/seo-strategy/route'
 import type { SiteAnalysis } from '@/app/api/seo-strategy/analyze/route'
+import { SCORE_STATUS_LABEL, type ScoreStatus } from '@/lib/seo-strategy/on-page-score-thresholds'
+import { pageOverallSeverity } from '@/lib/seo-strategy/on-page-overview'
+import type { Severity } from '@/lib/seo-strategy/types'
 
 /**
  * Defensive response parser. When an API route times out or throws an
@@ -860,6 +866,10 @@ function StrategyReport({
   // ----- Edit mode state -----
   const [editMode, setEditMode] = useState(false)
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set())
+  // null = still resolving (show the section while previews load/retry); false = both
+  // mobile and desktop previews failed, so the whole section is hidden — never an
+  // empty "Preview unavailable" card.
+  const [previewAvailable, setPreviewAvailable] = useState<boolean | null>(null)
   const [customNotes, setCustomNotes] = useState<
     { id: string; title: string; body: string }[]
   >([])
@@ -1013,22 +1023,60 @@ function StrategyReport({
           />
         </ReportSection>
 
-        {/* Mobile screenshot */}
+        {/* Phase 3 — On-Page SEO Overview (deterministic, never AI-generated) */}
         <ReportSection
-          {...sectionProps('screenshots')}
-          icon={Smartphone}
-          title="Mobile-Friendliness Preview"
+          {...sectionProps('on-page-overview')}
+          icon={Gauge}
+          title="On-Page SEO Overview"
           kicker="Section 03"
+          description="Sitewide on-page audit stats, health score, and category breakdown — from the structured crawl, not AI narration."
         >
-          <ScreenshotPreview analysis={analysis} />
+          <OnPageOverviewSection overview={strategy.onPageOverview} />
         </ReportSection>
+
+        {/* Phase 3 — Priority On-Page Fixes */}
+        <ReportSection
+          {...sectionProps('priority-fixes')}
+          icon={Target}
+          title="Priority On-Page Fixes"
+          kicker="Section 04"
+          description="The highest-value on-page fixes, sorted by severity and page importance."
+        >
+          <PriorityFixesList fixes={strategy.onPagePriorityFixes} />
+        </ReportSection>
+
+        {/* Page-by-page audit */}
+        <ReportSection
+          {...sectionProps('page-by-page')}
+          icon={ListChecks}
+          title="Page-by-Page Audit"
+          kicker="Section 05"
+          description="Specific recommendations for each crawled page."
+        >
+          <PageByPageAudit pages={strategy.pageByPageAudit} onPageAudits={strategy.onPageAudits} />
+        </ReportSection>
+
+        {/* Mobile screenshot — hidden entirely if both previews fail to load */}
+        {previewAvailable !== false && (
+          <ReportSection
+            {...sectionProps('screenshots')}
+            icon={Smartphone}
+            title="Mobile-Friendliness Preview"
+            kicker="Section 06"
+          >
+            <ScreenshotPreview
+              analysis={analysis}
+              onAvailabilityChange={setPreviewAvailable}
+            />
+          </ReportSection>
+        )}
 
         {/* Critical issues */}
         <ReportSection
           {...sectionProps('critical-issues')}
           icon={AlertTriangle}
           title="Critical Issues"
-          kicker="Section 04"
+          kicker="Section 07"
           description="Top problems hurting rankings right now — fix these first."
         >
           <CriticalIssuesGrid issues={strategy.criticalIssues} />
@@ -1039,7 +1087,7 @@ function StrategyReport({
           {...sectionProps('quick-wins')}
           icon={Zap}
           title="Quick Wins (First 30 Days)"
-          kicker="Section 05"
+          kicker="Section 08"
           description="High-leverage actions you can ship in days, not months."
         >
           <QuickWinsGrid wins={strategy.quickWins} />
@@ -1050,7 +1098,7 @@ function StrategyReport({
           {...sectionProps('technical')}
           icon={Wrench}
           title="Technical SEO Audit"
-          kicker="Section 06"
+          kicker="Section 09"
         >
           <p className="text-muted-foreground mb-6">
             {strategy.technicalSeoAudit.summary}
@@ -1066,20 +1114,9 @@ function StrategyReport({
           {...sectionProps('on-page')}
           icon={FileText}
           title="On-Page SEO Audit"
-          kicker="Section 07"
+          kicker="Section 10"
         >
           <OnPageAudit audit={strategy.onPageAudit} />
-        </ReportSection>
-
-        {/* Page-by-page audit */}
-        <ReportSection
-          {...sectionProps('page-by-page')}
-          icon={ListChecks}
-          title="Page-by-Page Audit"
-          kicker="Section 08"
-          description="Specific recommendations for each crawled page."
-        >
-          <PageByPageAudit pages={strategy.pageByPageAudit} onPageAudits={strategy.onPageAudits} />
         </ReportSection>
 
         {/* Keyword strategy */}
@@ -1087,7 +1124,7 @@ function StrategyReport({
           {...sectionProps('keywords')}
           icon={Search}
           title="Keyword Strategy"
-          kicker="Section 09"
+          kicker="Section 11"
         >
           <p className="text-muted-foreground mb-6">
             {strategy.keywordStrategy.summary}
@@ -1100,7 +1137,7 @@ function StrategyReport({
           {...sectionProps('pages-to-create')}
           icon={PenLine}
           title="Pages to Create"
-          kicker="Section 10"
+          kicker="Section 12"
           description="Content briefs ready to hand to your writers."
         >
           <PagesToCreate pages={strategy.pagesToCreate} />
@@ -1111,7 +1148,7 @@ function StrategyReport({
           {...sectionProps('blog-ideas')}
           icon={Lightbulb}
           title="Blog Content Ideas"
-          kicker="Section 11"
+          kicker="Section 13"
         >
           <BlogIdeas ideas={strategy.blogIdeas} />
         </ReportSection>
@@ -1122,7 +1159,7 @@ function StrategyReport({
             {...sectionProps('competitors')}
             icon={Trophy}
             title="Competitor Analysis"
-            kicker="Section 12"
+            kicker="Section 14"
           >
             <CompetitorAnalysis competitors={strategy.competitorAnalysis} />
           </ReportSection>
@@ -1133,7 +1170,7 @@ function StrategyReport({
           {...sectionProps('local-seo')}
           icon={MapPin}
           title="Local SEO & NAP Consistency"
-          kicker="Section 13"
+          kicker="Section 15"
         >
           <LocalSeoSection data={strategy.localSeo} analysis={analysis} />
         </ReportSection>
@@ -1143,7 +1180,7 @@ function StrategyReport({
           {...sectionProps('off-page')}
           icon={Link2}
           title="Off-Page & Backlink Strategy"
-          kicker="Section 14"
+          kicker="Section 16"
         >
           <OffPageSection data={strategy.offPageStrategy} />
         </ReportSection>
@@ -1153,7 +1190,7 @@ function StrategyReport({
           {...sectionProps('roadmap')}
           icon={MapIcon}
           title="6-Month Roadmap"
-          kicker="Section 15"
+          kicker="Section 17"
           description="What we'll do each month and what you'll achieve."
         >
           <SixMonthRoadmap roadmap={strategy.sixMonthRoadmap} />
@@ -1164,7 +1201,7 @@ function StrategyReport({
           {...sectionProps('kpis')}
           icon={BarChart3}
           title="KPI Targets"
-          kicker="Section 16"
+          kicker="Section 18"
         >
           <KpiTable kpis={strategy.kpiTargets} />
         </ReportSection>
@@ -1174,7 +1211,7 @@ function StrategyReport({
           {...sectionProps('tools')}
           icon={Wrench}
           title="Recommended Tool Stack"
-          kicker="Section 17"
+          kicker="Section 19"
         >
           <ToolStack stack={strategy.toolStack} />
         </ReportSection>
@@ -1184,7 +1221,7 @@ function StrategyReport({
           {...sectionProps('risks')}
           icon={ShieldCheck}
           title="Risk Assessment"
-          kicker="Section 18"
+          kicker="Section 20"
         >
           <RiskAssessment risks={strategy.riskAssessment} />
         </ReportSection>
@@ -1548,25 +1585,47 @@ function HealthScoreCard({
   )
 }
 
-function ScreenshotPreview({ analysis }: { analysis: SiteAnalysis }) {
+/** Hides individual preview frames as soon as they fail, and reports up (via onAvailabilityChange) whether ANY preview is available so the caller can hide the whole "Mobile-Friendliness Preview" section when both fail — never show an empty "Preview unavailable / Retry" card. */
+function ScreenshotPreview({
+  analysis,
+  onAvailabilityChange,
+}: {
+  analysis: SiteAnalysis
+  onAvailabilityChange?: (available: boolean) => void
+}) {
+  const [mobileOk, setMobileOk] = useState<boolean | null>(null)
+  const [desktopOk, setDesktopOk] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (mobileOk === null || desktopOk === null) return // still resolving — don't decide yet
+    onAvailabilityChange?.(mobileOk || desktopOk)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileOk, desktopOk])
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      <ScreenshotFrame
-        label="Mobile (414px)"
-        icon={Smartphone}
-        src={analysis.mobileScreenshotUrl}
-        alt={`Mobile screenshot of ${analysis.domain}`}
-        domain={analysis.domain}
-        finalUrl={analysis.finalUrl}
-      />
-      <ScreenshotFrame
-        label="Desktop (1280px)"
-        icon={Monitor}
-        src={analysis.desktopScreenshotUrl}
-        alt={`Desktop screenshot of ${analysis.domain}`}
-        domain={analysis.domain}
-        finalUrl={analysis.finalUrl}
-      />
+      {mobileOk !== false && (
+        <ScreenshotFrame
+          label="Mobile (414px)"
+          icon={Smartphone}
+          src={analysis.mobileScreenshotUrl}
+          alt={`Mobile screenshot of ${analysis.domain}`}
+          domain={analysis.domain}
+          finalUrl={analysis.finalUrl}
+          onResolved={setMobileOk}
+        />
+      )}
+      {desktopOk !== false && (
+        <ScreenshotFrame
+          label="Desktop (1280px)"
+          icon={Monitor}
+          src={analysis.desktopScreenshotUrl}
+          alt={`Desktop screenshot of ${analysis.domain}`}
+          domain={analysis.domain}
+          finalUrl={analysis.finalUrl}
+          onResolved={setDesktopOk}
+        />
+      )}
     </div>
   )
 }
@@ -1578,6 +1637,7 @@ function ScreenshotFrame({
   alt,
   domain,
   finalUrl,
+  onResolved,
 }: {
   label: string
   icon: React.ComponentType<{ className?: string }>
@@ -1585,6 +1645,7 @@ function ScreenshotFrame({
   alt: string
   domain: string
   finalUrl: string
+  onResolved?: (ok: boolean) => void
 }) {
   // Cache-bust attempts — mshots returns a placeholder (1x1 or "loading" image)
   // until the screenshot is generated, so we retry up to 4 times with a delay.
@@ -1606,6 +1667,16 @@ function ScreenshotFrame({
   }, [status, attempt])
 
   const cacheBustedSrc = `${src}${src.includes('?') ? '&' : '?'}r=${attempt}`
+
+  React.useEffect(() => {
+    if (status === 'ready') onResolved?.(true)
+    if (status === 'failed') onResolved?.(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status])
+
+  // The parent (ScreenshotPreview) unmounts this frame once onResolved(false)
+  // fires — never render an empty "Preview unavailable / Retry" card here.
+  if (status === 'failed') return null
 
   return (
     <div className="rounded-xl border overflow-hidden bg-muted/30">
@@ -1633,26 +1704,7 @@ function ScreenshotFrame({
             </span>
           </div>
         )}
-        {status === 'failed' ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-              <ImageIcon className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="text-sm text-muted-foreground max-w-xs">
-              Preview unavailable. The site may block screenshot services.
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setStatus('loading')
-                setAttempt(0)
-              }}
-            >
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry
-            </Button>
-          </div>
-        ) : (
+        {
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             key={attempt}
@@ -1684,7 +1736,7 @@ function ScreenshotFrame({
               }
             }}
           />
-        )}
+        }
       </div>
     </div>
   )
@@ -1967,6 +2019,226 @@ function OnPageAudit({ audit }: { audit: SeoStrategy['onPageAudit'] }) {
   )
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 3 — On-Page SEO Overview + Priority Fixes. Every number rendered
+// below comes straight from SeoStrategy.onPageOverview / onPagePriorityFixes
+// / onPageAudits (lib/seo-strategy/on-page-overview.ts) — this file never
+// recalculates severity, counts, or scores itself, only presents them.
+// ──────────────────────────────────────────────────────────────────────────
+const SEVERITY_BADGE_CLS: Record<Severity, string> = {
+  critical: 'bg-destructive/10 text-destructive border-destructive/30',
+  high: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30',
+  medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  low: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30',
+  info: 'bg-muted text-muted-foreground border-border',
+  pass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  not_evaluated: 'bg-muted text-muted-foreground border-border',
+}
+const SEVERITY_LABEL: Record<Severity, string> = {
+  critical: 'Critical',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+  info: 'Info',
+  pass: 'Good',
+  not_evaluated: 'Not Evaluated',
+}
+
+function SeverityBadge({ severity }: { severity: Severity }) {
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${SEVERITY_BADGE_CLS[severity]}`}>
+      {SEVERITY_LABEL[severity]}
+    </span>
+  )
+}
+
+const SCORE_STATUS_CLS: Record<ScoreStatus, string> = {
+  excellent: 'text-emerald-600 dark:text-emerald-400',
+  good: 'text-emerald-600 dark:text-emerald-400',
+  needs_improvement: 'text-amber-600 dark:text-amber-400',
+  poor: 'text-orange-600 dark:text-orange-400',
+  critical: 'text-destructive',
+}
+
+const SCORE_STATUS_BAR_CLS: Record<ScoreStatus, string> = {
+  excellent: 'bg-emerald-500',
+  good: 'bg-emerald-500',
+  needs_improvement: 'bg-amber-500',
+  poor: 'bg-orange-500',
+  critical: 'bg-destructive',
+}
+
+function ScoreStatusBadge({ status }: { status: ScoreStatus }) {
+  return (
+    <span
+      className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap bg-current/10 border-current/30 ${SCORE_STATUS_CLS[status]}`}
+    >
+      {SCORE_STATUS_LABEL[status]}
+    </span>
+  )
+}
+
+/** One sitewide "N Pages / N Issues"-style stat used in the overview's top stat grid. */
+function OverviewStat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-lg border bg-muted/20 p-3 text-center">
+      <div className="text-2xl font-bold tabular-nums">{value}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">{label}</div>
+    </div>
+  )
+}
+
+/** Sitewide Critical/High/Medium/Low counts, always in that order — reused by the overview header and every category card. */
+function SeverityBreakdownRow({ bySeverity }: { bySeverity: { critical: number; high: number; medium: number; low: number } }) {
+  const entries: { severity: Severity; count: number }[] = (
+    [
+      { severity: 'critical', count: bySeverity.critical },
+      { severity: 'high', count: bySeverity.high },
+      { severity: 'medium', count: bySeverity.medium },
+      { severity: 'low', count: bySeverity.low },
+    ] satisfies { severity: Severity; count: number }[]
+  ).filter((e) => e.count > 0)
+  if (entries.length === 0) {
+    return <SeverityBadge severity="pass" />
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {entries.map((e) => (
+        <span
+          key={e.severity}
+          className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${SEVERITY_BADGE_CLS[e.severity]}`}
+        >
+          {e.count} {SEVERITY_LABEL[e.severity]}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+const CATEGORY_CARD_META: {
+  key: keyof SeoStrategy['onPageOverview']['categories']
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}[] = [
+  { key: 'metaTitle', label: 'Meta Titles', icon: FileText },
+  { key: 'metaDescription', label: 'Meta Descriptions', icon: FileText },
+  { key: 'headings', label: 'Headings', icon: ListChecks },
+  { key: 'content', label: 'Content', icon: ClipboardList },
+  { key: 'images', label: 'Images', icon: ImageIcon },
+  { key: 'internalLinks', label: 'Internal Linking', icon: Link2 },
+  { key: 'technical', label: 'Technical', icon: Wrench },
+]
+
+/** One compact category card — affected-page + issue counts + severity breakdown, straight from OnPageOverview.categories. */
+function CategorySummaryCard({
+  label,
+  icon: Icon,
+  slice,
+}: {
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  slice: SeoStrategy['onPageOverview']['categories'][keyof SeoStrategy['onPageOverview']['categories']]
+}) {
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold">{label}</span>
+      </div>
+      {slice.affectedPages === 0 ? (
+        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          No issues found
+        </div>
+      ) : (
+        <>
+          <div className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{slice.affectedPages}</span> page{slice.affectedPages === 1 ? '' : 's'} affected
+            {' · '}
+            <span className="font-semibold text-foreground">{slice.issueCount}</span> issue{slice.issueCount === 1 ? '' : 's'}
+          </div>
+          <SeverityBreakdownRow bySeverity={slice.bySeverity} />
+        </>
+      )}
+    </div>
+  )
+}
+
+/** Sitewide "On-Page SEO Overview" section — every number sourced from SeoStrategy.onPageOverview, never recalculated here. */
+function OnPageOverviewSection({ overview }: { overview: SeoStrategy['onPageOverview'] }) {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <OverviewStat label="URLs Discovered" value={overview.pagesDiscovered} />
+        <OverviewStat label="Pages Crawled" value={overview.pagesCrawled} />
+        <OverviewStat label="Pages Audited" value={overview.pagesAudited} />
+        <OverviewStat label="Pages With Issues" value={overview.pagesWithIssues} />
+        <OverviewStat label="Total Issues" value={overview.totalIssues} />
+      </div>
+
+      <div className="rounded-xl border bg-muted/20 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <Gauge className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">On-Page Health Score</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-2xl font-bold tabular-nums ${SCORE_STATUS_CLS[overview.scoreStatus]}`}>{overview.score}</span>
+            <span className="text-sm text-muted-foreground">/ 100</span>
+            <ScoreStatusBadge status={overview.scoreStatus} />
+          </div>
+        </div>
+        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full ${SCORE_STATUS_BAR_CLS[overview.scoreStatus]}`}
+            style={{ width: `${Math.max(2, overview.score)}%` }}
+          />
+        </div>
+        <div className="mt-3">
+          <SeverityBreakdownRow bySeverity={overview.bySeverity} />
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {CATEGORY_CARD_META.map(({ key, label, icon }) => (
+          <CategorySummaryCard key={key} label={label} icon={icon} slice={overview.categories[key]} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** "Priority On-Page Fixes" — top 5-10 highest-value items, already sorted deterministically by lib/seo-strategy/on-page-overview.ts. Never reordered here. */
+function PriorityFixesList({ fixes }: { fixes: SeoStrategy['onPagePriorityFixes'] }) {
+  if (fixes.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="h-4 w-4" />
+        No high-priority on-page fixes — everything checked out well.
+      </div>
+    )
+  }
+  return (
+    <ol className="space-y-2">
+      {fixes.map((f, i) => (
+        <li key={`${f.url}-${f.category}-${i}`} className="rounded-lg border bg-card p-3 flex items-start gap-3">
+          <span className="text-xs font-semibold text-muted-foreground shrink-0 mt-0.5 w-5 text-right">{i + 1}.</span>
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <SeverityBadge severity={f.severity} />
+              <Badge variant="outline" className="text-xs">
+                {f.category}
+              </Badge>
+              <span className="text-xs text-muted-foreground truncate">{f.pageName}</span>
+            </div>
+            <p className="text-sm text-pretty">{f.fix}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 /** Small status pill for the deterministic on-page audit fields (title/description/H1/headings) — reuses the same visual language as PriorityBadge/StatusIcon rather than introducing a new pattern. */
 function OnPageStatusPill({ status }: { status: 'good' | 'needs_improvement' | 'poor' | 'not_evaluated' }) {
   const cls = {
@@ -2024,6 +2296,94 @@ function OnPageFieldBlock({
   )
 }
 
+/**
+ * Custom always-mounted collapse (not Radix Accordion, which unmounts closed
+ * content and would break `window.print()` export) — the body stays in the
+ * DOM at all times; only its on-screen visibility toggles. `print:block!`
+ * force-shows every card's content when printing/exporting to PDF,
+ * regardless of its on-screen collapsed state, so nothing important is
+ * missing from the exported report.
+ */
+function CollapsiblePageCard({
+  pageName,
+  url,
+  targetKeyword,
+  score,
+  scoreStatus,
+  severity,
+  defaultExpanded,
+  children,
+}: {
+  pageName: string
+  url: string
+  targetKeyword: string | null
+  score: number | null
+  scoreStatus: ScoreStatus | null
+  severity: Severity
+  defaultExpanded: boolean
+  children: React.ReactNode
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden print:break-inside-avoid">
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="w-full px-5 py-3 border-b bg-muted/30 flex items-center gap-2 text-left print:pointer-events-none"
+        aria-expanded={expanded}
+      >
+        <Globe className="h-4 w-4 text-primary shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold truncate">{pageName}</span>
+            <SeverityBadge severity={severity} />
+            {targetKeyword && (
+              <Badge variant="outline" className="text-xs">
+                {targetKeyword}
+              </Badge>
+            )}
+          </div>
+          <code className="text-xs text-muted-foreground truncate block">{url}</code>
+        </div>
+        {score !== null && scoreStatus !== null && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`text-sm font-bold tabular-nums ${SCORE_STATUS_CLS[scoreStatus]}`}>{score}</span>
+            <span className="text-xs text-muted-foreground">/100</span>
+          </div>
+        )}
+        <span className="print:hidden shrink-0">
+          {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </span>
+      </button>
+      <div className={expanded ? 'block' : 'hidden print:block!'}>{children}</div>
+    </div>
+  )
+}
+
+/** Compact Good / Needs Improvement / Poor / Critical / Not Evaluated status table per page — simple statuses only, no vague labels. Every value is read straight from the deterministic audit, never recalculated here. */
+function PageStatusTable({ onPage }: { onPage: SeoStrategy['onPageAudits'][number] }) {
+  const rows: { label: string; status: 'good' | 'needs_improvement' | 'poor' | 'not_evaluated' }[] = [
+    { label: 'Meta Title', status: onPage.metaTitle.status },
+    { label: 'Meta Description', status: onPage.metaDescription.status },
+    { label: 'H1', status: onPage.h1.status },
+    { label: 'Headings', status: onPage.headings.status },
+    { label: 'Content', status: onPage.content.status },
+    { label: 'Images', status: onPage.images.status },
+    { label: 'Internal Linking', status: onPage.internalLinks.status },
+    { label: 'Technical', status: onPage.technicalOnPage.status },
+  ]
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {rows.map((r) => (
+        <div key={r.label} className="rounded-lg border bg-muted/20 p-2 flex flex-col gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate">{r.label}</span>
+          <OnPageStatusPill status={r.status} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function PageByPageAudit({
   pages,
   onPageAudits,
@@ -2036,19 +2396,24 @@ function PageByPageAudit({
     <div className="space-y-4">
       {pages.map((p, i) => {
         const onPage = onPageByUrl.get(p.url)
+        // Expanded by default for pages with Critical/High findings; collapsed
+        // (but never removed from the DOM, so print/export still shows
+        // everything) for Medium/Low/Good pages — per the Phase 3 spec.
+        const overallSeverity = onPage ? pageOverallSeverity(onPage) : 'not_evaluated'
+        const defaultExpanded = overallSeverity === 'critical' || overallSeverity === 'high'
         return (
-        <div
-          key={i}
-          className="rounded-xl border bg-card overflow-hidden print:break-inside-avoid"
-        >
-          <div className="px-5 py-3 border-b bg-muted/30 flex items-center gap-2">
-            <Globe className="h-4 w-4 text-primary shrink-0" />
-            <code className="text-sm font-mono truncate">{p.url}</code>
-            <Badge variant="outline" className="ml-auto shrink-0 text-xs">
-              {p.primaryKeyword}
-            </Badge>
-          </div>
+          <CollapsiblePageCard
+            key={i}
+            pageName={onPage?.pageName ?? p.url}
+            url={p.url}
+            targetKeyword={onPage?.targetKeyword ?? null}
+            score={onPage?.onPageScore ?? null}
+            scoreStatus={onPage?.onPageScoreStatus ?? null}
+            severity={overallSeverity}
+            defaultExpanded={defaultExpanded}
+          >
           <div className="p-5 space-y-4">
+            {onPage && <PageStatusTable onPage={onPage} />}
             <div className="grid md:grid-cols-2 gap-4">
               {onPage ? (
                 <OnPageFieldBlock
@@ -2172,7 +2537,7 @@ function PageByPageAudit({
               </div>
             </div>
           </div>
-        </div>
+          </CollapsiblePageCard>
         )
       })}
     </div>
