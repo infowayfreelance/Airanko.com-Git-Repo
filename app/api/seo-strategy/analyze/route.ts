@@ -175,6 +175,14 @@ export interface SiteAnalysis {
    * reach everywhere.
    */
   crawlCoverage: 'full' | 'partial'
+  /**
+   * Total unique internal URLs discovered during the crawl (homepage + every
+   * unique internal link found on it), before the crawl's page-count cap is
+   * applied — always >= pages.length + 1 (homepage). Used only for the
+   * on-page report overview's "URLs discovered" stat; never used to imply
+   * every discovered URL was actually audited.
+   */
+  discoveredUrlCount: number
 }
 
 // ---------------------------------------------------------------------------
@@ -957,6 +965,7 @@ export async function POST(req: Request) {
       technicalSummary,
       brokenInternalLinks,
       crawlCoverage,
+      discoveredUrlCount: internalLinks.length + 1,
     }
 
     return Response.json({ analysis })
