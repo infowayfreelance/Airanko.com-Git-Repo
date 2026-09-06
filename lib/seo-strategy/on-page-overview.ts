@@ -83,33 +83,54 @@ export function emptyOnPageCategorySlice(): OnPageCategorySlice {
 }
 const emptySlice = emptyOnPageCategorySlice
 
+/**
+ * Only critical/high/medium/low ever count toward affectedPages/issueCount/
+ * bySeverity — 'info' (e.g. Twitter Card falling back to Open Graph),
+ * 'pass', and 'not_evaluated' are not findings and must never be counted as
+ * one in one place (issueCount) while silently dropped in another
+ * (bySeverity), which would break the "bySeverity sums to issueCount"
+ * invariant. Mirrors the same exclusion list already used by
+ * on-page-audit.ts's addToSummary().
+ */
+function isCountableIssueSeverity(severity: Severity): boolean {
+  return severity === 'critical' || severity === 'high' || severity === 'medium' || severity === 'low'
+}
+
 /** Adds `count` raw issues (already known to share `severity`, the category's own worst-issue severity) into a running severity tally — used for both the per-category and sitewide breakdowns so the two always stay consistent. */
 function addSeverityCount(
   bySeverity: { critical: number; high: number; medium: number; low: number },
   severity: Severity,
   count: number,
 ): void {
-  if (count <= 0) return
+  if (count <= 0 || !isCountableIssueSeverity(severity)) return
   if (severity === 'critical') bySeverity.critical += count
   else if (severity === 'high') bySeverity.high += count
   else if (severity === 'medium') bySeverity.medium += count
-  else if (severity === 'low') bySeverity.low += count
-  // 'info' / 'pass' / 'not_evaluated' issues never reach this — categories
-  // only carry a non-empty issues[] when there's something to report.
+  else bySeverity.low += count
 }
 
-/** Records one category's issues on one page into both that category's slice and the sitewide severity tally, in one call so the two can never drift apart. */
+/** Records one category's issues on one page into both that category's slice and the sitewide severity tally, in one call so the two can never drift apart. Issues whose severity isn't a real finding (info/pass/not_evaluated) never count toward affectedPages or issueCount either — see isCountableIssueSeverity(). */
 function accumulateSlice(
   slice: OnPageCategorySlice,
   bySeverity: OnPageOverview['bySeverity'],
   severity: Severity,
   issueLength: number,
 ): void {
-  if (issueLength <= 0) return
+  if (issueLength <= 0 || !isCountableIssueSeverity(severity)) return
   slice.affectedPages += 1
   slice.issueCount += issueLength
   addSeverityCount(slice.bySeverity, severity, issueLength)
   addSeverityCount(bySeverity, severity, issueLength)
+}
+
+/** Total raw issue count across a page's flagged images — each ImageIssueDetail can itself carry multiple findings (missing alt, oversized, legacy format, weak filename, …), so the count is the sum of each entry's own `issues.length`, never the number of flagged images. */
+function countImageIssues(images: PageOnPageAudit['images']): number {
+  return images.issues.reduce((sum, detail) => sum + detail.issues.length, 0)
+}
+
+/** The indexability sub-check always populates `reasons` with exactly one entry — including the positive "No blocking directive found…" reason on a pass, and a "couldn't be evaluated" reason when not_evaluated — so its raw count only reflects a real finding when its severity is one of critical/high/medium/low. */
+function countIndexabilityIssues(indexability: PageOnPageAudit['technicalOnPage']['indexability']): number {
+  return isCountableIssueSeverity(indexability.severity) ? indexability.reasons.length : 0
 }
 
 export function buildOnPageOverview(analysis: SiteAnalysis, audits: PageOnPageAudit[]): OnPageOverview {
@@ -157,9 +178,12 @@ export function buildOnPageOverview(analysis: SiteAnalysis, audits: PageOnPageAu
     }
 
     // Images — issues[] is ImageIssueDetail[] (one entry per flagged image),
-    // so its length is already a per-image raw issue count.
-    if (a.images.issues.length > 0) {
-      accumulateSlice(categories.images, bySeverity, a.images.severity, a.images.issues.length)
+    // and each entry can itself carry several findings (missing alt,
+    // oversized, legacy format, weak filename, …) — count them all, not
+    // just the number of flagged images.
+    const imageIssueCount = countImageIssues(a.images)
+    if (imageIssueCount > 0) {
+      accumulateSlice(categories.images, bySeverity, a.images.severity, imageIssueCount)
       pageHasIssue = true
     }
 
@@ -168,28 +192,29 @@ export function buildOnPageOverview(analysis: SiteAnalysis, audits: PageOnPageAu
       pageHasIssue = true
     }
 
-    // Technical — sum of its 7 sub-checks' own issues[] arrays.
+    // Technical — sum of its 7 sub-checks' own issues[] arrays. Each pair is
+    // filtered through isCountableIssueSeverity() inside addSeverityCount()/
+    // accumulateSlice() (indexability's `reasons` in particular always has
+    // one entry even on a pass, via countIndexabilityIssues()), so an
+    // info/pass/not_evaluated sub-check never inflates the technical count.
     const tech = a.technicalOnPage
-    const techIssueCount =
-      tech.canonical.issues.length +
-      tech.indexability.reasons.length +
-      tech.statusCode.issues.length +
-      tech.schema.issues.length +
-      tech.openGraph.issues.length +
-      tech.twitter.issues.length +
-      tech.urlStructure.issues.length
+    const techSubChecks: [Severity, number][] = [
+      [tech.canonical.severity, tech.canonical.issues.length],
+      [tech.indexability.severity, countIndexabilityIssues(tech.indexability)],
+      [tech.statusCode.severity, tech.statusCode.issues.length],
+      [tech.schema.severity, tech.schema.issues.length],
+      [tech.openGraph.severity, tech.openGraph.issues.length],
+      [tech.twitter.severity, tech.twitter.issues.length],
+      [tech.urlStructure.severity, tech.urlStructure.issues.length],
+    ]
+    const techIssueCount = techSubChecks.reduce(
+      (sum, [severity, count]) => sum + (isCountableIssueSeverity(severity) ? count : 0),
+      0,
+    )
     if (techIssueCount > 0) {
       categories.technical.affectedPages += 1
       categories.technical.issueCount += techIssueCount
-      for (const [severity, count] of [
-        [tech.canonical.severity, tech.canonical.issues.length],
-        [tech.indexability.severity, tech.indexability.reasons.length],
-        [tech.statusCode.severity, tech.statusCode.issues.length],
-        [tech.schema.severity, tech.schema.issues.length],
-        [tech.openGraph.severity, tech.openGraph.issues.length],
-        [tech.twitter.severity, tech.twitter.issues.length],
-        [tech.urlStructure.severity, tech.urlStructure.issues.length],
-      ] as [Severity, number][]) {
+      for (const [severity, count] of techSubChecks) {
         addSeverityCount(categories.technical.bySeverity, severity, count)
         addSeverityCount(bySeverity, severity, count)
       }
@@ -323,7 +348,14 @@ export function buildPriorityFixes(audits: PageOnPageAudit[]): PriorityFix[] {
     pushCategoryFixes(candidates, a, 'H1', a.h1.severity, a.h1.issues.length, a.h1.issues[0] ?? '')
     pushCategoryFixes(candidates, a, 'Heading Structure', a.headings.severity, a.headings.issues.length, a.headings.issues[0] ?? '')
     pushCategoryFixes(candidates, a, 'Content', a.content.severity, a.content.issues.length, a.content.issues[0] ?? '')
-    pushCategoryFixes(candidates, a, 'Images', a.images.severity, a.images.issues.length, a.images.issues[0]?.issues[0] ?? 'Fix flagged images.')
+    pushCategoryFixes(
+      candidates,
+      a,
+      'Images',
+      a.images.severity,
+      countImageIssues(a.images),
+      a.images.issues[0]?.issues[0] ?? 'Fix flagged images.',
+    )
     pushCategoryFixes(
       candidates,
       a,
@@ -333,23 +365,25 @@ export function buildPriorityFixes(audits: PageOnPageAudit[]): PriorityFix[] {
       a.internalLinks.issues[0] ?? '',
     )
     const tech = a.technicalOnPage
-    const techIssue =
-      tech.canonical.issues[0] ??
-      tech.indexability.reasons[0] ??
-      tech.statusCode.issues[0] ??
-      tech.schema.issues[0] ??
-      tech.openGraph.issues[0] ??
-      tech.twitter.issues[0] ??
-      tech.urlStructure.issues[0] ??
-      ''
-    const techIssueCount =
-      tech.canonical.issues.length +
-      tech.indexability.reasons.length +
-      tech.statusCode.issues.length +
-      tech.schema.issues.length +
-      tech.openGraph.issues.length +
-      tech.twitter.issues.length +
-      tech.urlStructure.issues.length
+    // Pick the fix text from whichever sub-check actually carries `tech.severity`
+    // (its worst finding) — not just the first sub-check with any array
+    // content, which can be a pass-state reason (e.g. indexability's "No
+    // blocking directive found…") that outranks a real medium/high issue.
+    const techSubChecksForFix: { severity: Severity; text: string | undefined; count: number }[] = [
+      { severity: tech.canonical.severity, text: tech.canonical.issues[0], count: tech.canonical.issues.length },
+      { severity: tech.indexability.severity, text: tech.indexability.reasons[0], count: countIndexabilityIssues(tech.indexability) },
+      { severity: tech.statusCode.severity, text: tech.statusCode.issues[0], count: tech.statusCode.issues.length },
+      { severity: tech.schema.severity, text: tech.schema.issues[0], count: tech.schema.issues.length },
+      { severity: tech.openGraph.severity, text: tech.openGraph.issues[0], count: tech.openGraph.issues.length },
+      { severity: tech.twitter.severity, text: tech.twitter.issues[0], count: tech.twitter.issues.length },
+      { severity: tech.urlStructure.severity, text: tech.urlStructure.issues[0], count: tech.urlStructure.issues.length },
+    ]
+    const techIssueCount = techSubChecksForFix.reduce(
+      (sum, s) => sum + (isCountableIssueSeverity(s.severity) ? s.count : 0),
+      0,
+    )
+    const worstTechSubCheck = techSubChecksForFix.find((s) => s.severity === tech.severity && s.text)
+    const techIssue = worstTechSubCheck?.text ?? techSubChecksForFix.find((s) => isCountableIssueSeverity(s.severity) && s.text)?.text ?? ''
     pushCategoryFixes(candidates, a, 'Technical', tech.severity, techIssueCount, techIssue)
   }
 

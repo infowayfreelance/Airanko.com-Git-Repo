@@ -829,10 +829,13 @@ export async function POST(req: Request) {
       home.headers['x-robots-tag'] ?? null,
     )
 
-    // Discover internal links from homepage
-    const internalLinks = extractInternalLinks(home.html, finalBase)
-      .filter((u) => u !== finalUrl)
-      .slice(0, 12)
+    // Discover internal links from homepage. `allDiscoveredLinks` is kept
+    // uncapped for the report's "URLs discovered" stat — `internalLinks`
+    // itself is capped to bound how many pages get crawled below, and using
+    // its already-capped length would understate discovery on any site with
+    // more than 12 internal links found on the homepage.
+    const allDiscoveredLinks = extractInternalLinks(home.html, finalBase).filter((u) => u !== finalUrl)
+    const internalLinks = allDiscoveredLinks.slice(0, 12)
 
     // Crawl up to 8 internal pages in parallel
     const toCrawl = internalLinks.slice(0, 8)
@@ -965,7 +968,7 @@ export async function POST(req: Request) {
       technicalSummary,
       brokenInternalLinks,
       crawlCoverage,
-      discoveredUrlCount: internalLinks.length + 1,
+      discoveredUrlCount: allDiscoveredLinks.length + 1,
     }
 
     return Response.json({ analysis })
