@@ -477,3 +477,30 @@ export function runSerpPixelContradictionChecks(onPageAudits: PageOnPageAudit[])
   }
   return contradictions
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 5 — crawl coverage. The AI's technicalSeoAudit.summary must never
+// claim complete/full-site coverage when the deterministic crawl actually
+// skipped discovered URLs (bounded crawl limits — see analyze/route.ts).
+// Logged only, like the other narrative checks above — safely rewriting
+// free-form AI prose isn't possible without another generation pass.
+// ─────────────────────────────────────────────────────────────────────────
+const FULL_COVERAGE_CLAIM_RE = /entire site|full site (audit|crawl)|every page (was|has been) (crawled|audited)|all pages (were|have been) (crawled|audited)|whole website was (crawled|audited)/i
+
+export interface CrawlCoverageNarrativeLike {
+  technicalSeoAudit: { summary: string }
+}
+
+export function runCrawlCoverageContradictionChecks(strategy: CrawlCoverageNarrativeLike, analysis: SiteAnalysis | null): string[] {
+  const contradictions: string[] = []
+  if (analysis && analysis.crawlStats.excluded > 0 && FULL_COVERAGE_CLAIM_RE.test(strategy.technicalSeoAudit.summary)) {
+    contradictions.push(
+      `technicalSeoAudit.summary claims the entire site/full site was crawled, but ${analysis.crawlStats.excluded} discovered URL(s) were not attempted (crawl mode: ${analysis.crawlMode}) — this was a partial crawl.`,
+    )
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Crawl coverage contradiction checker found the following:', contradictions)
+  }
+  return contradictions
+}

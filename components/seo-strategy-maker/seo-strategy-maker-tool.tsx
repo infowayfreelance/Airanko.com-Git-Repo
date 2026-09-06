@@ -122,6 +122,8 @@ interface FormData {
   location: string
   industry: string
   notes: string
+  /** Phase 5 — 'quick' = a handful of important pages, bounded low; 'full' = prefers the XML sitemap (bounded higher) for a more complete crawl. Never silently claimed as "full site audit" when it isn't — see analyze/route.ts's crawlStats. */
+  crawlMode: 'quick' | 'full'
 }
 
 const initialForm: FormData = {
@@ -134,6 +136,7 @@ const initialForm: FormData = {
   location: '',
   industry: '',
   notes: '',
+  crawlMode: 'quick',
 }
 
 const STEPS = [
@@ -183,12 +186,16 @@ export default function SeoStrategyMakerTool() {
     try {
       // Phase 1: analyze site
       setPhase('analyzing')
-      setProgressMsg('Crawling your website and analyzing pages…')
+      setProgressMsg(
+        form.crawlMode === 'full'
+          ? 'Crawling your full site (via sitemap where available) and analyzing pages…'
+          : 'Crawling your website and analyzing pages…',
+      )
 
       const analyzeRes = await fetch('/api/seo-strategy/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ websiteUrl: form.websiteUrl }),
+        body: JSON.stringify({ websiteUrl: form.websiteUrl, crawlMode: form.crawlMode }),
       })
       const analyzeData = await safeReadJson(analyzeRes, 'analyze the website')
       if (!analyzeRes.ok) {
@@ -544,6 +551,32 @@ function Step1({
             We&apos;ll automatically discover and analyze your internal pages,
             meta tags, schema markup, sitemap, robots.txt and more.
           </p>
+        </div>
+
+        <div className="md:col-span-2">
+          <Label className="mb-2 block">Crawl Depth</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, crawlMode: 'quick' }))}
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                form.crawlMode === 'quick' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'hover:bg-muted/50'
+              }`}
+            >
+              <div className="text-sm font-semibold">Quick Audit</div>
+              <div className="text-xs text-muted-foreground mt-0.5">A handful of your most important pages — fast, good for a first look.</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, crawlMode: 'full' }))}
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                form.crawlMode === 'full' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'hover:bg-muted/50'
+              }`}
+            >
+              <div className="text-sm font-semibold">Full Site Audit</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Prefers your XML sitemap to reach more pages, within safe crawl limits — slower, more thorough.</div>
+            </button>
+          </div>
         </div>
 
         <div>
@@ -1104,7 +1137,7 @@ function StrategyReport({
           <p className="text-muted-foreground mb-6">
             {strategy.technicalSeoAudit.summary}
           </p>
-          <TechnicalSummary analysis={analysis} />
+          <TechnicalSummary analysis={analysis} crawlSummary={strategy.technicalCrawlSummary} />
           <div className="mt-6">
             <TechnicalChecklist items={strategy.technicalSeoAudit.checklist} />
           </div>
@@ -1821,7 +1854,106 @@ function QuickWinsGrid({ wins }: { wins: SeoStrategy['quickWins'] }) {
   )
 }
 
-function TechnicalSummary({ analysis }: { analysis: SiteAnalysis }) {
+/** Phase 5 — sitewide crawl coverage + sitemap health, straight from SeoStrategy.technicalCrawlSummary / SiteAnalysis.sitemapAudit. Never recalculated here — this is presentation only. */
+function CrawlCoverageBlock({ analysis, crawlSummary }: { analysis: SiteAnalysis; crawlSummary: SeoStrategy['technicalCrawlSummary'] }) {
+  const isPartial = crawlSummary.excluded > 0
+  return (
+    <div className="rounded-xl border bg-muted/20 p-4 space-y-3 print:break-inside-avoid">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Globe className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold">Crawl Coverage</span>
+          <Badge variant="outline" className="text-xs">
+            {analysis.crawlMode === 'full' ? 'Full Site Audit' : 'Quick Audit'}
+          </Badge>
+        </div>
+        <span
+          className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${
+            isPartial
+              ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
+              : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+          }`}
+        >
+          {isPartial ? 'Partial crawl' : 'Full crawl'}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+        {[
+          { label: 'Discovered', value: crawlSummary.discovered },
+          { label: 'Crawled', value: crawlSummary.crawled },
+          { label: 'Failed', value: crawlSummary.failed },
+          { label: 'Redirected', value: crawlSummary.redirected },
+          { label: 'Excluded', value: crawlSummary.excluded },
+          { label: 'Audited', value: crawlSummary.audited },
+        ].map((s) => (
+          <div key={s.label} className="rounded-lg border bg-card p-2">
+            <div className="text-lg font-bold tabular-nums">{s.value}</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">{crawlSummary.coverageNote}</p>
+    </div>
+  )
+}
+
+const SITEMAP_ISSUE_LABEL: Record<SiteAnalysis['sitemapAudit'] extends { flaggedUrls: { issue: infer U }[] } | null ? U : never, string> = {
+  unreachable: 'Unreachable',
+  redirect: 'Redirects',
+  client_error: 'Client Error (4xx)',
+  server_error: 'Server Error (5xx)',
+  noindex_in_sitemap: 'Noindex in Sitemap',
+  blocked_by_robots: 'Blocked by robots.txt',
+  canonical_mismatch: 'Canonical Mismatch',
+}
+
+/** Phase 5 — XML sitemap audit: exact affected URLs, not just an aggregate count. */
+function SitemapAuditBlock({ sitemapAudit }: { sitemapAudit: NonNullable<SiteAnalysis['sitemapAudit']> }) {
+  const { totalUrls, checkedUrls, valid200, redirects, clientErrors, serverErrors, notCrawledCount, flaggedUrls } = sitemapAudit
+  return (
+    <div className="rounded-xl border bg-muted/20 p-4 space-y-3 print:break-inside-avoid">
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold">XML Sitemap Audit</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {totalUrls} URL{totalUrls === 1 ? '' : 's'} in the sitemap · {checkedUrls} status-checked · {notCrawledCount} not reached by this crawl.
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+        {[
+          { label: 'Valid (200)', value: valid200 },
+          { label: 'Redirects', value: redirects },
+          { label: '4xx', value: clientErrors },
+          { label: '5xx', value: serverErrors },
+        ].map((s) => (
+          <div key={s.label} className="rounded-lg border bg-card p-2">
+            <div className="text-lg font-bold tabular-nums">{s.value}</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
+          </div>
+        ))}
+      </div>
+      {flaggedUrls.length > 0 ? (
+        <ul className="text-xs space-y-1">
+          {flaggedUrls.map((f, i) => (
+            <li key={i} className="flex items-start gap-1.5">
+              <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+              <span className="text-pretty">
+                <code className="font-mono">{f.url}</code> — {SITEMAP_ISSUE_LABEL[f.issue]}
+                {f.status !== null ? ` (HTTP ${f.status})` : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5">
+          <CheckCircle2 className="h-3.5 w-3.5" /> No sitemap issues found in the checked sample.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function TechnicalSummary({ analysis, crawlSummary }: { analysis: SiteAnalysis; crawlSummary: SeoStrategy['technicalCrawlSummary'] }) {
   const stats = [
     {
       label: 'HTTPS',
@@ -1874,25 +2006,29 @@ function TechnicalSummary({ analysis }: { analysis: SiteAnalysis }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {stats.map((s) => (
-        <div
-          key={s.label}
-          className="rounded-lg border bg-muted/30 p-3 print:break-inside-avoid"
-        >
-          <div className="flex items-center gap-2 mb-1">
-            {s.ok ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-            ) : (
-              <XCircle className="h-4 w-4 text-destructive shrink-0" />
-            )}
-            <div className="text-xs uppercase tracking-wider text-muted-foreground truncate">
-              {s.label}
+    <div className="space-y-4">
+      <CrawlCoverageBlock analysis={analysis} crawlSummary={crawlSummary} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-lg border bg-muted/30 p-3 print:break-inside-avoid"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              {s.ok ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              ) : (
+                <XCircle className="h-4 w-4 text-destructive shrink-0" />
+              )}
+              <div className="text-xs uppercase tracking-wider text-muted-foreground truncate">
+                {s.label}
+              </div>
             </div>
+            <div className="font-semibold text-sm">{s.value}</div>
           </div>
-          <div className="font-semibold text-sm">{s.value}</div>
-        </div>
-      ))}
+        ))}
+      </div>
+      {analysis.sitemapAudit && <SitemapAuditBlock sitemapAudit={analysis.sitemapAudit} />}
     </div>
   )
 }
