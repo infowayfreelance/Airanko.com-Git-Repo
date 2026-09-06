@@ -22,8 +22,9 @@ import {
   type ChecklistPriority,
   type ChecklistStatus,
 } from './severity'
-import type { KeywordPageMapping, LocalDataSufficiency, Severity } from './types'
+import type { KeywordPageMapping, LocalDataSufficiency, PageOnPageAudit, Severity } from './types'
 import { normalizeKeyword } from './keyword-mapping'
+import { normalizeForDuplicateCheck } from './on-page-audit'
 
 export interface ChecklistItemLike {
   item: string
@@ -264,4 +265,116 @@ function buildDeterministicItem(item: string, severity: Severity, finding: strin
           ? 'Re-run the audit once this can be verified.'
           : 'Address this finding based on the details above.',
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 2A — on-page (meta title / meta description / H1 / heading
+// structure) contradiction checks. All of title/description/H1 status,
+// severity, counts, and duplicate detection are produced entirely by
+// lib/seo-strategy/on-page-audit.ts from structured crawl data, so the
+// "reject H1 count=0 with status=pass" / "duplicate title=true with
+// status=good" / "heading hierarchy invalid with issues=[]" cases the P0
+// spec calls out are structurally impossible there — the AI never touches
+// those fields. What the AI DOES still produce is the existing
+// pageByPageAudit's free-text suggestedTitle/suggestedMetaDescription and
+// recommendations, which this section cross-checks against the
+// deterministic on-page audit the same way P0 cross-checks keyword target
+// pages: deterministic wins, AI's mismatched suggestion is replaced.
+// ─────────────────────────────────────────────────────────────────────────
+export interface PageByPageAuditItemLike {
+  url: string
+  currentTitle: string | null
+  suggestedTitle: string
+  currentMetaDescription: string | null
+  suggestedMetaDescription: string
+  recommendations: string[]
+}
+
+/** Corrected suggestion(s) for one page — undefined fields mean "no correction needed", so callers only overwrite what changed. */
+export interface PageByPageSuggestionCorrection {
+  url: string
+  suggestedTitle?: string
+  suggestedMetaDescription?: string
+}
+
+const REWRITE_TITLE_PHRASE_RE = /rewrite (the )?title|change (the )?title|update (the )?title|title needs (to be )?(rewritten|changed|updated)/i
+const REWRITE_DESCRIPTION_PHRASE_RE =
+  /rewrite (the )?(meta )?description|change (the )?(meta )?description|update (the )?(meta )?description|description needs (to be )?(rewritten|changed|updated)/i
+
+function sameValue(a: string | null | undefined, b: string | null | undefined): boolean {
+  return normalizeForDuplicateCheck(a ?? '') === normalizeForDuplicateCheck(b ?? '')
+}
+
+/**
+ * Cross-checks the AI's per-page title/description suggestions against the
+ * deterministic on-page audit for that same URL. Returns only the
+ * corrections needed — callers merge these into their own concretely-typed
+ * pageByPageAudit array (see keywordTargetCorrections above for why this
+ * isn't just "the corrected array").
+ */
+export function runOnPageContradictionChecks(
+  pageByPageAudit: PageByPageAuditItemLike[],
+  onPageAudits: PageOnPageAudit[],
+): { corrections: PageByPageSuggestionCorrection[]; contradictions: string[] } {
+  const contradictions: string[] = []
+  const onPageByUrl = new Map(onPageAudits.map((a) => [a.url, a]))
+  const corrections: PageByPageSuggestionCorrection[] = []
+
+  for (const item of pageByPageAudit) {
+    const onPage = onPageByUrl.get(item.url)
+    if (!onPage) continue
+    const correction: PageByPageSuggestionCorrection = { url: item.url }
+
+    // Title: already good but AI proposed a change -> revert to current.
+    // Needs improvement -> the deterministic suggestion is the only one
+    // that has passed validation, so ANY AI value that doesn't match it
+    // exactly gets replaced — not just a no-op "AI left it unchanged" case.
+    // Otherwise an AI rewrite that differs from both the current value and
+    // the validated suggestion (an arbitrary, unvalidated rewrite) would
+    // silently survive.
+    if (onPage.metaTitle.status === 'good') {
+      if (item.currentTitle && !sameValue(item.suggestedTitle, item.currentTitle)) {
+        contradictions.push(`Page ${item.url}: title is already good but the AI suggested a rewrite — reverted to the current title.`)
+        correction.suggestedTitle = item.currentTitle
+      }
+    } else if (onPage.metaTitle.suggestedValue && !sameValue(item.suggestedTitle, onPage.metaTitle.suggestedValue)) {
+      contradictions.push(
+        `Page ${item.url}: title needs improvement (${onPage.metaTitle.issues.join('; ')}) — the AI's suggestion ("${item.suggestedTitle}") didn't match the validated deterministic one, so it was used instead.`,
+      )
+      correction.suggestedTitle = onPage.metaTitle.suggestedValue
+    }
+    if (onPage.metaTitle.status === 'good' && item.recommendations.some((r) => REWRITE_TITLE_PHRASE_RE.test(r))) {
+      contradictions.push(`Page ${item.url}: title is marked good but a recommendation still asks to rewrite it (narrative contradiction, not auto-rewritten).`)
+    }
+
+    // Meta description: same pattern.
+    if (onPage.metaDescription.status === 'good') {
+      if (item.currentMetaDescription && !sameValue(item.suggestedMetaDescription, item.currentMetaDescription)) {
+        contradictions.push(
+          `Page ${item.url}: description is already good but the AI suggested a rewrite — reverted to the current description.`,
+        )
+        correction.suggestedMetaDescription = item.currentMetaDescription
+      }
+    } else if (onPage.metaDescription.suggestedValue && !sameValue(item.suggestedMetaDescription, onPage.metaDescription.suggestedValue)) {
+      contradictions.push(
+        `Page ${item.url}: description needs improvement (${onPage.metaDescription.issues.join('; ')}) — the AI's suggestion didn't match the validated deterministic one, so it was used instead.`,
+      )
+      correction.suggestedMetaDescription = onPage.metaDescription.suggestedValue
+    }
+    if (onPage.metaDescription.status === 'good' && item.recommendations.some((r) => REWRITE_DESCRIPTION_PHRASE_RE.test(r))) {
+      contradictions.push(
+        `Page ${item.url}: description is marked good but a recommendation still asks to rewrite it (narrative contradiction, not auto-rewritten).`,
+      )
+    }
+
+    if (correction.suggestedTitle !== undefined || correction.suggestedMetaDescription !== undefined) {
+      corrections.push(correction)
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] on-page contradiction checker corrected the following:', contradictions)
+  }
+
+  return { corrections, contradictions }
 }

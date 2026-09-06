@@ -1079,7 +1079,7 @@ function StrategyReport({
           kicker="Section 08"
           description="Specific recommendations for each crawled page."
         >
-          <PageByPageAudit pages={strategy.pageByPageAudit} />
+          <PageByPageAudit pages={strategy.pageByPageAudit} onPageAudits={strategy.onPageAudits} />
         </ReportSection>
 
         {/* Keyword strategy */}
@@ -1967,14 +1967,76 @@ function OnPageAudit({ audit }: { audit: SeoStrategy['onPageAudit'] }) {
   )
 }
 
-function PageByPageAudit({
-  pages,
+/** Small status pill for the deterministic on-page audit fields (title/description/H1/headings) — reuses the same visual language as PriorityBadge/StatusIcon rather than introducing a new pattern. */
+function OnPageStatusPill({ status }: { status: 'good' | 'needs_improvement' | 'poor' | 'not_evaluated' }) {
+  const cls = {
+    good: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+    needs_improvement: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+    poor: 'bg-destructive/10 text-destructive border-destructive/30',
+    not_evaluated: 'bg-muted text-muted-foreground border-border',
+  }[status]
+  const label = { good: 'Good', needs_improvement: 'Needs Improvement', poor: 'Poor', not_evaluated: 'Not Evaluated' }[status]
+  return <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${cls}`}>{label}</span>
+}
+
+/** A current-value / suggested-value pair for one deterministic on-page field. Shows "No change required" instead of a suggestion when the field is already good — never rewrites what isn't broken. */
+function OnPageFieldBlock({
+  label,
+  status,
+  currentValue,
+  suggestedValue,
+  issues,
 }: {
-  pages: SeoStrategy['pageByPageAudit']
+  label: string
+  status: 'good' | 'needs_improvement' | 'poor' | 'not_evaluated'
+  currentValue: string | null
+  suggestedValue: string | null
+  issues: string[]
 }) {
   return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+        <OnPageStatusPill status={status} />
+      </div>
+      <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
+        {currentValue || <em className="text-muted-foreground">Missing</em>}
+      </p>
+      {issues.length > 0 && (
+        <ul className="text-xs space-y-1 text-muted-foreground">
+          {issues.map((iss, j) => (
+            <li key={j} className="flex items-start gap-1.5">
+              <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+              <span className="text-pretty">{iss}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {status === 'good' ? (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">No change required.</p>
+      ) : suggestedValue ? (
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-primary mb-1">Suggested</div>
+          <p className="text-sm bg-primary/5 border border-primary/20 rounded-lg p-3 text-pretty">{suggestedValue}</p>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function PageByPageAudit({
+  pages,
+  onPageAudits,
+}: {
+  pages: SeoStrategy['pageByPageAudit']
+  onPageAudits: SeoStrategy['onPageAudits']
+}) {
+  const onPageByUrl = new Map(onPageAudits.map((a) => [a.url, a]))
+  return (
     <div className="space-y-4">
-      {pages.map((p, i) => (
+      {pages.map((p, i) => {
+        const onPage = onPageByUrl.get(p.url)
+        return (
         <div
           key={i}
           className="rounded-xl border bg-card overflow-hidden print:break-inside-avoid"
@@ -1988,16 +2050,24 @@ function PageByPageAudit({
           </div>
           <div className="p-5 space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Current Title
+              {onPage ? (
+                <OnPageFieldBlock
+                  label="Meta Title"
+                  status={onPage.metaTitle.status}
+                  currentValue={onPage.metaTitle.currentValue}
+                  suggestedValue={onPage.metaTitle.suggestedValue}
+                  issues={onPage.metaTitle.issues}
+                />
+              ) : (
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Current Title
+                  </div>
+                  <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
+                    {p.currentTitle || <em className="text-muted-foreground">Missing</em>}
+                  </p>
                 </div>
-                <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
-                  {p.currentTitle || (
-                    <em className="text-muted-foreground">Missing</em>
-                  )}
-                </p>
-              </div>
+              )}
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-primary mb-1.5">
                   Suggested Title
@@ -2008,16 +2078,24 @@ function PageByPageAudit({
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Current Meta Description
+              {onPage ? (
+                <OnPageFieldBlock
+                  label="Meta Description"
+                  status={onPage.metaDescription.status}
+                  currentValue={onPage.metaDescription.currentValue}
+                  suggestedValue={onPage.metaDescription.suggestedValue}
+                  issues={onPage.metaDescription.issues}
+                />
+              ) : (
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Current Meta Description
+                  </div>
+                  <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
+                    {p.currentMetaDescription || <em className="text-muted-foreground">Missing</em>}
+                  </p>
                 </div>
-                <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
-                  {p.currentMetaDescription || (
-                    <em className="text-muted-foreground">Missing</em>
-                  )}
-                </p>
-              </div>
+              )}
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-primary mb-1.5">
                   Suggested Meta Description
@@ -2027,6 +2105,43 @@ function PageByPageAudit({
                 </p>
               </div>
             </div>
+            {onPage && (
+              <div className="grid md:grid-cols-2 gap-4">
+                <OnPageFieldBlock
+                  label="H1"
+                  status={onPage.h1.status}
+                  currentValue={onPage.h1.values[0] ?? null}
+                  suggestedValue={onPage.h1.suggestedValue}
+                  issues={
+                    onPage.h1.count > 1
+                      ? [...onPage.h1.issues, `All H1s on this page: ${onPage.h1.values.join(' | ')}`]
+                      : onPage.h1.issues
+                  }
+                />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Heading Structure
+                    </div>
+                    <OnPageStatusPill status={onPage.headings.status} />
+                  </div>
+                  <p className="text-sm bg-muted/50 rounded-lg p-3 text-pretty">
+                    {onPage.headings.totalH2} H2{onPage.headings.totalH2 === 1 ? '' : 's'}, {onPage.headings.totalH3} H3
+                    {onPage.headings.totalH3 === 1 ? '' : 's'} on this page.
+                  </p>
+                  {onPage.headings.issues.length > 0 && (
+                    <ul className="text-xs space-y-1 text-muted-foreground">
+                      {onPage.headings.issues.map((iss, j) => (
+                        <li key={j} className="flex items-start gap-1.5">
+                          <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+                          <span className="text-pretty">{iss}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-destructive mb-1.5">
@@ -2057,7 +2172,8 @@ function PageByPageAudit({
             </div>
           </div>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

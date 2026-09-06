@@ -5,6 +5,12 @@ export const maxDuration = 60
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+/** One heading element in document order — includes empty-text and H4-H6 headings that the legacy `h1`/`h2`/`h3` arrays below drop, so the on-page audit (lib/seo-strategy/on-page-audit.ts) can detect empty headings and hierarchy skips accurately. */
+export interface HeadingNode {
+  level: number
+  text: string
+}
+
 export interface PageAnalysis {
   url: string
   status: number
@@ -34,6 +40,8 @@ export interface PageAnalysis {
   wordCount: number
   /** First ~1500 chars of visible body text — used for deterministic keyword-to-page relevance scoring (see lib/seo-strategy/keyword-mapping.ts). */
   contentSnippet: string
+  /** Every H1-H6 element in document order, including empty ones — used for the on-page heading-structure audit (see lib/seo-strategy/on-page-audit.ts). */
+  headingHierarchy: HeadingNode[]
   contactInfo: {
     phones: string[]
     emails: string[]
@@ -205,6 +213,19 @@ function analyzeHtml(
     .filter(Boolean)
     .slice(0, 20)
 
+  // Full H1-H6 hierarchy in document order, empty headings included — a
+  // comma-selector matches elements in DOM order regardless of tag, so this
+  // is safe to use directly for hierarchy-skip detection.
+  const headingHierarchy: HeadingNode[] = $('h1, h2, h3, h4, h5, h6')
+    .map((_, el) => {
+      const tagName = $(el).prop('tagName')
+      const level = tagName ? Number(String(tagName).slice(1)) : NaN
+      return { level, text: $(el).text().trim() }
+    })
+    .get()
+    .filter((h): h is HeadingNode => Number.isInteger(h.level) && h.level >= 1 && h.level <= 6)
+    .slice(0, 100)
+
   const ogTags: Record<string, string> = {}
   $('meta[property^="og:"]').each((_, el) => {
     const prop = $(el).attr('property')
@@ -339,6 +360,7 @@ function analyzeHtml(
     externalLinkCount,
     wordCount,
     contentSnippet: text.slice(0, 1500),
+    headingHierarchy,
     contactInfo,
     issues,
   }
