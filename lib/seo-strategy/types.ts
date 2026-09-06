@@ -113,7 +113,8 @@ export interface HeadingStructureAudit {
   issues: string[]
 }
 
-export interface PageOnPageAudit {
+/** Phase 2A's per-page shape — what lib/seo-strategy/on-page-audit.ts's buildOnPageAudits() actually produces, before the Phase 2B fields below exist. */
+export interface MetaHeadingPageAudit {
   url: string
   pageName: string
   importance: PageImportance
@@ -123,6 +124,14 @@ export interface PageOnPageAudit {
   metaDescription: MetaDescriptionAudit
   h1: H1Audit
   headings: HeadingStructureAudit
+}
+
+/** The full per-page audit — Phase 2A's meta/heading fields plus Phase 2B's content/images/internal-links/technical fields, assembled by lib/seo-strategy/page-audit.ts. This is the shape exposed on SeoStrategy.onPageAudits. */
+export interface PageOnPageAudit extends MetaHeadingPageAudit {
+  content: ContentAudit
+  images: ImagesAudit
+  internalLinks: InternalLinksAudit
+  technicalOnPage: TechnicalOnPageAudit
 }
 
 export interface OnPageIssueCategorySummary {
@@ -135,9 +144,225 @@ export interface OnPageIssueCategorySummary {
   affectedPages: string[]
 }
 
-export interface OnPageSummary {
+// ──────────────────────────────────────────────────────────────────────────
+// Phase 2B — content, images, internal linking, and technical on-page audit.
+// Same rule as Phase 2A: every field here is produced by
+// lib/seo-strategy/{content,image,internal-link,technical}-audit.ts from
+// structured crawl data (PageAnalysis). The AI never decides HTTP status,
+// file size, dimensions, alt presence, link counts, broken-link status,
+// canonical existence, indexability, schema/OG/Twitter existence, URL
+// syntax, or duplicate-content similarity — see each module's header.
+// ──────────────────────────────────────────────────────────────────────────
+
+/** How a page is used — drives page-aware word-count/thin-content expectations (a contact page and a service page shouldn't be held to the same bar). */
+export type PageType = 'homepage' | 'service' | 'location' | 'contact' | 'legal' | 'blog' | 'utility'
+
+export type SearchIntent = 'transactional' | 'commercial' | 'informational' | 'navigational' | 'local_transactional'
+
+export type DuplicateStatus = 'unique' | 'exact_duplicate' | 'near_duplicate' | 'not_evaluated'
+
+export interface SimilarPageMatch {
+  url: string
+  similarityScore: number
+}
+
+export interface KeywordRelevanceResult {
+  score: number
+  status: OnPageStatus
+}
+
+export interface SearchIntentResult {
+  intent: SearchIntent
+  /** Whether the page's content plausibly satisfies the intent (service explanation/CTA for transactional, depth for informational, etc.) — a deterministic heuristic, not a live AI judgement (see content-audit.ts). */
+  match: boolean
+  confidence: ConfidenceLevel
+}
+
+export interface ContentAudit {
+  wordCount: number
+  pageType: PageType
+  thinContent: boolean
+  duplicateStatus: DuplicateStatus
+  similarPages: SimilarPageMatch[]
+  /** null when the page has no validated P0 keyword mapping — never penalized for a keyword it was never assigned. */
+  keywordRelevance: KeywordRelevanceResult | null
+  searchIntent: SearchIntentResult | null
+  status: OnPageStatus
+  severity: Severity
+  issues: string[]
+}
+
+export interface ImageIssueDetail {
+  src: string
+  filename: string
+  alt: string | null
+  width: number | null
+  height: number | null
+  fileSize: number | null
+  format: string | null
+  issues: string[]
+}
+
+export interface ImagesAudit {
+  total: number
+  missingAlt: number
+  weakAlt: number
+  oversized: number
+  modernFormatCount: number
+  legacyFormatCount: number
+  issues: ImageIssueDetail[]
+  status: OnPageStatus
+  severity: Severity
+}
+
+export interface BrokenLinkRecord {
+  source: string
+  anchor: string
+  target: string
+  statusCode: number | null
+}
+
+export interface AnchorIssue {
+  target: string
+  anchor: string
+  issue: string
+}
+
+export interface InternalLinksAudit {
+  outgoing: number
+  uniqueOutgoing: number
+  incoming: number
+  uniqueIncoming: number
+  contextualOutgoing: number
+  contextualIncoming: number
+  orphan: boolean
+  /** Only meaningful when `orphan` is true — null otherwise. Reflects whether the crawl had full site coverage (see SiteAnalysis.crawlCoverage). */
+  orphanConfidence: ConfidenceLevel | null
+  weaklyLinked: boolean
+  brokenLinks: BrokenLinkRecord[]
+  anchorIssues: AnchorIssue[]
+  status: OnPageStatus
+  severity: Severity
+  issues: string[]
+}
+
+export interface CanonicalAudit {
+  exists: boolean
+  url: string | null
+  isSelfReferencing: boolean | null
+  multiple: boolean
+  /** HTTP status of the canonical target, when it points to a different (crawled or checked) URL — null if not checked or self-referencing. */
+  targetStatus: number | null
+  status: OnPageStatus
+  severity: Severity
+  issues: string[]
+}
+
+export type IndexabilityResult = 'indexable' | 'non_indexable' | 'blocked' | 'not_evaluated'
+
+export interface IndexabilityAudit {
+  result: IndexabilityResult
+  reasons: string[]
+  status: OnPageStatus
+  severity: Severity
+}
+
+export interface StatusCodeAudit {
+  code: number
+  category: '2xx' | '3xx' | '4xx' | '5xx' | 'other'
+  status: OnPageStatus
+  severity: Severity
+  issues: string[]
+}
+
+export interface SchemaAudit {
+  present: boolean
+  types: string[]
+  validJsonLd: boolean
+  parseErrorCount: number
+  duplicateTypes: string[]
+  /** Schema types that would be relevant for this page's type but weren't found — a "missing opportunity", never an "error" (see technical-audit.ts). */
+  missingOpportunities: string[]
+  status: OnPageStatus
+  severity: Severity
+  issues: string[]
+}
+
+export interface OpenGraphAudit {
+  present: Record<'og:title' | 'og:description' | 'og:url' | 'og:image' | 'og:type', boolean>
+  status: OnPageStatus
+  severity: Severity
+  issues: string[]
+}
+
+export interface TwitterCardAudit {
+  present: Record<'twitter:card' | 'twitter:title' | 'twitter:description' | 'twitter:image', boolean>
+  /** Whether Open Graph tags could stand in for the missing Twitter tags (a valid fallback per Twitter/X's own card spec). */
+  ogFallbackAvailable: boolean
+  status: OnPageStatus
+  severity: Severity
+  issues: string[]
+}
+
+export interface UrlStructureAudit {
+  url: string
+  status: OnPageStatus
+  severity: Severity
+  issues: string[]
+}
+
+export interface TechnicalOnPageAudit {
+  canonical: CanonicalAudit
+  indexability: IndexabilityAudit
+  statusCode: StatusCodeAudit
+  schema: SchemaAudit
+  openGraph: OpenGraphAudit
+  twitter: TwitterCardAudit
+  urlStructure: UrlStructureAudit
+  status: OnPageStatus
+  severity: Severity
+}
+
+export interface ContentIssueSummary extends OnPageIssueCategorySummary {
+  thinPages: number
+  duplicatePages: number
+  intentMismatchPages: number
+}
+
+export interface ImageIssueSummary extends OnPageIssueCategorySummary {
+  missingAlt: number
+  weakAlt: number
+  oversized: number
+}
+
+export interface InternalLinkIssueSummary extends OnPageIssueCategorySummary {
+  orphanPages: number
+  weakPages: number
+  brokenLinks: number
+}
+
+export interface TechnicalIssueSummary extends OnPageIssueCategorySummary {
+  canonical: number
+  indexability: number
+  statusCodes: number
+  schema: number
+  openGraph: number
+  twitter: number
+  urlStructure: number
+}
+
+/** What lib/seo-strategy/on-page-audit.ts's aggregateOnPageIssues() (Phase 2A) actually produces. */
+export interface MetaHeadingSummary {
   titleIssues: OnPageIssueCategorySummary
   metaDescriptionIssues: OnPageIssueCategorySummary
   h1Issues: OnPageIssueCategorySummary
   headingStructureIssues: OnPageIssueCategorySummary
+}
+
+/** The full site-wide summary — Phase 2A's categories plus Phase 2B's, assembled by lib/seo-strategy/page-audit.ts. This is the shape exposed on SeoStrategy.onPageSummary. */
+export interface OnPageSummary extends MetaHeadingSummary {
+  contentIssues: ContentIssueSummary
+  imageIssues: ImageIssueSummary
+  internalLinkIssues: InternalLinkIssueSummary
+  technicalIssues: TechnicalIssueSummary
 }

@@ -6,9 +6,8 @@ import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
 import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
-import { runContradictionChecks, runOnPageContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
-import { buildOnPageAudits, aggregateOnPageIssues } from '@/lib/seo-strategy/on-page-audit'
-import { attachOnPageSuggestions } from '@/lib/seo-strategy/on-page-suggestions'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
+import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import type {
   HealthScoreBreakdown,
   KpiTarget,
@@ -339,16 +338,17 @@ export async function POST(req: Request) {
     const robots = evaluateRobotsTxt(analysis?.robotsTxt ?? null)
     const responseTime = evaluateResponseTime(analysis?.technicalSummary.averageLoadTimeMs ?? null)
 
-    // Phase 2A — deterministic page-by-page meta title / meta description /
-    // H1 / heading-structure audit, computed the same way as everything
-    // else above: entirely from crawl data before the AI ever runs.
-    const onPageAuditsRaw = buildOnPageAudits(pagesForMapping, keywordMappings, analysis?.finalUrl ?? null)
-    const onPageAudits = attachOnPageSuggestions(
-      onPageAuditsRaw,
-      new Map(pagesForMapping.map((p) => [p.url, p])),
-      { businessName: input.businessName, location: input.location, isLocalBusiness: localCtx.isLocalBusiness },
-    )
-    const onPageSummary = aggregateOnPageIssues(onPageAudits)
+    // Phase 2A + 2B — deterministic page-by-page audit (meta title/
+    // description/H1/heading structure, content, images, internal linking,
+    // technical on-page), computed the same way as everything else above:
+    // entirely from crawl data before the AI ever runs. `analysis` is only
+    // needed for its crawl-wide fields (crawlCoverage, brokenInternalLinks,
+    // robotsTxt), which are never touched when there's nothing to crawl.
+    const suggestionOptions = { businessName: input.businessName, location: input.location, isLocalBusiness: localCtx.isLocalBusiness }
+    const onPageAudits: PageOnPageAudit[] = analysis
+      ? buildFullPageAudits(analysis, pagesForMapping, keywordMappings, analysis.finalUrl, suggestionOptions)
+      : []
+    const onPageSummary: OnPageSummary = aggregateFullPageIssues(onPageAudits)
 
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
@@ -405,6 +405,42 @@ ${keywordMappingLines || '  (no keywords provided)'}
 ${onPageAuditLines || '  (no crawled pages)'}
 For pageByPageAudit: when a page is listed as "OK", set suggestedTitle/suggestedMetaDescription equal to the current value (no change) — never rewrite something that's already good. When a page "needs work", the deterministic suggestion given above has already passed length/genericness/keyword-stuffing validation — reuse it verbatim rather than inventing your own. A later automated pass will overwrite anything that doesn't match this anyway.`
 
+    // Phase 2B — content/images/internal-linking/technical facts, so the
+    // AI's onPageAudit.imageOptimization/internalLinking/schemaMarkup
+    // narrative and pageByPageAudit issues/recommendations describe what
+    // was actually found rather than generic statements.
+    const phase2bCriticalHighLines = onPageAudits
+      .flatMap((a) => {
+        const lines: string[] = []
+        if (a.technicalOnPage.statusCode.severity === 'critical' || a.technicalOnPage.statusCode.severity === 'high') {
+          lines.push(`- ${a.url}: HTTP ${a.technicalOnPage.statusCode.code}.`)
+        }
+        if (a.technicalOnPage.indexability.severity === 'critical' || a.technicalOnPage.indexability.severity === 'high') {
+          lines.push(`- ${a.url}: ${a.technicalOnPage.indexability.result} — ${a.technicalOnPage.indexability.reasons.join('; ')}.`)
+        }
+        if (a.internalLinks.brokenLinks.length > 0) {
+          lines.push(
+            `- ${a.url}: ${a.internalLinks.brokenLinks.length} broken internal link(s) — ${a.internalLinks.brokenLinks
+              .map((b) => `"${b.anchor || '(no anchor text)'}" → ${b.target} (${b.statusCode ?? 'request failed'})`)
+              .join(', ')}.`,
+          )
+        }
+        if (a.content.severity === 'critical' || a.content.severity === 'high') {
+          lines.push(`- ${a.url}: ${a.content.issues.join('; ')}.`)
+        }
+        return lines
+      })
+      .slice(0, 20)
+      .join('\n')
+
+    const phase2bFactsBlock = `PHASE 2B AUDIT GROUND TRUTH — deterministic, sitewide (content, images, internal linking, technical on-page). Reflect these exact facts in onPageAudit.imageOptimization/internalLinking/schemaMarkup findings and in pageByPageAudit issues/recommendations — never claim a page has no image/content/link/schema/OG issues if the data below says otherwise, and never call a page "orphaned" or a link "broken" unless it's listed here:
+- Content: ${onPageSummary.contentIssues.total} page(s) with issues (${onPageSummary.contentIssues.thinPages} thin, ${onPageSummary.contentIssues.duplicatePages} duplicate/near-duplicate, ${onPageSummary.contentIssues.intentMismatchPages} intent mismatch).
+- Images: ${onPageSummary.imageIssues.total} page(s) with issues — ${onPageSummary.imageIssues.missingAlt} images missing/empty alt, ${onPageSummary.imageIssues.weakAlt} weak/generic alt, ${onPageSummary.imageIssues.oversized} oversized.
+- Internal linking: ${onPageSummary.internalLinkIssues.total} page(s) with issues — ${onPageSummary.internalLinkIssues.orphanPages} orphan candidate(s), ${onPageSummary.internalLinkIssues.weakPages} weakly-linked, ${onPageSummary.internalLinkIssues.brokenLinks} broken internal link(s) sitewide.
+- Technical: ${onPageSummary.technicalIssues.total} page(s) with issues — canonical: ${onPageSummary.technicalIssues.canonical}, indexability: ${onPageSummary.technicalIssues.indexability}, status codes: ${onPageSummary.technicalIssues.statusCodes}, schema: ${onPageSummary.technicalIssues.schema}, Open Graph: ${onPageSummary.technicalIssues.openGraph}, Twitter: ${onPageSummary.technicalIssues.twitter}, URL structure: ${onPageSummary.technicalIssues.urlStructure}.
+Specific critical/high findings by page:
+${phase2bCriticalHighLines || '  (none)'}`
+
     const prompt = `You are a senior SEO strategist with 15+ years of experience producing client-ready strategy reports. Generate a comprehensive, professional, data-driven SEO strategy that will impress an enterprise client.
 
 CLIENT INFORMATION
@@ -424,6 +460,8 @@ ${keywordsSection}
 ${deterministicFactsBlock}
 
 ${onPageFactsBlock}
+
+${phase2bFactsBlock}
 
 LIVE SITE ANALYSIS (real data crawled from the actual website — base your audit on this)
 ${analysisDigest}
@@ -463,7 +501,8 @@ Hard rules — a later automated validation pass checks these and will overwrite
 6. Do not claim something was verified (e.g. "audited the entire site") if it was not.
 7. Use "Not Available" for KPI baselines you cannot verify, and reflect "not evaluated" findings honestly rather than guessing.
 8. Keep factual findings (what the crawl found) separate from strategic recommendations (what to do about it).
-9. Follow the ON-PAGE AUDIT GROUND TRUTH above exactly for suggestedTitle/suggestedMetaDescription — do not propose a change for a page marked OK, and do not invent your own rewrite for a page that needs one when a deterministic suggestion is already given.`
+9. Follow the ON-PAGE AUDIT GROUND TRUTH above exactly for suggestedTitle/suggestedMetaDescription — do not propose a change for a page marked OK, and do not invent your own rewrite for a page that needs one when a deterministic suggestion is already given.
+10. Do not invent technical findings — image alt/size issues, broken links, orphan pages, canonical/indexability/schema/OG/Twitter status all come from the PHASE 2B AUDIT GROUND TRUTH above. Match your narrative to those exact counts and per-page findings; never claim a page is clean when it's listed there, and never invent an issue on a page not listed there.`
 
     let strategy: RawAiStrategy
     try {
@@ -533,6 +572,11 @@ Hard rules — a later automated validation pass checks these and will overwrite
     const onPageContradictionResult = runOnPageContradictionChecks(strategy.pageByPageAudit, onPageAudits)
     const suggestionCorrectionByUrl = new Map(onPageContradictionResult.corrections.map((c) => [c.url, c]))
 
+    // Phase 2B — narrative sanity checks (logged, not auto-rewritten — see
+    // contradiction-checker.ts) for the AI's onPageAudit prose against the
+    // deterministic content/image/internal-link/technical summary.
+    const phase2bContradictions = runPhase2BContradictionChecks(strategy, onPageSummary)
+
     const correctedStrategy: SeoStrategy = {
       ...strategy,
       localSeo: { ...strategy.localSeo, applicable: contradictionResult.localSeoApplicable },
@@ -569,7 +613,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
 
     // Contradiction details are diagnostic-only — never exposed to
     // production users, only helpful in development.
-    const allContradictions = [...contradictionResult.contradictions, ...onPageContradictionResult.contradictions]
+    const allContradictions = [...contradictionResult.contradictions, ...onPageContradictionResult.contradictions, ...phase2bContradictions]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined
 

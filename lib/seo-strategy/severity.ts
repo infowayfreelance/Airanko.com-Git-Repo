@@ -21,6 +21,12 @@ export const SEVERITY_RANK: Record<Severity, number> = {
   not_evaluated: 0,
 }
 
+/** Reduces a list of independently-detected severities (one per issue found) down to the single worst one — the shared pattern every Phase 2A/2B evaluator uses to turn "N issues, each with its own severity" into one final severity field. */
+export function pickHighestSeverity(severities: Severity[]): Severity {
+  if (severities.length === 0) return 'pass'
+  return severities.reduce((best, s) => (SEVERITY_RANK[s] > SEVERITY_RANK[best] ? s : best))
+}
+
 export type ChecklistStatus = 'pass' | 'warning' | 'fail' | 'not-applicable'
 export type ChecklistPriority = 'critical' | 'high' | 'medium' | 'low'
 
