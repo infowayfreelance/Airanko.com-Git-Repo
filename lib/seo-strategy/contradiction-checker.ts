@@ -520,3 +520,132 @@ export function runCrawlCoverageContradictionChecks(strategy: CrawlCoverageNarra
   }
   return { correctedSummary, contradictions }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 6 — competitor intelligence. The AI's free-text competitorAnalysis
+// entries are entirely REPLACED with deterministic, evidence-based content
+// before the report is returned (see route.ts / competitor-intelligence.ts)
+// — a real contradiction can't reach the final report by construction. This
+// check exists as a diagnostic/defense-in-depth pass, logged in
+// development, so a future change to that override logic doesn't silently
+// let one through unnoticed.
+// ─────────────────────────────────────────────────────────────────────────
+const UNSUPPORTED_CLAIM_RE =
+  /\b(backlinks?|domain authority|\bDR\b|higher rank(?:ing|ed)?|better rank(?:ing|ed)?|stronger (?:authority|social|reputation)|wider (?:national|regional) reach|social presence|better reputation)\b/i
+const CLAIMS_BLOG_RE = /\bhas a blog\b|\bblog (?:section|content)\b/i
+const CLAIMS_NO_SERVICE_PAGE_RE = /\bno (?:dedicated )?service page\b|\blacks? (?:a |any )?service page\b/i
+
+export interface CompetitorAnalysisEntryLike {
+  url: string
+  strengths: string[]
+  weaknesses: string[]
+  opportunitiesToOutrank: string[]
+  contentGaps: string[]
+}
+
+/** Matches an AI competitorAnalysis entry to its crawled profile by domain — falls back to a loose URL substring match since the AI's `url` field is free text, not guaranteed to be an exact echo of the user's input. */
+export function findProfileForEntry<T extends { inputUrl: string; domain: string | null }>(entry: CompetitorAnalysisEntryLike, profiles: T[]): T | undefined {
+  return profiles.find((p) => {
+    if (p.domain && entry.url.toLowerCase().includes(p.domain.toLowerCase())) return true
+    return entry.url.trim() !== '' && p.inputUrl.toLowerCase().includes(entry.url.toLowerCase().replace(/^https?:\/\//, '').split('/')[0])
+  })
+}
+
+export function runCompetitorContradictionChecks<T extends { inputUrl: string; domain: string | null; status: 'evaluated' | 'not_evaluated'; blogPages: number; servicePages: number }>(
+  competitorAnalysis: CompetitorAnalysisEntryLike[],
+  profiles: T[],
+): string[] {
+  const contradictions: string[] = []
+
+  for (const entry of competitorAnalysis) {
+    const allText = [...entry.strengths, ...entry.weaknesses, ...entry.opportunitiesToOutrank, ...entry.contentGaps]
+    for (const line of allText) {
+      if (UNSUPPORTED_CLAIM_RE.test(line)) {
+        contradictions.push(`competitorAnalysis (${entry.url}) makes an unsupported claim with no verified data source: "${line}"`)
+      }
+    }
+
+    const profile = findProfileForEntry(entry, profiles)
+    if (!profile) continue
+
+    if (profile.status === 'not_evaluated' && allText.length > 0) {
+      contradictions.push(`competitorAnalysis (${entry.url}) presents findings as verified, but the competitor crawl could not be evaluated for this URL.`)
+    }
+    if (profile.status === 'evaluated') {
+      if (profile.blogPages === 0 && allText.some((l) => CLAIMS_BLOG_RE.test(l))) {
+        contradictions.push(`competitorAnalysis (${entry.url}) claims a blog was found, but the crawl detected 0 blog pages.`)
+      }
+      if (profile.servicePages > 0 && allText.some((l) => CLAIMS_NO_SERVICE_PAGE_RE.test(l))) {
+        contradictions.push(`competitorAnalysis (${entry.url}) claims no service page exists, but the crawl found ${profile.servicePages}.`)
+      }
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Competitor contradiction checker found the following:', contradictions)
+  }
+  return contradictions
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 7 — content-gap / pages-to-create strategy. Catches the AI's
+// pagesToCreate/blogIdeas recommending a brand-new page for a keyword that
+// already has a strong existing landing page (P0's own keyword-page
+// mapping says so), the same target keyword claimed by more than one
+// recommendation, and unsupported keyword-metric claims (search volume,
+// CPC, difficulty, traffic/ranking probability) with no verified data
+// source. Diagnostic/defense-in-depth, logged in development — the
+// deterministic pageOpportunities list (page-opportunity.ts) is the
+// report's actual source of truth for these, not this free-text AI content.
+// ─────────────────────────────────────────────────────────────────────────
+const UNSUPPORTED_METRIC_RE = /\b(search volume|monthly volume|\bCPC\b|cost[- ]per[- ]click|keyword difficulty|traffic potential|ranking probability|likely to rank)\b/i
+
+export interface PageRecommendationLike {
+  targetKeyword: string
+  purpose?: string
+  contentBrief: string
+}
+
+const STRONG_MATCH_SCORE = 70
+
+export function runPageOpportunityContradictionChecks(
+  pagesToCreate: PageRecommendationLike[],
+  blogIdeas: PageRecommendationLike[],
+  keywordMappings: KeywordPageMapping[],
+): string[] {
+  const contradictions: string[] = []
+  const mappingByKeyword = new Map(keywordMappings.map((m) => [normalizeKeyword(m.keyword), m]))
+
+  const seenKeywords = new Map<string, string>() // normalized keyword -> first source it was seen in
+  for (const [sourceLabel, items] of [
+    ['pagesToCreate', pagesToCreate],
+    ['blogIdeas', blogIdeas],
+  ] as const) {
+    for (const item of items) {
+      const normalized = normalizeKeyword(item.targetKeyword)
+      const mapping = mappingByKeyword.get(normalized)
+      if (mapping && mapping.status === 'mapped' && (mapping.relevanceScore >= STRONG_MATCH_SCORE || mapping.confidence === 'high') && sourceLabel === 'pagesToCreate') {
+        contradictions.push(
+          `${sourceLabel} recommends a new page for "${item.targetKeyword}", but a strong existing page (${mapping.mappedUrl}, relevance ${mapping.relevanceScore}/100) already targets it — should be "improve existing" instead.`,
+        )
+      }
+
+      const text = `${item.purpose ?? ''} ${item.contentBrief}`
+      if (UNSUPPORTED_METRIC_RE.test(text)) {
+        contradictions.push(`${sourceLabel} ("${item.targetKeyword}") makes an unsupported keyword-metric claim with no verified data source: "${text.trim()}"`)
+      }
+
+      const existingSource = seenKeywords.get(normalized)
+      if (existingSource) {
+        contradictions.push(`Keyword "${item.targetKeyword}" is targeted by more than one recommendation (${existingSource} and ${sourceLabel}) — duplicate/cannibalizing targeting.`)
+      } else {
+        seenKeywords.set(normalized, sourceLabel)
+      }
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Page opportunity contradiction checker found the following:', contradictions)
+  }
+  return contradictions
+}

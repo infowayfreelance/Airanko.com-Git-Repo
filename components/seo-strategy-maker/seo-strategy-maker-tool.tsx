@@ -204,6 +204,47 @@ export default function SeoStrategyMakerTool() {
       const siteAnalysis: SiteAnalysis = analyzeData.analysis
       setAnalysis(siteAnalysis)
 
+      // Phase 1.5 (Phase 6) — crawl each provided competitor URL. A failed
+      // competitor crawl never blocks the report — it comes back as a
+      // well-formed status: 'not_evaluated' profile (never null/undefined,
+      // which the strategy endpoint's deterministic comparison can't
+      // safely dereference) and contributes no fabricated findings.
+      const competitorUrls = form.competitors.filter(Boolean)
+      let competitorProfiles: unknown[] = []
+      if (competitorUrls.length > 0) {
+        setProgressMsg('Crawling competitor websites…')
+        const notEvaluatedProfile = (url: string, reason: string) => ({
+          inputUrl: url,
+          domain: null,
+          status: 'not_evaluated' as const,
+          reason,
+          pagesDiscovered: 0,
+          pagesCrawled: 0,
+          pagesFailed: 0,
+          servicePages: 0,
+          locationPages: 0,
+          blogPages: 0,
+          schemaCoverage: null,
+          averageWordCount: null,
+          pages: [],
+        })
+        competitorProfiles = await Promise.all(
+          competitorUrls.map(async (url) => {
+            try {
+              const res = await fetch('/api/seo-strategy/competitor-analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, location: form.location }),
+              })
+              const data = await safeReadJson(res, 'analyze a competitor')
+              return data.profile ?? notEvaluatedProfile(url, 'The competitor crawl did not return a result.')
+            } catch {
+              return notEvaluatedProfile(url, 'The competitor crawl request failed.')
+            }
+          }),
+        )
+      }
+
       // Phase 2: generate strategy
       setPhase('generating')
       setProgressMsg('Building your custom SEO strategy with AI…')
@@ -217,11 +258,12 @@ export default function SeoStrategyMakerTool() {
           gmbUrl: form.gmbUrl,
           isLocal: form.isLocal,
           keywords: form.keywords,
-          competitors: form.competitors.filter(Boolean),
+          competitors: competitorUrls,
           location: form.location,
           industry: form.industry,
           notes: form.notes,
           analysis: siteAnalysis,
+          competitorProfiles,
         }),
       })
       const stratData = await safeReadJson(stratRes, 'generate the strategy')
@@ -1172,9 +1214,12 @@ function StrategyReport({
           icon={PenLine}
           title="Pages to Create"
           kicker="Section 12"
-          description="Content briefs ready to hand to your writers."
+          description="Evidence-based page opportunities, ranked by commercial priority — content briefs for new pages are below."
         >
-          <PagesToCreate pages={strategy.pagesToCreate} />
+          <div className="space-y-6">
+            <PageOpportunitiesList opportunities={strategy.pageOpportunities} />
+            <PagesToCreate pages={strategy.pagesToCreate} />
+          </div>
         </ReportSection>
 
         {/* Blog ideas */}
@@ -1195,7 +1240,11 @@ function StrategyReport({
             title="Competitor Analysis"
             kicker="Section 14"
           >
+            <div className="space-y-6">
+            <CompetitorComparisonTable intelligence={strategy.competitorIntelligence} />
             <CompetitorAnalysis competitors={strategy.competitorAnalysis} />
+            <CompetitorOpportunities opportunities={strategy.competitorIntelligence.opportunities} />
+          </div>
           </ReportSection>
         )}
 
@@ -2999,6 +3048,90 @@ function KeywordStrategy({ data }: { data: SeoStrategy['keywordStrategy'] }) {
   )
 }
 
+const OPPORTUNITY_TYPE_LABEL: Record<SeoStrategy['pageOpportunities'][number]['pageType'], string> = {
+  service: 'Service Page',
+  location: 'Location Page',
+  service_location: 'Service + Location Page',
+  informational: 'Informational/Blog Page',
+  faq: 'FAQ/Supporting Content',
+  improve_existing: 'Existing Page Improvement',
+}
+
+const OPPORTUNITY_ACTION_LABEL: Record<SeoStrategy['pageOpportunities'][number]['action'], string> = {
+  create: 'Create New Page',
+  improve: 'Improve Existing Page',
+  optimize: 'Optimize Existing Page',
+}
+
+const CANNIBALIZATION_LABEL: Record<SeoStrategy['pageOpportunities'][number]['cannibalizationRisk'], string> = {
+  safe_to_create: 'Low',
+  improve_existing: 'N/A (existing page)',
+  potential_cannibalization: 'High',
+}
+
+/** Phase 7 — deterministic page-opportunity list (lib/seo-strategy/page-opportunity.ts), already ordered commercial-first / priority-first. Never reordered or recalculated here. */
+function PageOpportunitiesList({ opportunities }: { opportunities: SeoStrategy['pageOpportunities'] }) {
+  if (opportunities.length === 0) return null
+
+  const sections: { label: string; items: SeoStrategy['pageOpportunities'] }[] = [
+    { label: 'High-Priority Commercial Pages', items: opportunities.filter((o) => o.priority === 'high' && (o.pageType === 'service' || o.pageType === 'service_location')) },
+    { label: 'Service + Location Opportunities', items: opportunities.filter((o) => o.pageType === 'service_location' && o.priority !== 'high') },
+    { label: 'Location Opportunities', items: opportunities.filter((o) => o.pageType === 'location') },
+    { label: 'Existing Pages to Improve', items: opportunities.filter((o) => o.pageType === 'improve_existing') },
+    { label: 'Supporting / Blog Content', items: opportunities.filter((o) => o.pageType === 'informational' || o.pageType === 'faq') },
+  ]
+  // Anything not bucketed above (e.g. a medium/low priority pure "service" gap) still needs to be shown — append as a final catch-all rather than silently dropping it.
+  const bucketed = new Set(sections.flatMap((s) => s.items))
+  const remaining = opportunities.filter((o) => !bucketed.has(o))
+  if (remaining.length > 0) sections.push({ label: 'Other Opportunities', items: remaining })
+
+  return (
+    <div className="space-y-5">
+      {sections
+        .filter((s) => s.items.length > 0)
+        .map((s) => (
+          <div key={s.label}>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{s.label}</div>
+            <div className="space-y-2">
+              {s.items.map((o, i) => (
+                <div key={i} className="rounded-lg border bg-card p-4 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[o.priority]}`}>
+                      {o.priority === 'high' ? 'High' : o.priority === 'medium' ? 'Medium' : 'Low'} Priority
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {OPPORTUNITY_TYPE_LABEL[o.pageType]}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{OPPORTUNITY_ACTION_LABEL[o.action]}</span>
+                  </div>
+                  <p className="text-sm font-medium text-pretty">{o.suggestedTitle}</p>
+                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span>
+                      Keyword: <span className="text-foreground font-medium">{o.primaryKeyword}</span>
+                    </span>
+                    <span>Intent: {o.searchIntent.replace('_', ' ')}</span>
+                    <span>Cannibalization Risk: {CANNIBALIZATION_LABEL[o.cannibalizationRisk]}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-pretty">{o.reason}</p>
+                  {o.competitorEvidence && (
+                    <p className="text-xs text-primary text-pretty flex items-start gap-1">
+                      <Target className="h-3 w-3 shrink-0 mt-0.5" /> {o.competitorEvidence}
+                    </p>
+                  )}
+                  {o.existingPage && (
+                    <p className="text-xs text-muted-foreground">
+                      Existing page: <code className="font-mono">{o.existingPage}</code>
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+    </div>
+  )
+}
+
 function PagesToCreate({ pages }: { pages: SeoStrategy['pagesToCreate'] }) {
   return (
     <div className="space-y-4">
@@ -3101,6 +3234,89 @@ function BlogIdeas({ ideas }: { ideas: SeoStrategy['blogIdeas'] }) {
           </p>
         </div>
       ))}
+    </div>
+  )
+}
+
+/** Phase 6 — side-by-side comparison table, straight from SeoStrategy.competitorIntelligence. Only shows metrics that were actually measured (a not-evaluated competitor shows "Not Evaluated", never a fabricated 0). */
+function CompetitorComparisonTable({ intelligence }: { intelligence: SeoStrategy['competitorIntelligence'] }) {
+  if (intelligence.comparison.length === 0) return null
+  const rows: { label: string; targetValue: number | null; key: 'servicePages' | 'locationPages' | 'blogPages' | 'schemaCoverage' }[] = [
+    { label: 'Service Pages', targetValue: intelligence.target.servicePages, key: 'servicePages' },
+    { label: 'Location Pages', targetValue: intelligence.target.locationPages, key: 'locationPages' },
+    { label: 'Blog Pages', targetValue: intelligence.target.blogPages, key: 'blogPages' },
+    { label: 'Schema Coverage', targetValue: intelligence.target.schemaCoverage, key: 'schemaCoverage' },
+  ]
+  const fmt = (v: number | null, isPct: boolean) => (v === null ? 'Not Evaluated' : isPct ? `${v}%` : String(v))
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b bg-muted/30 text-sm font-semibold">Side-by-Side Comparison</div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/20">
+              <th className="text-left font-medium px-4 py-2">Metric</th>
+              <th className="text-right font-medium px-4 py-2">Your Site</th>
+              {intelligence.comparison.map((c) => (
+                <th key={c.domain} className="text-right font-medium px-4 py-2 whitespace-nowrap">
+                  {c.domain}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-b last:border-0">
+                <td className="px-4 py-2 text-muted-foreground">{r.label}</td>
+                <td className="px-4 py-2 text-right font-medium tabular-nums">{fmt(r.targetValue, r.key === 'schemaCoverage')}</td>
+                {intelligence.comparison.map((c) => (
+                  <td key={c.domain} className="px-4 py-2 text-right tabular-nums">
+                    {c.status === 'not_evaluated' ? (
+                      <span className="text-muted-foreground text-xs">Not Evaluated</span>
+                    ) : (
+                      fmt(c[r.key], r.key === 'schemaCoverage')
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+const PRIORITY_BADGE_CLS: Record<'high' | 'medium' | 'low', string> = {
+  high: 'bg-destructive/10 text-destructive border-destructive/30',
+  medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  low: 'bg-muted text-muted-foreground border-border',
+}
+
+/** Phase 6 — top opportunities merged from service/location/content gaps, already sorted deterministically (lib/seo-strategy/competitor-intelligence.ts) — never reordered here. */
+function CompetitorOpportunities({ opportunities }: { opportunities: SeoStrategy['competitorIntelligence']['opportunities'] }) {
+  if (opportunities.length === 0) return null
+  return (
+    <div className="rounded-xl border bg-card p-5">
+      <div className="text-sm font-semibold mb-3">Priority Opportunities</div>
+      <ol className="space-y-2">
+        {opportunities.map((o, i) => (
+          <li key={i} className="rounded-lg border bg-muted/20 p-3 flex items-start gap-3">
+            <span className="text-xs font-semibold text-muted-foreground shrink-0 mt-0.5 w-5 text-right">{i + 1}.</span>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[o.priority]}`}>
+                  {o.priority === 'high' ? 'High' : o.priority === 'medium' ? 'Medium' : 'Low'} Priority
+                </span>
+                <span className="text-xs text-muted-foreground">{o.topic}</span>
+              </div>
+              <p className="text-sm text-pretty">{o.opportunity}</p>
+              <p className="text-xs text-muted-foreground text-pretty">{o.evidence}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }
