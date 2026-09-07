@@ -17,6 +17,7 @@ import { buildOffPageIntelligence, type OffPageIntelligence } from '@/lib/seo-st
 import { buildKpiMeasurement, type MeasurementKpi } from '@/lib/seo-strategy/kpi-measurement'
 import { priorityFixToFinding, pageOpportunityToFinding, competitorGapToFinding, localOpportunityToFinding, offPageOpportunityToFinding, type Finding } from '@/lib/seo-strategy/evidence'
 import { buildTwoMonthRoadmap, type TwoMonthRoadmap } from '@/lib/seo-strategy/roadmap'
+import { clampAndReconcileScores, runFinalValidation, type ReportValidation } from '@/lib/seo-strategy/final-validation'
 import type {
   HealthScoreBreakdown,
   KeywordPageMapping,
@@ -297,6 +298,8 @@ export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown'> & {
   offPageIntelligence: OffPageIntelligence
   /** Phase 12 — deterministic, personalized 2-month/8-week roadmap (lib/seo-strategy/roadmap.ts). Fully replaces the old AI-generated sixMonthRoadmap; every task is a direct projection of already-validated findings from earlier phases, never AI-authored. */
   twoMonthRoadmap: TwoMonthRoadmap
+  /** Phase 13 — final validation + report quality control (lib/seo-strategy/final-validation.ts), run once every other phase's corrections are already applied. The single object both the web report and the JSON/PDF export read (same `correctedStrategy`), so they can never diverge — see that module's header note. */
+  reportValidation: ReportValidation
 }
 
 // ---------------------------------------------------------------------------
@@ -800,14 +803,27 @@ Hard rules — a later automated validation pass checks these and will overwrite
       }
     })
 
+    // Phase 13 — the AI's overallHealthScore/healthScoreBreakdown numbers
+    // have never had a 0-100 bounds check (the AI schema only enforces
+    // `z.number().int()`), and healthScoreBreakdown.onPage was never
+    // reconciled against Phase 3's own deterministic on-page score. Both
+    // are corrected here, before anything is returned to the client.
+    const scoreCorrection = clampAndReconcileScores(
+      strategy.overallHealthScore,
+      { technical: strategy.healthScoreBreakdown.technical, onPage: strategy.healthScoreBreakdown.onPage, content: strategy.healthScoreBreakdown.content, offPage: strategy.healthScoreBreakdown.offPage },
+      onPageOverview.score,
+    )
+
     const correctedStrategy: SeoStrategy = {
       ...strategy,
+      overallHealthScore: scoreCorrection.overallHealthScore,
       criticalIssues: kpiResult.correctedCriticalIssues,
       quickWins: kpiResult.correctedQuickWins,
       conclusion: kpiResult.correctedConclusion,
       localSeo: { ...strategy.localSeo, applicable: contradictionResult.localSeoApplicable, napConsistency: localSeoResult.correctedNapConsistency },
       healthScoreBreakdown: {
         ...strategy.healthScoreBreakdown,
+        ...scoreCorrection.healthScoreBreakdown,
         local: contradictionResult.healthScoreLocal,
         localStatus: contradictionResult.healthScoreLocalStatus,
       },
@@ -845,10 +861,12 @@ Hard rules — a later automated validation pass checks these and will overwrite
       localSeoIntelligence,
       offPageIntelligence,
       twoMonthRoadmap,
+      reportValidation: { valid: true, errors: [], warnings: [], suppressedClaims: [], mergedDuplicates: [], correctedStates: [], confidence: 'limited', confidenceReason: '' },
     }
 
-    // Contradiction details are diagnostic-only — never exposed to
-    // production users, only helpful in development.
+    // Every phase's own diagnostic messages, collected as they were
+    // computed above — logged for development only, never shown to users
+    // as raw stack traces.
     const allContradictions = [
       ...contradictionResult.contradictions,
       ...onPageContradictionResult.contradictions,
@@ -863,6 +881,21 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...evidenceContradictions,
       ...roadmapContradictions,
     ]
+
+    // Phase 13 — FINAL VALIDATION: the one checkpoint between strategy/
+    // roadmap generation and report render/export (see pipeline note in
+    // lib/seo-strategy/final-validation.ts). Runs last, against the fully
+    // corrected `correctedStrategy`, and is attached to that SAME object —
+    // both the web report and the JSON/PDF export read it off `strategy`,
+    // so they can never diverge.
+    correctedStrategy.reportValidation = runFinalValidation({
+      allContradictions,
+      technicalCrawlSummary,
+      kpiMeasurement,
+      twoMonthRoadmap,
+      scoreCorrections: scoreCorrection.correctedStates,
+    })
+
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined
 
