@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Globe,
   Sparkles,
@@ -999,6 +999,37 @@ function StrategyReport({
     onDelete: () => toggleSection(id),
   })
 
+  // Phase 14 — report navigation only ever lists sections that are actually
+  // rendered: it mirrors the exact same conditions used below (competitor
+  // data present, preview available, not hidden in edit mode) rather than a
+  // fixed list, so it never links to an empty/absent section.
+  const navSections = useMemo(() => {
+    const all: { id: string; label: string }[] = [
+      { id: 'exec-summary', label: 'Executive Summary' },
+      { id: 'health-score', label: 'Health Score' },
+      { id: 'on-page-overview', label: 'On-Page Overview' },
+      { id: 'priority-fixes', label: 'Priority Fixes' },
+      { id: 'page-by-page', label: 'Page-by-Page Audit' },
+      ...(previewAvailable !== false ? [{ id: 'screenshots', label: 'Mobile Preview' }] : []),
+      { id: 'critical-issues', label: 'Critical Issues' },
+      { id: 'quick-wins', label: 'Quick Wins' },
+      { id: 'technical', label: 'Technical SEO' },
+      { id: 'on-page', label: 'On-Page Audit' },
+      { id: 'keywords', label: 'Keyword Strategy' },
+      { id: 'pages-to-create', label: 'Pages to Create' },
+      { id: 'blog-ideas', label: 'Blog Ideas' },
+      ...(strategy.competitorAnalysis.length > 0 ? [{ id: 'competitors', label: 'Competitors' }] : []),
+      { id: 'local-seo', label: 'Local SEO' },
+      { id: 'off-page', label: 'Off-Page Strategy' },
+      { id: 'roadmap', label: '2-Month Roadmap' },
+      { id: 'kpis', label: 'KPIs' },
+      { id: 'tools', label: 'Tool Stack' },
+      { id: 'risks', label: 'Risk Assessment' },
+      { id: 'conclusion', label: 'Conclusion' },
+    ]
+    return all.filter((s) => !hiddenSections.has(s.id))
+  }, [strategy.competitorAnalysis.length, previewAvailable, hiddenSections])
+
   return (
     <div className="space-y-8">
       {/* Action toolbar (hidden on print) */}
@@ -1059,6 +1090,9 @@ function StrategyReport({
           </div>
         )}
       </div>
+
+      {/* Report navigation — jump to any rendered section; never shown on print/export */}
+      <ReportNav sections={navSections} />
 
       {/* Editable report body — entire report becomes inline-editable when editMode is on */}
       <div
@@ -1469,6 +1503,57 @@ function CoverStat({ label, value }: { label: string; value: string }) {
   )
 }
 
+/**
+ * Phase 14 — compact report table of contents. Sticky, horizontally
+ * scrollable on small screens (never wraps into a heavy block), tracks the
+ * currently-visible section via IntersectionObserver, and uses plain
+ * anchor links so keyboard/tab navigation and screen readers work with no
+ * extra handling. Hidden entirely on print/export — it's a navigation aid
+ * for the live web report only.
+ */
+function ReportNav({ sections }: { sections: { id: string; label: string }[] }) {
+  const [active, setActive] = useState<string | null>(sections[0]?.id ?? null)
+
+  useEffect(() => {
+    if (sections.length === 0) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        if (visible[0]) setActive(visible[0].target.id)
+      },
+      { rootMargin: '-112px 0px -70% 0px', threshold: 0 },
+    )
+    const elements = sections.map((s) => document.getElementById(s.id)).filter((el): el is HTMLElement => el !== null)
+    for (const el of elements) observer.observe(el)
+    return () => observer.disconnect()
+  }, [sections])
+
+  if (sections.length === 0) return null
+
+  return (
+    <nav aria-label="Report sections" className="print:hidden sticky top-[6.5rem] z-20 -mx-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
+      <div className="flex gap-1.5 overflow-x-auto px-4 py-2">
+        {sections.map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            aria-current={active === s.id ? 'true' : undefined}
+            className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap border transition-colors ${
+              active === s.id
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            {s.label}
+          </a>
+        ))}
+      </div>
+    </nav>
+  )
+}
+
 function ReportSection({
   icon: Icon,
   title,
@@ -1502,7 +1587,8 @@ function ReportSection({
   if (hidden && editMode) {
     return (
       <section
-        className="rounded-2xl border-2 border-dashed bg-muted/30 p-5 print:hidden flex items-center justify-between gap-4"
+        id={sectionId}
+        className="rounded-2xl border-2 border-dashed bg-muted/30 p-5 print:hidden flex items-center justify-between gap-4 scroll-mt-32"
         contentEditable={false}
       >
         <div className="flex items-center gap-3 text-sm text-muted-foreground min-w-0">
@@ -1528,8 +1614,9 @@ function ReportSection({
 
   return (
     <section
+      id={sectionId}
       data-section-id={sectionId}
-      className={`relative rounded-2xl border bg-card p-6 sm:p-8 print:break-inside-avoid ${
+      className={`relative rounded-2xl border bg-card p-6 sm:p-8 print:break-inside-avoid scroll-mt-32 ${
         editMode
           ? 'ring-1 ring-transparent hover:ring-primary/30 transition-shadow'
           : ''
@@ -1854,6 +1941,14 @@ function CriticalIssuesGrid({
 }: {
   issues: SeoStrategy['criticalIssues']
 }) {
+  if (issues.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="h-4 w-4" />
+        No Critical Issues Found
+      </div>
+    )
+  }
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {issues.map((iss, i) => (
@@ -1902,6 +1997,9 @@ function ImpactBadge({ impact }: { impact: 'critical' | 'high' | 'medium' }) {
 }
 
 function QuickWinsGrid({ wins }: { wins: SeoStrategy['quickWins'] }) {
+  if (wins.length === 0) {
+    return <p className="text-sm text-muted-foreground">No quick wins identified for this site right now.</p>
+  }
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {wins.map((w, i) => (
@@ -2506,7 +2604,7 @@ function PriorityFixesList({ fixes }: { fixes: SeoStrategy['onPagePriorityFixes'
               <Badge variant="outline" className="text-xs">
                 {f.category}
               </Badge>
-              <span className="text-xs text-muted-foreground truncate">{f.pageName}</span>
+              <span className="text-xs text-muted-foreground truncate" title={f.url}>{f.pageName}</span>
             </div>
             <p className="text-sm text-pretty">{f.evidence}</p>
             <p className="text-xs text-muted-foreground text-pretty">
@@ -2678,7 +2776,7 @@ function CollapsiblePageCard({
               </Badge>
             )}
           </div>
-          <code className="text-xs text-muted-foreground truncate block">{url}</code>
+          <code className="text-xs text-muted-foreground truncate block" title={url}>{url}</code>
         </div>
         {score !== null && scoreStatus !== null && (
           <div className="flex items-center gap-1.5 shrink-0">
@@ -2719,6 +2817,16 @@ function PageStatusTable({ onPage }: { onPage: SeoStrategy['onPageAudits'][numbe
   )
 }
 
+/** Phase 14 — a visual-only filter over already-rendered page cards; never removes a card from the DOM, so print/export always shows every page regardless of the filter selected on screen. */
+const PAGE_SEVERITY_FILTERS: { key: Severity | 'all'; label: string }[] = [
+  { key: 'all', label: 'All Pages' },
+  { key: 'critical', label: 'Critical' },
+  { key: 'high', label: 'High' },
+  { key: 'medium', label: 'Medium' },
+  { key: 'low', label: 'Low' },
+  { key: 'pass', label: 'Good' },
+]
+
 function PageByPageAudit({
   pages,
   onPageAudits,
@@ -2726,19 +2834,44 @@ function PageByPageAudit({
   pages: SeoStrategy['pageByPageAudit']
   onPageAudits: SeoStrategy['onPageAudits']
 }) {
+  const [filter, setFilter] = useState<Severity | 'all'>('all')
   const onPageByUrl = new Map(onPageAudits.map((a) => [a.url, a]))
+  const rows = pages.map((p) => {
+    const onPage = onPageByUrl.get(p.url)
+    const overallSeverity: Severity = onPage ? pageOverallSeverity(onPage) : 'not_evaluated'
+    return { p, onPage, overallSeverity }
+  })
+  const visibleCount = rows.filter((r) => filter === 'all' || r.overallSeverity === filter).length
+
   return (
     <div className="space-y-4">
-      {pages.map((p, i) => {
-        const onPage = onPageByUrl.get(p.url)
+      {rows.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 print:hidden" role="group" aria-label="Filter pages by severity">
+          {PAGE_SEVERITY_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              aria-pressed={filter === f.key}
+              className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                filter === f.key ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground border-border hover:bg-muted'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {visibleCount === 0 && <p className="text-sm text-muted-foreground print:hidden">No pages match this filter.</p>}
+      {rows.map(({ p, onPage, overallSeverity }, i) => {
         // Expanded by default for pages with Critical/High findings; collapsed
         // (but never removed from the DOM, so print/export still shows
         // everything) for Medium/Low/Good pages — per the Phase 3 spec.
-        const overallSeverity = onPage ? pageOverallSeverity(onPage) : 'not_evaluated'
         const defaultExpanded = overallSeverity === 'critical' || overallSeverity === 'high'
+        const matchesFilter = filter === 'all' || overallSeverity === filter
         return (
+          <div key={i} className={matchesFilter ? '' : 'hidden print:block'}>
           <CollapsiblePageCard
-            key={i}
             pageName={onPage?.pageName ?? p.url}
             url={p.url}
             targetKeyword={onPage?.targetKeyword ?? null}
@@ -2749,7 +2882,7 @@ function PageByPageAudit({
           >
           <div className="p-5 space-y-4">
             {onPage && <PageStatusTable onPage={onPage} />}
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-4 print:break-inside-avoid">
               {onPage ? (
                 <OnPageFieldBlock
                   label="Meta Title"
@@ -2791,7 +2924,7 @@ function PageByPageAudit({
                 </p>
               </div>
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-4 print:break-inside-avoid">
               {onPage ? (
                 <OnPageFieldBlock
                   label="Meta Description"
@@ -2903,6 +3036,7 @@ function PageByPageAudit({
             </div>
           </div>
           </CollapsiblePageCard>
+          </div>
         )
       })}
     </div>
@@ -3187,7 +3321,7 @@ function PagesToCreate({ pages }: { pages: SeoStrategy['pagesToCreate'] }) {
           <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-balance">{p.title}</h3>
-              <code className="text-xs text-muted-foreground font-mono">
+              <code className="text-xs text-muted-foreground font-mono break-all">
                 {p.suggestedUrl}
               </code>
             </div>
@@ -3569,7 +3703,7 @@ function LocalSeoIntelligenceBlock({ intelligence }: { intelligence: SeoStrategy
                   {locationCoverage.existingLocationPages.map((url, i) => (
                     <li key={i} className="flex items-start gap-1.5">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                      <code className="font-mono text-xs truncate">{url}</code>
+                      <code className="font-mono text-xs truncate" title={url}>{url}</code>
                     </li>
                   ))}
                 </ul>
@@ -3670,7 +3804,7 @@ function LocalSeoIntelligenceBlock({ intelligence }: { intelligence: SeoStrategy
             {locationPageQuality.map((p, i) => (
               <li key={i} className="rounded-lg border bg-muted/20 p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <code className="font-mono text-xs truncate">{p.url}</code>
+                  <code className="font-mono text-xs truncate" title={p.url}>{p.url}</code>
                   {p.doorwayRisk && (
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap bg-destructive/10 text-destructive border-destructive/30">
                       Doorway-Page Risk
@@ -4035,7 +4169,7 @@ function OffPageSection({
 /** Phase 12 — deterministic, personalized roadmap task row. Never a fake traffic/ranking/backlink target — completionCheck is always task/audit-based (see lib/seo-strategy/roadmap.ts). */
 function RoadmapTaskRow({ task }: { task: SeoStrategy['twoMonthRoadmap']['months'][number]['weeks'][number]['tasks'][number] }) {
   return (
-    <div className="rounded-lg border bg-card p-3">
+    <div className="rounded-lg border bg-card p-3 print:break-inside-avoid">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[task.priority]}`}>
@@ -4051,7 +4185,7 @@ function RoadmapTaskRow({ task }: { task: SeoStrategy['twoMonthRoadmap']['months
       {task.affectedUrls.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-1">
           {task.affectedUrls.slice(0, 4).map((u, i) => (
-            <code key={i} className="text-xs bg-muted/50 px-1.5 py-0.5 rounded font-mono">
+            <code key={i} className="text-xs bg-muted/50 px-1.5 py-0.5 rounded font-mono break-all max-w-full" title={u}>
               {u}
             </code>
           ))}
@@ -4076,7 +4210,7 @@ function RoadmapTaskRow({ task }: { task: SeoStrategy['twoMonthRoadmap']['months
 function RoadmapWeekBlock({ week }: { week: SeoStrategy['twoMonthRoadmap']['months'][number]['weeks'][number] }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Week {week.week}</div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 print:break-after-avoid">Week {week.week}</div>
       <div className="space-y-2">
         {week.tasks.map((t, i) => (
           <RoadmapTaskRow key={i} task={t} />
