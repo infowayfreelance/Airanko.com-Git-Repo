@@ -879,15 +879,27 @@ async function checkRobotsTxt(baseUrl: URL) {
 const SITEMAP_MAX_CHILD_SITEMAPS = 5
 const SITEMAP_MAX_URLS = 200
 
-/** Fetches one sitemap document; if it's a sitemap INDEX (not a plain urlset), recurses into a bounded number of child sitemaps so `allUrls` always ends up as actual page URLs, never sub-sitemap URLs. */
-async function fetchSitemapUrls(sitemapUrl: string, depth = 0): Promise<string[]> {
+/** A sitemap's <loc> entries are attacker-influenceable content (a misconfigured or malicious sitemap), so every entry — page URL or child-sitemap URL alike — is restricted to safe http(s) URLs on the SAME host being audited before this server ever fetches it or hands it back as a crawl target. */
+function isSameSiteHttpUrl(candidate: string, siteHostname: string): boolean {
+  try {
+    const u = new URL(candidate)
+    return (u.protocol === 'http:' || u.protocol === 'https:') && u.hostname === siteHostname
+  } catch {
+    return false
+  }
+}
+
+/** Fetches one sitemap document; if it's a sitemap INDEX (not a plain urlset), recurses into a bounded number of child sitemaps so `allUrls` always ends up as actual page URLs, never sub-sitemap URLs. Every URL is filtered to `siteHostname` — see isSameSiteHttpUrl(). */
+async function fetchSitemapUrls(sitemapUrl: string, siteHostname: string, depth = 0): Promise<string[]> {
   const content = await fetchText(sitemapUrl, 8000)
   if (!content) return []
-  const locs = Array.from(content.matchAll(/<loc>([^<]+)<\/loc>/g)).map((m) => m[1].trim())
+  const locs = Array.from(content.matchAll(/<loc>([^<]+)<\/loc>/g))
+    .map((m) => m[1].trim())
+    .filter((u) => isSameSiteHttpUrl(u, siteHostname))
   if (content.includes('<sitemapindex')) {
     if (depth >= 1) return [] // one level of recursion is enough for the sites this tool targets
     const childSitemaps = locs.slice(0, SITEMAP_MAX_CHILD_SITEMAPS)
-    const childResults = await Promise.all(childSitemaps.map((u) => fetchSitemapUrls(u, depth + 1)))
+    const childResults = await Promise.all(childSitemaps.map((u) => fetchSitemapUrls(u, siteHostname, depth + 1)))
     return childResults.flat().slice(0, SITEMAP_MAX_URLS)
   }
   if (content.includes('<urlset')) return locs.slice(0, SITEMAP_MAX_URLS)
@@ -901,7 +913,7 @@ async function checkSitemap(baseUrl: URL, robotsUrls: string[]) {
     `${baseUrl.protocol}//${baseUrl.hostname}/sitemap_index.xml`,
   ]
   for (const url of candidates) {
-    const allUrls = await fetchSitemapUrls(url)
+    const allUrls = await fetchSitemapUrls(url, baseUrl.hostname)
     if (allUrls.length > 0) {
       return {
         found: true,
@@ -971,16 +983,19 @@ async function auditSitemap(
 
   for (let i = 0; i < toCheck.length; i++) {
     const url = toCheck[i]
-    const { finalStatus } = traces[i]
+    const { finalStatus, hops } = traces[i]
 
+    // traceUrlStatus() already FOLLOWS redirects to reach a final status, so
+    // an ordinary 301->200 sitemap URL has finalStatus 200 — classify by
+    // whether any hop actually happened, not just by the terminal status.
     if (finalStatus === null) {
       unreachable++
       flaggedUrls.push({ url, issue: 'unreachable', status: null })
-    } else if (finalStatus >= 200 && finalStatus < 300) {
-      valid200++
-    } else if (finalStatus >= 300 && finalStatus < 400) {
+    } else if (hops.length > 0) {
       redirects++
       flaggedUrls.push({ url, issue: 'redirect', status: finalStatus })
+    } else if (finalStatus >= 200 && finalStatus < 300) {
+      valid200++
     } else if (finalStatus >= 400 && finalStatus < 500) {
       clientErrors++
       flaggedUrls.push({ url, issue: 'client_error', status: finalStatus })
@@ -989,20 +1004,34 @@ async function auditSitemap(
       flaggedUrls.push({ url, issue: 'server_error', status: finalStatus })
     }
 
+    // robots.txt blocking only needs the sitemap URL + parsed rules, not a
+    // crawl — most sitemap entries in a quick audit (or excluded/failed
+    // entries in a full one) never get crawled, and a blocked URL should
+    // still be flagged.
+    let pathname: string | null = null
+    try {
+      pathname = new URL(url).pathname
+    } catch {
+      /* ignore */
+    }
+    if (pathname && (disallowsAll || isPathDisallowed(pathname, disallowedPaths))) {
+      flaggedUrls.push({ url, issue: 'blocked_by_robots', status: finalStatus })
+    }
+
     const crawledPage = crawledByUrl.get(url)
     if (crawledPage) {
-      if (crawledPage.metaRobotsNoindex) flaggedUrls.push({ url, issue: 'noindex_in_sitemap', status: finalStatus })
-      let pathname: string | null = null
-      try {
-        pathname = new URL(url).pathname
-      } catch {
-        /* ignore */
-      }
-      if (pathname && (disallowsAll || isPathDisallowed(pathname, disallowedPaths))) {
-        flaggedUrls.push({ url, issue: 'blocked_by_robots', status: finalStatus })
-      }
-      if (crawledPage.canonical && stripTrailingSlash(crawledPage.canonical) !== stripTrailingSlash(url)) {
-        flaggedUrls.push({ url, issue: 'canonical_mismatch', status: finalStatus })
+      const noindex = crawledPage.metaRobotsNoindex || /noindex/i.test(crawledPage.xRobotsTag ?? '')
+      if (noindex) flaggedUrls.push({ url, issue: 'noindex_in_sitemap', status: finalStatus })
+      if (crawledPage.canonical) {
+        let resolvedCanonical: string | null = null
+        try {
+          resolvedCanonical = new URL(crawledPage.canonical, crawledPage.url).toString()
+        } catch {
+          /* malformed canonical — already flagged by the deterministic canonical audit elsewhere */
+        }
+        if (resolvedCanonical && stripTrailingSlash(resolvedCanonical) !== stripTrailingSlash(url)) {
+          flaggedUrls.push({ url, issue: 'canonical_mismatch', status: finalStatus })
+        }
       }
     }
   }
@@ -1107,7 +1136,7 @@ export async function POST(req: Request) {
         const r = await fetchWithTimeout(url, 10000)
         if (!r) return { url, ok: false as const }
         const page = analyzeHtml(url, r.html, r.status, r.loadTimeMs, r.byteSize, finalBase, r.headers['x-robots-tag'] ?? null)
-        return { url, ok: true as const, page, redirected: r.finalUrl !== url }
+        return { url, ok: true as const, page, redirected: stripTrailingSlash(r.finalUrl) !== stripTrailingSlash(url) }
       }),
     )
     const pageAnalyses: PageAnalysis[] = crawlResults.filter((c): c is Extract<typeof c, { ok: true }> => c.ok).map((c) => c.page)
@@ -1120,7 +1149,11 @@ export async function POST(req: Request) {
     // tells us WHETHER a URL redirected (r.finalUrl !== url); this traces
     // the actual hop-by-hop chain (and loop detection) for a bounded subset
     // of those, plus the homepage itself if the input URL redirected.
-    const homeRedirected = home.finalUrl !== normalized
+    // A bare-domain input like "https://example.com" is normalized by the
+    // browser/fetch spec to "https://example.com/" in Response.url even
+    // with zero real redirects — compare with trailing slashes stripped so
+    // that alone isn't counted as a redirect.
+    const homeRedirected = stripTrailingSlash(home.finalUrl) !== stripTrailingSlash(normalized)
     const urlsToTrace = [...(homeRedirected ? [normalized] : []), ...redirectedCrawlUrls].slice(0, REDIRECT_TRACE_LIMIT)
     const redirectTraces = await mapWithConcurrency(urlsToTrace, 6, (u) => traceUrlStatus(u))
     const redirects: SiteAnalysis['redirects'] = urlsToTrace
