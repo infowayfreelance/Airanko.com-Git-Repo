@@ -6,12 +6,13 @@ import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
 import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
-import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
 import { buildTechnicalCrawlSummary, type TechnicalCrawlSummary } from '@/lib/seo-strategy/technical-summary'
 import { buildCompetitorIntelligence, type CompetitorIntelligence } from '@/lib/seo-strategy/competitor-intelligence'
 import type { CompetitorProfile } from './competitor-analyze/route'
+import { buildPageOpportunities, type PageOpportunity } from '@/lib/seo-strategy/page-opportunity'
 import type {
   HealthScoreBreakdown,
   KpiTarget,
@@ -304,6 +305,8 @@ export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown' | 'kpiTarge
   technicalCrawlSummary: TechnicalCrawlSummary
   /** Phase 6 — deterministic, evidence-based competitor comparison (lib/seo-strategy/competitor-intelligence.ts). The AI's own competitorAnalysis[].strengths/weaknesses/opportunitiesToOutrank/contentGaps are overwritten with content derived from this before the report is returned — see the correction below. */
   competitorIntelligence: CompetitorIntelligence
+  /** Phase 7 — deterministic, evidence-based page/content-gap recommendations (lib/seo-strategy/page-opportunity.ts), merging P0's keyword-page mapping with Phase 6's competitor gaps. Presented alongside (not replacing) the AI's own pagesToCreate/blogIdeas prose content briefs. */
+  pageOpportunities: PageOpportunity[]
 }
 
 // ---------------------------------------------------------------------------
@@ -427,6 +430,15 @@ export async function POST(req: Request) {
     // /api/seo-strategy/competitor-analyze — never AI-guessed.
     const competitorProfiles: CompetitorProfile[] = Array.isArray(input.competitorProfiles) ? input.competitorProfiles : []
     const competitorIntelligence: CompetitorIntelligence = buildCompetitorIntelligence(onPageAuditsRaw, competitorProfiles)
+
+    // Phase 7 — deterministic content-gap / pages-to-create strategy.
+    // Merges P0's keyword→page mapping with Phase 6's competitor gaps —
+    // never a fresh AI guess at what pages to build.
+    const pageOpportunities: PageOpportunity[] = buildPageOpportunities(
+      keywordMappings,
+      { serviceGaps: competitorIntelligence.serviceGaps, locationGaps: competitorIntelligence.locationGaps, contentGaps: competitorIntelligence.contentGaps },
+      { isLocalBusiness: localCtx.isLocalBusiness, location: input.location },
+    ).opportunities
 
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
@@ -674,6 +686,11 @@ Hard rules — a later automated validation pass checks these and will overwrite
     // failed) keeps only what's actually verifiable: its name/URL, with
     // empty finding arrays rather than fabricated ones.
     const competitorContradictions = runCompetitorContradictionChecks(strategy.competitorAnalysis, competitorProfiles)
+
+    // Phase 7 — diagnostic-only check of the AI's pagesToCreate/blogIdeas
+    // prose against P0's keyword-page mapping (the deterministic
+    // pageOpportunities list above is what the report actually shows).
+    const pageOpportunityContradictions = runPageOpportunityContradictionChecks(strategy.pagesToCreate, strategy.blogIdeas, keywordMappings)
     const correctedCompetitorAnalysis = strategy.competitorAnalysis.map((entry, i) => {
       const profile = competitorProfiles[i]
       const domain = profile?.domain
@@ -731,6 +748,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       technicalCrawlSummary,
       competitorAnalysis: correctedCompetitorAnalysis,
       competitorIntelligence,
+      pageOpportunities,
     }
 
     // Contradiction details are diagnostic-only — never exposed to
@@ -742,6 +760,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...serpPixelContradictions,
       ...crawlCoverageResult.contradictions,
       ...competitorContradictions,
+      ...pageOpportunityContradictions,
     ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined

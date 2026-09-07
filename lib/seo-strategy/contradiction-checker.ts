@@ -586,3 +586,66 @@ export function runCompetitorContradictionChecks<T extends { inputUrl: string; d
   }
   return contradictions
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 7 — content-gap / pages-to-create strategy. Catches the AI's
+// pagesToCreate/blogIdeas recommending a brand-new page for a keyword that
+// already has a strong existing landing page (P0's own keyword-page
+// mapping says so), the same target keyword claimed by more than one
+// recommendation, and unsupported keyword-metric claims (search volume,
+// CPC, difficulty, traffic/ranking probability) with no verified data
+// source. Diagnostic/defense-in-depth, logged in development — the
+// deterministic pageOpportunities list (page-opportunity.ts) is the
+// report's actual source of truth for these, not this free-text AI content.
+// ─────────────────────────────────────────────────────────────────────────
+const UNSUPPORTED_METRIC_RE = /\b(search volume|monthly volume|\bCPC\b|cost[- ]per[- ]click|keyword difficulty|traffic potential|ranking probability|likely to rank)\b/i
+
+export interface PageRecommendationLike {
+  targetKeyword: string
+  purpose?: string
+  contentBrief: string
+}
+
+const STRONG_MATCH_SCORE = 70
+
+export function runPageOpportunityContradictionChecks(
+  pagesToCreate: PageRecommendationLike[],
+  blogIdeas: PageRecommendationLike[],
+  keywordMappings: KeywordPageMapping[],
+): string[] {
+  const contradictions: string[] = []
+  const mappingByKeyword = new Map(keywordMappings.map((m) => [normalizeKeyword(m.keyword), m]))
+
+  const seenKeywords = new Map<string, string>() // normalized keyword -> first source it was seen in
+  for (const [sourceLabel, items] of [
+    ['pagesToCreate', pagesToCreate],
+    ['blogIdeas', blogIdeas],
+  ] as const) {
+    for (const item of items) {
+      const normalized = normalizeKeyword(item.targetKeyword)
+      const mapping = mappingByKeyword.get(normalized)
+      if (mapping && mapping.status === 'mapped' && (mapping.relevanceScore >= STRONG_MATCH_SCORE || mapping.confidence === 'high') && sourceLabel === 'pagesToCreate') {
+        contradictions.push(
+          `${sourceLabel} recommends a new page for "${item.targetKeyword}", but a strong existing page (${mapping.mappedUrl}, relevance ${mapping.relevanceScore}/100) already targets it — should be "improve existing" instead.`,
+        )
+      }
+
+      const text = `${item.purpose ?? ''} ${item.contentBrief}`
+      if (UNSUPPORTED_METRIC_RE.test(text)) {
+        contradictions.push(`${sourceLabel} ("${item.targetKeyword}") makes an unsupported keyword-metric claim with no verified data source: "${text.trim()}"`)
+      }
+
+      const existingSource = seenKeywords.get(normalized)
+      if (existingSource) {
+        contradictions.push(`Keyword "${item.targetKeyword}" is targeted by more than one recommendation (${existingSource} and ${sourceLabel}) — duplicate/cannibalizing targeting.`)
+      } else {
+        seenKeywords.set(normalized, sourceLabel)
+      }
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Page opportunity contradiction checker found the following:', contradictions)
+  }
+  return contradictions
+}

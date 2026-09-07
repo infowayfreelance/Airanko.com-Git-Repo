@@ -1197,9 +1197,12 @@ function StrategyReport({
           icon={PenLine}
           title="Pages to Create"
           kicker="Section 12"
-          description="Content briefs ready to hand to your writers."
+          description="Evidence-based page opportunities, ranked by commercial priority — content briefs for new pages are below."
         >
-          <PagesToCreate pages={strategy.pagesToCreate} />
+          <div className="space-y-6">
+            <PageOpportunitiesList opportunities={strategy.pageOpportunities} />
+            <PagesToCreate pages={strategy.pagesToCreate} />
+          </div>
         </ReportSection>
 
         {/* Blog ideas */}
@@ -3024,6 +3027,90 @@ function KeywordStrategy({ data }: { data: SeoStrategy['keywordStrategy'] }) {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+const OPPORTUNITY_TYPE_LABEL: Record<SeoStrategy['pageOpportunities'][number]['pageType'], string> = {
+  service: 'Service Page',
+  location: 'Location Page',
+  service_location: 'Service + Location Page',
+  informational: 'Informational/Blog Page',
+  faq: 'FAQ/Supporting Content',
+  improve_existing: 'Existing Page Improvement',
+}
+
+const OPPORTUNITY_ACTION_LABEL: Record<SeoStrategy['pageOpportunities'][number]['action'], string> = {
+  create: 'Create New Page',
+  improve: 'Improve Existing Page',
+  optimize: 'Optimize Existing Page',
+}
+
+const CANNIBALIZATION_LABEL: Record<SeoStrategy['pageOpportunities'][number]['cannibalizationRisk'], string> = {
+  safe_to_create: 'Low',
+  improve_existing: 'N/A (existing page)',
+  potential_cannibalization: 'High',
+}
+
+/** Phase 7 — deterministic page-opportunity list (lib/seo-strategy/page-opportunity.ts), already ordered commercial-first / priority-first. Never reordered or recalculated here. */
+function PageOpportunitiesList({ opportunities }: { opportunities: SeoStrategy['pageOpportunities'] }) {
+  if (opportunities.length === 0) return null
+
+  const sections: { label: string; items: SeoStrategy['pageOpportunities'] }[] = [
+    { label: 'High-Priority Commercial Pages', items: opportunities.filter((o) => o.priority === 'high' && (o.pageType === 'service' || o.pageType === 'service_location')) },
+    { label: 'Service + Location Opportunities', items: opportunities.filter((o) => o.pageType === 'service_location' && o.priority !== 'high') },
+    { label: 'Location Opportunities', items: opportunities.filter((o) => o.pageType === 'location') },
+    { label: 'Existing Pages to Improve', items: opportunities.filter((o) => o.pageType === 'improve_existing') },
+    { label: 'Supporting / Blog Content', items: opportunities.filter((o) => o.pageType === 'informational' || o.pageType === 'faq') },
+  ]
+  // Anything not bucketed above (e.g. a medium/low priority pure "service" gap) still needs to be shown — append as a final catch-all rather than silently dropping it.
+  const bucketed = new Set(sections.flatMap((s) => s.items))
+  const remaining = opportunities.filter((o) => !bucketed.has(o))
+  if (remaining.length > 0) sections.push({ label: 'Other Opportunities', items: remaining })
+
+  return (
+    <div className="space-y-5">
+      {sections
+        .filter((s) => s.items.length > 0)
+        .map((s) => (
+          <div key={s.label}>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{s.label}</div>
+            <div className="space-y-2">
+              {s.items.map((o, i) => (
+                <div key={i} className="rounded-lg border bg-card p-4 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[o.priority]}`}>
+                      {o.priority === 'high' ? 'High' : o.priority === 'medium' ? 'Medium' : 'Low'} Priority
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {OPPORTUNITY_TYPE_LABEL[o.pageType]}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{OPPORTUNITY_ACTION_LABEL[o.action]}</span>
+                  </div>
+                  <p className="text-sm font-medium text-pretty">{o.suggestedTitle}</p>
+                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span>
+                      Keyword: <span className="text-foreground font-medium">{o.primaryKeyword}</span>
+                    </span>
+                    <span>Intent: {o.searchIntent.replace('_', ' ')}</span>
+                    <span>Cannibalization Risk: {CANNIBALIZATION_LABEL[o.cannibalizationRisk]}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-pretty">{o.reason}</p>
+                  {o.competitorEvidence && (
+                    <p className="text-xs text-primary text-pretty flex items-start gap-1">
+                      <Target className="h-3 w-3 shrink-0 mt-0.5" /> {o.competitorEvidence}
+                    </p>
+                  )}
+                  {o.existingPage && (
+                    <p className="text-xs text-muted-foreground">
+                      Existing page: <code className="font-mono">{o.existingPage}</code>
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
     </div>
   )
 }
