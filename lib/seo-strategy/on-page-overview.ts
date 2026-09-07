@@ -383,6 +383,25 @@ function computeFixPriority(severity: Severity, importance: PageImportance): Fin
   return 'low'
 }
 
+/**
+ * Codex fix — the list must actually be ordered (and truncated to
+ * PRIORITY_FIX_MAX) by the computed `priority`, not just labeled with it.
+ * Sorting by severity/importance alone let a Medium-priority fix on a
+ * high-severity/low-importance page rank above a High-priority fix on a
+ * medium-severity/high-importance page, and could drop the High-priority
+ * one past the truncation cutoff entirely.
+ */
+const FIX_PRIORITY_RANK: Record<FindingPriority, number> = { high: 3, medium: 2, low: 1 }
+
+function compareByPriorityThenSeverity(
+  x: { priority: FindingPriority; severity: Severity; importance: PageImportance; issueCount: number },
+  y: { priority: FindingPriority; severity: Severity; importance: PageImportance; issueCount: number },
+): number {
+  const priorityDiff = FIX_PRIORITY_RANK[y.priority] - FIX_PRIORITY_RANK[x.priority]
+  if (priorityDiff !== 0) return priorityDiff
+  return compareBySeverityThenImportance(x, y)
+}
+
 /** Deterministic, category-level "why it matters" / "recommended action" text — never AI-generated, never a generic "Improve SEO." */
 const CATEGORY_REASON: Record<string, string> = {
   'Meta Title': 'The title tag is a primary ranking and click-through signal in search results.',
@@ -413,6 +432,7 @@ function pushCategoryFixes(
   severity: Severity,
   issueCount: number,
   evidence: string,
+  overrides?: { confidence?: FindingConfidence; action?: string },
 ): void {
   if (issueCount <= 0) return
   if (severity !== 'critical' && severity !== 'high' && severity !== 'medium') return
@@ -424,12 +444,39 @@ function pushCategoryFixes(
     priority: computeFixPriority(severity, a.importance),
     evidence,
     reason: CATEGORY_REASON[category] ?? '',
-    action: CATEGORY_ACTION[category] ?? '',
-    confidence: 'high',
+    action: overrides?.action ?? CATEGORY_ACTION[category] ?? '',
+    confidence: overrides?.confidence ?? 'high',
     source: 'crawled',
     importance: a.importance,
     issueCount,
   })
+}
+
+/**
+ * Codex fix — the category's fixed action text assumed every Internal
+ * Linking issue was an orphan page needing more inbound links, but the
+ * category also covers broken outgoing links and weak linking, each of
+ * which needs a different fix. Chooses the action from the actual audit
+ * fields, never from a single fixed string for the whole category.
+ */
+function internalLinkingAction(links: PageOnPageAudit['internalLinks']): string {
+  if (links.brokenLinks.length > 0) return 'Fix or remove the broken internal link(s) identified in the evidence above.'
+  if (links.orphan) return 'Add 2-3 relevant contextual internal links pointing to this page from related pages.'
+  if (links.weaklyLinked) return 'Add more contextual internal links pointing to this page to strengthen its internal link equity.'
+  return 'Review and resolve the flagged internal-linking issue.'
+}
+
+/**
+ * Codex fix — an apparent orphan page is only Medium confidence when the
+ * crawl coverage was partial (orphanConfidence, set by the Phase 2B
+ * internal-link audit itself, reflects exactly this) — a missing inbound
+ * link can be a crawl artifact rather than a real orphan in that case, so
+ * it must never be presented at the same High confidence as a directly
+ * observed fact.
+ */
+function internalLinkingConfidence(links: PageOnPageAudit['internalLinks']): FindingConfidence {
+  if (links.orphan && links.orphanConfidence) return links.orphanConfidence
+  return 'high'
 }
 
 export function buildPriorityFixes(audits: PageOnPageAudit[]): PriorityFix[] {
@@ -463,6 +510,7 @@ export function buildPriorityFixes(audits: PageOnPageAudit[]): PriorityFix[] {
       a.internalLinks.severity,
       a.internalLinks.issues.length,
       a.internalLinks.issues[0] ?? '',
+      { confidence: internalLinkingConfidence(a.internalLinks), action: internalLinkingAction(a.internalLinks) },
     )
     const tech = a.technicalOnPage
     // Pick the fix text from whichever sub-check actually carries `tech.severity`
@@ -487,7 +535,7 @@ export function buildPriorityFixes(audits: PageOnPageAudit[]): PriorityFix[] {
     pushCategoryFixes(candidates, a, 'Technical', tech.severity, techIssueCount, techIssue)
   }
 
-  candidates.sort((x, y) => compareBySeverityThenImportance(x, y))
+  candidates.sort((x, y) => compareByPriorityThenSeverity(x, y))
 
   return candidates.slice(0, PRIORITY_FIX_MAX).map(({ importance: _importance, issueCount: _issueCount, ...rest }) => rest)
 }

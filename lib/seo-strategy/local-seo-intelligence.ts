@@ -369,7 +369,13 @@ function buildOpportunities(
       reason: source.reason,
       evidence: oppEvidence,
       source: oppSource,
-      confidence: deriveConfidenceFromSource(oppSource, oppEvidence.length > 0),
+      // Codex fix — preserve the underlying PageOpportunity's own
+      // confidence (e.g. Low for a keyword mapping with only a weak
+      // no_suitable_page match) instead of upgrading it to High just
+      // because a non-empty evidence string exists; otherwise the same
+      // recommendation could show Low Confidence under Page Opportunities
+      // but High Confidence here for the identical keyword.
+      confidence: source.confidence,
     })
   }
 
