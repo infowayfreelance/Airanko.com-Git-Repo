@@ -1265,7 +1265,7 @@ function StrategyReport({
           title="Off-Page & Backlink Strategy"
           kicker="Section 16"
         >
-          <OffPageSection data={strategy.offPageStrategy} />
+          <OffPageSection data={strategy.offPageIntelligence} strategy={strategy.offPageStrategy} />
         </ReportSection>
 
         {/* 6-month roadmap */}
@@ -3812,122 +3812,156 @@ function NapItem({ label, value }: { label: string; value: string }) {
   )
 }
 
-function OffPageSection({
-  data,
-}: {
-  data: SeoStrategy['offPageStrategy']
-}) {
+const OFF_PAGE_PRIORITY_BADGE_CLS: Record<'high' | 'medium' | 'low' | 'avoid', string> = {
+  high: 'bg-destructive/10 text-destructive border-destructive/30',
+  medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  low: 'bg-muted text-muted-foreground border-border',
+  avoid: 'bg-muted text-muted-foreground border-border line-through',
+}
+
+function OffPageOpportunityCard({ o }: { o: SeoStrategy['offPageIntelligence']['opportunities'][number] }) {
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-5">
-        <div className="flex items-start gap-3">
-          <DollarSign className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-semibold text-amber-900 dark:text-amber-200 mb-1">
-              Investment Notice
-            </h4>
-            <p className="text-sm text-amber-900/80 dark:text-amber-200/80 text-pretty">
-              {data.costDisclaimer}
-            </p>
-          </div>
-        </div>
+    <div className="rounded-xl border bg-card p-5 print:break-inside-avoid">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+        <h5 className="font-semibold text-balance">{o.type}</h5>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize whitespace-nowrap ${OFF_PAGE_PRIORITY_BADGE_CLS[o.priority]}`}>
+          {o.priority} priority
+        </span>
       </div>
-
-      <p className="text-muted-foreground text-pretty">{data.summary}</p>
-
-      <div className="space-y-3">
-        <h4 className="font-semibold">Backlink Tactics</h4>
-        {data.backlinkTactics.map((t, i) => (
-          <div
-            key={i}
-            className="rounded-xl border bg-card p-5 print:break-inside-avoid"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
-              <h5 className="font-semibold text-balance">{t.tactic}</h5>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <CostBadge cost={t.estimatedCost} />
-                <Badge variant="outline" className="capitalize">
-                  {t.difficulty}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={`capitalize ${
-                    t.expectedImpact === 'high'
-                      ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
-                      : ''
-                  }`}
-                >
-                  {t.expectedImpact} impact
-                </Badge>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mb-2 text-pretty">
-              {t.description}
-            </p>
-            <p className="text-xs text-primary font-medium">
-              Target: {t.monthlyTargetLinks} link{t.monthlyTargetLinks > 1 ? 's' : ''}/month
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="rounded-xl border p-5">
-          <h4 className="font-semibold mb-3">Guest Post Targets</h4>
-          <ul className="text-sm space-y-1">
-            {data.guestPostTargets.map((g, i) => (
-              <li key={i} className="flex items-start gap-1.5">
-                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
-                <span className="text-pretty">{g}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-xl border p-5">
-          <h4 className="font-semibold mb-3">Digital PR Tactics</h4>
-          <ul className="text-sm space-y-1">
-            {data.digitalPrTactics.map((g, i) => (
-              <li key={i} className="flex items-start gap-1.5">
-                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
-                <span className="text-pretty">{g}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-xl border p-5">
-          <h4 className="font-semibold mb-3">Social Signals</h4>
-          <ul className="text-sm space-y-1">
-            {data.socialSignals.map((g, i) => (
-              <li key={i} className="flex items-start gap-1.5">
-                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
-                <span className="text-pretty">{g}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <p className="text-sm text-muted-foreground mb-2 text-pretty">{o.targetType}</p>
+      <p className="text-sm text-pretty mb-2">{o.reason}</p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge variant="outline" className="capitalize">{o.relevance} relevance</Badge>
+        <Badge variant="outline" className="capitalize">{o.confidence} confidence</Badge>
+        <Badge variant="outline" className="capitalize">source: {o.dataSource.replace(/_/g, ' ')}</Badge>
       </div>
     </div>
   )
 }
 
-function CostBadge({
-  cost,
+/** Phase 9 — deterministic, relevance-first off-page strategy (lib/seo-strategy/off-page-intelligence.ts). Every opportunity, priority, citation, risk, and metric here is computed from the business's own inputs/crawl data — never an AI-invented backlink quota or DA/DR figure. */
+function OffPageSection({
+  data,
+  strategy,
 }: {
-  cost: 'free' | 'low' | 'medium' | 'high' | 'very-high'
+  data: SeoStrategy['offPageIntelligence']
+  strategy: SeoStrategy['offPageStrategy']
 }) {
-  const cls = {
-    free: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-    low: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-    medium: 'bg-primary/10 text-primary border-primary/30',
-    high: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
-    'very-high': 'bg-destructive/10 text-destructive border-destructive/30',
-  }[cost]
+  const highPriority = data.opportunities.filter((o) => o.priority === 'high')
+
   return (
-    <span
-      className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${cls}`}
-    >
-      Cost: {cost.replace('-', ' ')}
-    </span>
+    <div className="space-y-6">
+      {/* 1. Overview */}
+      <p className="text-muted-foreground text-pretty">{strategy.summary}</p>
+      <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-5">
+        <p className="text-sm text-pretty">
+          Off-page success here is measured by relevance and legitimacy, not a link count.{' '}
+          <span className="font-medium">Domain metrics: {data.domainMetricsNote}</span>
+        </p>
+      </div>
+
+      {/* 2. High-Priority Opportunities */}
+      {highPriority.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="font-semibold">High-Priority Opportunities</h4>
+          {highPriority.map((o, i) => (
+            <OffPageOpportunityCard key={i} o={o} />
+          ))}
+        </div>
+      )}
+
+      {/* 3. Local/Niche Citations */}
+      {data.localCitations.length > 0 && (
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3">Local &amp; Niche Citations</h4>
+          <p className="text-xs text-muted-foreground mb-3">Focus on NAP (name/address/phone) consistency across every listing rather than volume.</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {data.localCitations.map((c, i) => (
+              <div key={i} className="rounded-lg bg-muted/30 p-3">
+                <div className="text-sm font-medium">{c.category}</div>
+                <div className="text-xs text-muted-foreground text-pretty">{c.description}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. Partnership Opportunities */}
+      {data.partnerships.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="font-semibold">Partnership Opportunities</h4>
+          {data.partnerships.map((o, i) => (
+            <OffPageOpportunityCard key={i} o={o} />
+          ))}
+        </div>
+      )}
+
+      {/* 5. Content & Digital PR */}
+      {data.digitalPR.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="font-semibold">Content &amp; Digital PR</h4>
+          {data.digitalPR.map((o, i) => (
+            <OffPageOpportunityCard key={i} o={o} />
+          ))}
+        </div>
+      )}
+
+      {/* 6. Linkable Assets */}
+      {data.linkableAssets.length > 0 && (
+        <div className="rounded-xl border p-5">
+          <h4 className="font-semibold mb-3">Linkable Assets</h4>
+          <ul className="space-y-2">
+            {data.linkableAssets.map((a, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-sm">
+                <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                <span className="text-pretty">
+                  <span className="font-medium">{a.idea}</span> — {a.reason}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* 7. Anchor Text Guidance */}
+      <div className="rounded-xl border p-5">
+        <h4 className="font-semibold mb-3">Anchor Text Guidance</h4>
+        <ul className="space-y-1.5">
+          {data.anchorTextGuidance.map((g, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-sm">
+              <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+              <span className="text-pretty">{g}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* 8. Practices to Avoid */}
+      <div className="rounded-xl border-2 border-destructive/30 bg-destructive/5 p-5">
+        <h4 className="font-semibold mb-3 text-destructive">Practices to Avoid</h4>
+        <ul className="space-y-2">
+          {data.risks.map((r, i) => (
+            <li key={i} className="text-sm">
+              <span className="font-medium">{r.practice}</span>
+              <span className="text-muted-foreground"> — {r.reason}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* 9. Recommended Next Actions */}
+      <div className="rounded-xl border p-5">
+        <h4 className="font-semibold mb-3">Recommended Next Actions (monthly)</h4>
+        <ul className="space-y-1.5">
+          {data.monthlyActivityGoals.map((g, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-sm">
+              <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+              <span className="text-pretty">{g}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   )
 }
 

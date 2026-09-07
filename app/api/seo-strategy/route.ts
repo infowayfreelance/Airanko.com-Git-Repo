@@ -6,7 +6,7 @@ import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
 import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
-import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, runLocalSeoContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, runLocalSeoContradictionChecks, runOffPageContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
 import { buildTechnicalCrawlSummary, type TechnicalCrawlSummary } from '@/lib/seo-strategy/technical-summary'
@@ -14,6 +14,7 @@ import { buildCompetitorIntelligence, type CompetitorIntelligence } from '@/lib/
 import type { CompetitorProfile } from './competitor-analyze/route'
 import { buildPageOpportunities, type PageOpportunity } from '@/lib/seo-strategy/page-opportunity'
 import { buildLocalSeoIntelligence, type LocalSeoIntelligence } from '@/lib/seo-strategy/local-seo-intelligence'
+import { buildOffPageIntelligence, type OffPageIntelligence } from '@/lib/seo-strategy/off-page-intelligence'
 import type {
   HealthScoreBreakdown,
   KpiTarget,
@@ -213,22 +214,12 @@ const strategySchema = z.object({
     localContentIdeas: z.array(z.string()),
   }),
 
+  // Phase 9: only a short narrative summary is AI-authored here — every
+  // opportunity, priority, citation, risk, and metric is computed
+  // deterministically in offPageIntelligence (see below) so the AI can never
+  // invent a backlink quota, a DA/DR figure, or an unverified competitor claim.
   offPageStrategy: z.object({
     summary: z.string(),
-    costDisclaimer: z.string(),
-    backlinkTactics: z.array(
-      z.object({
-        tactic: z.string(),
-        description: z.string(),
-        estimatedCost: z.enum(['free', 'low', 'medium', 'high', 'very-high']),
-        difficulty: z.enum(['easy', 'medium', 'hard']),
-        expectedImpact: z.enum(['low', 'medium', 'high']),
-        monthlyTargetLinks: z.number().int(),
-      }),
-    ),
-    guestPostTargets: z.array(z.string()),
-    digitalPrTactics: z.array(z.string()),
-    socialSignals: z.array(z.string()),
   }),
 
   sixMonthRoadmap: z.array(
@@ -310,6 +301,8 @@ export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown' | 'kpiTarge
   pageOpportunities: PageOpportunity[]
   /** Phase 8 — deterministic Local SEO audit/strategy (lib/seo-strategy/local-seo-intelligence.ts), only populated when the user's own isLocal selection is true. Never AI-generated; the AI's existing localSeo.* fields are left as prose narrative alongside this structured data. */
   localSeoIntelligence: LocalSeoIntelligence
+  /** Phase 9 — deterministic, relevance-first off-page strategy (lib/seo-strategy/off-page-intelligence.ts). Replaces AI-invented backlink quotas/DA-DR guidance with a rule-based opportunity catalog scored on topical/local relevance, legitimacy, and spam risk; the AI's remaining offPageStrategy.summary is left as short prose narrative alongside this structured data. */
+  offPageIntelligence: OffPageIntelligence
 }
 
 // ---------------------------------------------------------------------------
@@ -466,6 +459,15 @@ export async function POST(req: Request) {
       competitorIntelligence.locationGaps,
     )
 
+    // Phase 9 — deterministic, relevance-first off-page strategy. Replaces
+    // AI-invented backlink quotas/DA-DR guidance with a rule-based
+    // opportunity catalog scored on topical/local relevance and legitimacy;
+    // reuses P0's local-business context and Phase 2B's page-type data.
+    const offPageIntelligence: OffPageIntelligence = buildOffPageIntelligence(
+      { isLocalBusiness: localCtx.isLocalBusiness, location: input.location, industry: input.industry, businessName: input.businessName },
+      onPageAuditsRaw,
+    )
+
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
       : 'No automated site analysis available. Generate strategy based on the business inputs alone.'
@@ -592,7 +594,7 @@ OUTPUT REQUIREMENTS — every field is required. Use these counts as targets:
 - blogIdeas: 8-10 items (suggestedWordCount between 1000-3000, outline 5-8 H2 items each)
 - competitorAnalysis: one entry per competitor provided (or empty array if none)
 - localSeo arrays: at least 2 items each
-- offPageStrategy.backlinkTactics: 5-7 items, monthlyTargetLinks 1-20
+- offPageStrategy.summary: 2-4 sentences, relevance-first framing (no link-count targets, no DA/DR figures)
 - sixMonthRoadmap: EXACTLY 6 items, month=1 through 6, in order
 - kpiTargets: 6-8 items
 - toolStack.free: 4-6, toolStack.paid: 4-6
@@ -603,7 +605,7 @@ Important content rules:
 1. criticalIssues + quickWins must reference real numbers from the live analysis (load times, missing tags, etc.)
 2. technicalSeoAudit.checklist statuses must reflect the real state of the site
 3. pageByPageAudit must use the actual URLs from the crawled pages with rewritten title (50-60 chars) and meta description (140-160 chars)
-4. offPageStrategy.costDisclaimer must explicitly state that backlink work is among the most expensive line items but delivers the highest ROI when done with quality (DR40+, topical relevance), and that cheap link-building is risky.
+4. offPageStrategy.summary must frame off-page work as relevance-first (topical/local relevance, legitimacy, editorial value) — never mention a target link count, Domain Authority/Rating figure (e.g. "DR40+"), or any other unverified backlink metric.
 5. sixMonthRoadmap progression: M1 foundation/fixes → M2 on-page + content launch → M3 content scaling + first link building → M4 authority + technical refinement → M5 content + outreach → M6 consolidation, conversion optimization, reporting.
 6. overallHealthScore: be honest. 0-100 — sites with many critical issues = 30-50, polished sites = 70-90.
 7. Tone: confident, prescriptive, professional. No fluff.
@@ -726,6 +728,12 @@ Hard rules — a later automated validation pass checks these and will overwrite
     // verified data source.
     const localSeoResult = runLocalSeoContradictionChecks(strategy.localSeo, localSeoIntelligence.nap)
 
+    // Phase 9 — diagnostic-only check of the AI's remaining offPageStrategy
+    // summary prose (backlink counts, DA/DR claims, unverified competitor
+    // backlink comparisons, guaranteed link quotas) plus a defense-in-depth
+    // structural check of the deterministic offPageIntelligence itself.
+    const offPageContradictions = runOffPageContradictionChecks(strategy.offPageStrategy, offPageIntelligence, localCtx.isLocalBusiness)
+
     const correctedCompetitorAnalysis = strategy.competitorAnalysis.map((entry) => {
       const profile = findProfileForEntry(entry, competitorProfiles)
       const domain = profile?.domain
@@ -785,6 +793,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       competitorIntelligence,
       pageOpportunities,
       localSeoIntelligence,
+      offPageIntelligence,
     }
 
     // Contradiction details are diagnostic-only — never exposed to
@@ -798,6 +807,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...competitorContradictions,
       ...pageOpportunityContradictions,
       ...localSeoResult.contradictions,
+      ...offPageContradictions,
     ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined
