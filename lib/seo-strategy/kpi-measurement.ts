@@ -50,9 +50,18 @@ function measuredCrawlKpi(metric: string, value: number, unit: 'count' | 'percen
  * DA/DR is intentionally NOT included: it's a third-party metric with no
  * provider connected, so there is nothing to even label "not available"
  * without implying a provider relationship that doesn't exist.
+ *
+ * `crawlPerformed` must be `analysis !== null` from the caller, never
+ * inferred from a count being non-zero: `technicalCrawlSummary`/
+ * `onPageOverview` are built as all-zero placeholders when no site
+ * analysis ran at all, and those zeroes must never be presented as a
+ * "measured" 0 pages discovered/crawled/indexable.
  */
-export function buildKpiMeasurement(technicalCrawlSummary: TechnicalCrawlSummary, onPageOverview: OnPageOverview, onPageAudits: PageOnPageAudit[]): MeasurementKpi[] {
+export function buildKpiMeasurement(technicalCrawlSummary: TechnicalCrawlSummary, onPageOverview: OnPageOverview, onPageAudits: PageOnPageAudit[], crawlPerformed: boolean): MeasurementKpi[] {
   const kpis: MeasurementKpi[] = []
+
+  const measuredOrNotCrawled = (metric: string, value: number, unit: 'count' | 'percent', goal: string): MeasurementKpi =>
+    crawlPerformed ? measuredCrawlKpi(metric, value, unit, goal) : notAvailable(metric, 'technical', null, goal)
 
   // ---- Organic Visibility — requires Google Search Console ----
   kpis.push(notAvailable('Organic Clicks', 'organic_visibility', 'google_search_console', 'Increase qualified organic clicks'))
@@ -75,24 +84,24 @@ export function buildKpiMeasurement(technicalCrawlSummary: TechnicalCrawlSummary
   kpis.push(notAvailable('Referring Domains', 'authority', 'backlink_provider', 'Increase referring domains from relevant, legitimate sources'))
 
   // ---- Technical — measured directly by the Ai Ranko crawl ----
-  kpis.push(measuredCrawlKpi('Pages Discovered', technicalCrawlSummary.discovered, 'count', 'Maintain full crawlability of the site'))
-  kpis.push(measuredCrawlKpi('Pages Crawled', technicalCrawlSummary.crawled, 'count', 'Maintain full crawlability of the site'))
-  kpis.push(measuredCrawlKpi('Indexable Pages', technicalCrawlSummary.indexable, 'count', 'Ensure all valuable pages remain indexable'))
-  kpis.push(measuredCrawlKpi('Broken Pages', technicalCrawlSummary.brokenUrls, 'count', 'Fix broken internal links and failed pages'))
-  kpis.push(measuredCrawlKpi('Critical Issues', onPageOverview.bySeverity.critical, 'count', 'Resolve all outstanding critical-severity issues'))
-  kpis.push(measuredCrawlKpi('High-Severity Issues', onPageOverview.bySeverity.high, 'count', 'Resolve outstanding high-severity issues'))
+  kpis.push(measuredOrNotCrawled('Pages Discovered', technicalCrawlSummary.discovered, 'count', 'Maintain full crawlability of the site'))
+  kpis.push(measuredOrNotCrawled('Pages Crawled', technicalCrawlSummary.crawled, 'count', 'Maintain full crawlability of the site'))
+  kpis.push(measuredOrNotCrawled('Indexable Pages', technicalCrawlSummary.indexable, 'count', 'Ensure all valuable pages remain indexable'))
+  kpis.push(measuredOrNotCrawled('Broken Pages', technicalCrawlSummary.brokenUrls, 'count', 'Fix broken internal links and failed pages'))
+  kpis.push(measuredOrNotCrawled('Critical Issues', onPageOverview.bySeverity.critical, 'count', 'Resolve all outstanding critical-severity issues'))
+  kpis.push(measuredOrNotCrawled('High-Severity Issues', onPageOverview.bySeverity.high, 'count', 'Resolve outstanding high-severity issues'))
   kpis.push(
-    measuredCrawlKpi(
+    measuredOrNotCrawled(
       'Metadata Issues',
       onPageOverview.categories.metaTitle.affectedPages + onPageOverview.categories.metaDescription.affectedPages,
       'count',
       'Fix missing, duplicate, or poorly-sized meta titles and descriptions',
     ),
   )
-  kpis.push(measuredCrawlKpi('Internal-Link Issues', onPageOverview.categories.internalLinks.affectedPages, 'count', 'Fix orphan pages, weak internal linking, and broken internal links'))
+  kpis.push(measuredOrNotCrawled('Internal-Link Issues', onPageOverview.categories.internalLinks.affectedPages, 'count', 'Fix orphan pages, weak internal linking, and broken internal links'))
 
   const auditedCount = onPageAudits.length
-  if (auditedCount > 0) {
+  if (crawlPerformed && auditedCount > 0) {
     const schemaPresentCount = onPageAudits.filter((a) => a.technicalOnPage.schema.present).length
     const schemaCoveragePct = Math.round((schemaPresentCount / auditedCount) * 100)
     kpis.push(measuredCrawlKpi('Schema Markup Coverage', schemaCoveragePct, 'percent', 'Increase schema markup coverage across key pages'))

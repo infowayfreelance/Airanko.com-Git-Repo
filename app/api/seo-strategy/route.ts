@@ -473,7 +473,7 @@ export async function POST(req: Request) {
     // critical/high issues, metadata issues, schema coverage,
     // internal-link issues) carries its real computed value. The AI never
     // sees or produces this — see the trimmed kpiTargets schema below.
-    const kpiMeasurement: MeasurementKpi[] = buildKpiMeasurement(technicalCrawlSummary, onPageOverview, onPageAuditsRaw)
+    const kpiMeasurement: MeasurementKpi[] = buildKpiMeasurement(technicalCrawlSummary, onPageOverview, onPageAuditsRaw, analysis !== null)
 
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
@@ -741,9 +741,10 @@ Hard rules — a later automated validation pass checks these and will overwrite
     const offPageContradictions = runOffPageContradictionChecks(strategy.offPageStrategy, offPageIntelligence, localCtx.isLocalBusiness)
 
     // Phase 10 — structural re-validation of the deterministic kpiMeasurement
-    // catalog plus a diagnostic scan of the AI's free-text narrative for
-    // any fabricated traffic/ranking/conversion/backlink/DA-DR figure.
-    const kpiContradictions = runKpiContradictionChecks(strategy, kpiMeasurement)
+    // catalog plus an actual correction (not just a diagnostic) of any
+    // fabricated traffic/ranking/conversion/backlink/DA-DR figure the AI
+    // slipped into criticalIssues/quickWins/conclusion.
+    const kpiResult = runKpiContradictionChecks(strategy, kpiMeasurement)
 
     const correctedCompetitorAnalysis = strategy.competitorAnalysis.map((entry) => {
       const profile = findProfileForEntry(entry, competitorProfiles)
@@ -766,6 +767,9 @@ Hard rules — a later automated validation pass checks these and will overwrite
 
     const correctedStrategy: SeoStrategy = {
       ...strategy,
+      criticalIssues: kpiResult.correctedCriticalIssues,
+      quickWins: kpiResult.correctedQuickWins,
+      conclusion: kpiResult.correctedConclusion,
       localSeo: { ...strategy.localSeo, applicable: contradictionResult.localSeoApplicable, napConsistency: localSeoResult.correctedNapConsistency },
       healthScoreBreakdown: {
         ...strategy.healthScoreBreakdown,
@@ -819,7 +823,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...pageOpportunityContradictions,
       ...localSeoResult.contradictions,
       ...offPageContradictions,
-      ...kpiContradictions,
+      ...kpiResult.contradictions,
     ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined

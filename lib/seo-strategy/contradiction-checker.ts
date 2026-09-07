@@ -783,8 +783,15 @@ export function runOffPageContradictionChecks(
 // remove, since the AI no longer has a structured kpiTargets field to put
 // them in but could still slip one into prose.
 // ─────────────────────────────────────────────────────────────────────────
-const FABRICATED_METRIC_RE =
-  /\b\d[\d,]*\+?\s*(organic )?(visits?|sessions?|clicks?|impressions?|backlinks?|referring domains?|ranking keywords?)\b|\b\d+(\.\d+)?%\s*(conversion|bounce|engagement|ctr|click[- ]through)\b|\bDA\s*\d+|\bDR\s*\d+|\bdomain (authority|rating)\s*(of\s*)?\d+|\baverage position (of )?\d+(\.\d+)?\b/i
+const FABRICATED_METRIC_SOURCE =
+  '\\b\\d[\\d,]*\\+?\\s*(organic )?(visits?|sessions?|clicks?|impressions?|backlinks?|referring domains?|ranking keywords?)\\b|\\b\\d+(\\.\\d+)?%\\s*(conversion|bounce|engagement|ctr|click[- ]through)\\b|\\bDA\\s*\\d+|\\bDR\\s*\\d+|\\bdomain (authority|rating)\\s*(of\\s*)?\\d+|\\baverage position (of )?\\d+(\\.\\d+)?\\b'
+const FABRICATED_METRIC_RE = new RegExp(FABRICATED_METRIC_SOURCE, 'i')
+const REDACTION = '[not currently measurable without a connected data source]'
+
+/** Replaces every fabricated-figure match in `text` with a neutral placeholder — a fresh global RegExp per call, never a shared stateful one. */
+function redactFabricatedMetrics(text: string): string {
+  return text.replace(new RegExp(FABRICATED_METRIC_SOURCE, 'gi'), REDACTION)
+}
 
 export interface KpiMeasurementLike {
   metric: string
@@ -795,13 +802,43 @@ export interface KpiMeasurementLike {
   requiredIntegration: 'google_search_console' | 'google_analytics' | 'backlink_provider' | null
 }
 
-export interface KpiNarrativeLike {
-  criticalIssues: { title: string; description: string; howToFix: string }[]
-  quickWins: { title: string; description: string; expectedImpact: string }[]
+export interface KpiCriticalIssueLike {
+  title: string
+  description: string
+  howToFix: string
+}
+
+export interface KpiQuickWinLike {
+  title: string
+  description: string
+  expectedImpact: string
+}
+
+export interface KpiNarrativeLike<C extends KpiCriticalIssueLike = KpiCriticalIssueLike, Q extends KpiQuickWinLike = KpiQuickWinLike> {
+  criticalIssues: C[]
+  quickWins: Q[]
   conclusion: string
 }
 
-export function runKpiContradictionChecks(strategy: KpiNarrativeLike, kpis: KpiMeasurementLike[]): string[] {
+export interface KpiCheckResult<C extends KpiCriticalIssueLike = KpiCriticalIssueLike, Q extends KpiQuickWinLike = KpiQuickWinLike> {
+  correctedCriticalIssues: C[]
+  correctedQuickWins: Q[]
+  correctedConclusion: string
+  contradictions: string[]
+}
+
+/**
+ * Unlike the purely diagnostic checks elsewhere in this file, a fabricated
+ * metric here is actually rewritten before the report is returned — see
+ * Codex's P1 finding on the original Phase 10 PR: logging alone left the
+ * fabricated figure in the report the client renders. `correctedStrategy`
+ * in route.ts must use `correctedCriticalIssues`/`correctedQuickWins`/
+ * `correctedConclusion`, not the AI's raw fields. Generic over the
+ * caller's actual item shape so fields beyond title/description/
+ * howToFix|expectedImpact (e.g. the AI schema's `impact`/`estimatedEffort`)
+ * survive the correction untouched.
+ */
+export function runKpiContradictionChecks<C extends KpiCriticalIssueLike, Q extends KpiQuickWinLike>(strategy: KpiNarrativeLike<C, Q>, kpis: KpiMeasurementLike[]): KpiCheckResult<C, Q> {
   const contradictions: string[] = []
 
   for (const kpi of kpis) {
@@ -822,19 +859,28 @@ export function runKpiContradictionChecks(strategy: KpiNarrativeLike, kpis: KpiM
     }
   }
 
-  const freeText = [
-    ...strategy.criticalIssues.map((c) => `${c.title}. ${c.description} ${c.howToFix}`),
-    ...strategy.quickWins.map((q) => `${q.title}. ${q.description} ${q.expectedImpact}`),
-    strategy.conclusion,
-  ]
-  for (const line of freeText) {
-    if (FABRICATED_METRIC_RE.test(line)) {
-      contradictions.push(`Report narrative states a specific traffic/ranking/conversion/backlink/DA-DR figure with no verified data source: "${line}"`)
-    }
+  const correctedCriticalIssues = strategy.criticalIssues.map((c) => {
+    const combined = `${c.title}. ${c.description} ${c.howToFix}`
+    if (!FABRICATED_METRIC_RE.test(combined)) return c
+    contradictions.push(`criticalIssues ("${c.title}") stated a specific traffic/ranking/conversion/backlink/DA-DR figure with no verified data source — redacted: "${combined}"`)
+    return { ...c, description: redactFabricatedMetrics(c.description), howToFix: redactFabricatedMetrics(c.howToFix) }
+  })
+
+  const correctedQuickWins = strategy.quickWins.map((q) => {
+    const combined = `${q.title}. ${q.description} ${q.expectedImpact}`
+    if (!FABRICATED_METRIC_RE.test(combined)) return q
+    contradictions.push(`quickWins ("${q.title}") stated a specific traffic/ranking/conversion/backlink/DA-DR figure with no verified data source — redacted: "${combined}"`)
+    return { ...q, description: redactFabricatedMetrics(q.description), expectedImpact: redactFabricatedMetrics(q.expectedImpact) }
+  })
+
+  let correctedConclusion = strategy.conclusion
+  if (FABRICATED_METRIC_RE.test(strategy.conclusion)) {
+    contradictions.push(`conclusion stated a specific traffic/ranking/conversion/backlink/DA-DR figure with no verified data source — redacted: "${strategy.conclusion}"`)
+    correctedConclusion = redactFabricatedMetrics(strategy.conclusion)
   }
 
   if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
     console.warn('[seo-strategy] KPI contradiction checker found the following:', contradictions)
   }
-  return contradictions
+  return { correctedCriticalIssues, correctedQuickWins, correctedConclusion, contradictions }
 }
