@@ -1429,7 +1429,31 @@ function ReportCover({
             value={String(strategy.criticalIssues.length)}
           />
         </div>
+
+        <ReportConfidenceNote validation={strategy.reportValidation} />
       </div>
+    </div>
+  )
+}
+
+/** Phase 13 — a simple, task-based signal (never a second SEO score) of how much of the report is backed by real crawl/evaluated data vs. limited by partial coverage or unresolved validation notes. */
+const REPORT_CONFIDENCE_LABEL: Record<SeoStrategy['reportValidation']['confidence'], string> = {
+  high: 'High',
+  medium: 'Medium',
+  limited: 'Limited',
+}
+const REPORT_CONFIDENCE_CLS: Record<SeoStrategy['reportValidation']['confidence'], string> = {
+  high: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  limited: 'bg-muted text-muted-foreground border-border',
+}
+function ReportConfidenceNote({ validation }: { validation: SeoStrategy['reportValidation'] }) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${REPORT_CONFIDENCE_CLS[validation.confidence]}`}>
+        Report Confidence: {REPORT_CONFIDENCE_LABEL[validation.confidence]}
+      </span>
+      <span className="text-pretty">{validation.confidenceReason}</span>
     </div>
   )
 }
