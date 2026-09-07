@@ -1255,7 +1255,7 @@ function StrategyReport({
           title="Local SEO & NAP Consistency"
           kicker="Section 15"
         >
-          <LocalSeoSection data={strategy.localSeo} analysis={analysis} />
+          <LocalSeoSection data={strategy.localSeo} analysis={analysis} intelligence={strategy.localSeoIntelligence} />
         </ReportSection>
 
         {/* Off-page strategy */}
@@ -3402,12 +3402,271 @@ function CompetitorAnalysis({
   )
 }
 
+const LOCAL_SCHEMA_STATUS_LABEL: Record<SeoStrategy['localSeoIntelligence']['schema']['sitewideStatus'], string> = {
+  valid: 'Valid',
+  incomplete: 'Incomplete',
+  invalid: 'Invalid',
+  missing_opportunity: 'Missing Opportunity',
+  not_evaluated: 'Not Evaluated',
+}
+const LOCAL_SCHEMA_STATUS_CLS: Record<SeoStrategy['localSeoIntelligence']['schema']['sitewideStatus'], string> = {
+  valid: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  incomplete: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  invalid: 'bg-destructive/10 text-destructive border-destructive/30',
+  missing_opportunity: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  not_evaluated: 'bg-muted text-muted-foreground border-border',
+}
+
+const LOCATION_COVERAGE_STATUS_LABEL: Record<SeoStrategy['localSeoIntelligence']['serviceLocationMatrix'][number]['status'], string> = {
+  covered: 'Covered',
+  partial: 'Partial',
+  opportunity: 'Gap',
+  not_relevant: 'N/A',
+}
+const LOCATION_COVERAGE_STATUS_CLS: Record<SeoStrategy['localSeoIntelligence']['serviceLocationMatrix'][number]['status'], string> = {
+  covered: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  partial: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  opportunity: 'bg-destructive/10 text-destructive border-destructive/30',
+  not_relevant: 'bg-muted text-muted-foreground border-border',
+}
+
+const LOCAL_KEYWORD_ACTION_LABEL: Record<SeoStrategy['localSeoIntelligence']['localKeywordCoverage'][number]['action'], string> = {
+  keep_existing: 'Keep Existing Page',
+  improve_existing: 'Improve Existing Page',
+  create_dedicated_page: 'Create Dedicated Page',
+  potential_cannibalization: 'Potential Cannibalization',
+  not_enough_evidence: 'Not Enough Evidence',
+}
+
+/** Phase 8 — deterministic Local SEO intelligence (lib/seo-strategy/local-seo-intelligence.ts). Every value here is straight from that module — never recalculated in the UI. */
+function LocalSeoIntelligenceBlock({ intelligence }: { intelligence: SeoStrategy['localSeoIntelligence'] }) {
+  const { nap, schema, locationCoverage, serviceLocationMatrix, localKeywordCoverage, locationPageQuality, opportunities } = intelligence
+
+  return (
+    <div className="space-y-5">
+      {/* NAP conflicts — exact affected URLs, never just an aggregate claim */}
+      {nap.status === 'conflicting' && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-destructive mb-2">NAP Conflicts Detected</div>
+          <ul className="text-sm space-y-1">
+            {nap.conflicts.map((c, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                <span className="text-pretty">
+                  <code className="font-mono text-xs">{c.url}</code> — {c.issue}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Local schema */}
+      <div className="rounded-xl border bg-card p-5">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h4 className="font-semibold">Local Business Schema</h4>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${LOCAL_SCHEMA_STATUS_CLS[schema.sitewideStatus]}`}>
+            {LOCAL_SCHEMA_STATUS_LABEL[schema.sitewideStatus]}
+          </span>
+        </div>
+        {schema.pages.filter((p) => p.status !== 'not_evaluated').length > 0 ? (
+          <ul className="text-sm space-y-1.5">
+            {schema.pages
+              .filter((p) => p.status !== 'not_evaluated')
+              .slice(0, 10)
+              .map((p, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${LOCAL_SCHEMA_STATUS_CLS[p.status]}`}>
+                    {LOCAL_SCHEMA_STATUS_LABEL[p.status]}
+                  </span>
+                  <span className="text-pretty truncate">
+                    {p.pageName}
+                    {p.missingProperties.length > 0 ? ` — missing: ${p.missingProperties.join(', ')}` : ''}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">No pages evaluated for LocalBusiness schema.</p>
+        )}
+      </div>
+
+      {/* Location coverage */}
+      {(locationCoverage.existingLocationPages.length > 0 || locationCoverage.competitorLocationGaps.length > 0) && (
+        <div className="rounded-xl border bg-card p-5">
+          <h4 className="font-semibold mb-3">Location Coverage</h4>
+          <div className="grid sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Existing Location Pages</div>
+              {locationCoverage.existingLocationPages.length > 0 ? (
+                <ul className="space-y-1">
+                  {locationCoverage.existingLocationPages.map((url, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <code className="font-mono text-xs truncate">{url}</code>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">None detected.</p>
+              )}
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Competitor Location Coverage (Gaps)</div>
+              {locationCoverage.competitorLocationGaps.length > 0 ? (
+                <ul className="space-y-1">
+                  {locationCoverage.competitorLocationGaps.map((topic, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <Target className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      <span className="text-pretty">{topic}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">No competitor location gaps found.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Service x location matrix */}
+      {serviceLocationMatrix.length > 0 && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b bg-muted/30 text-sm font-semibold">Service × Location Coverage</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/20">
+                  <th className="text-left font-medium px-4 py-2">Service</th>
+                  <th className="text-left font-medium px-4 py-2">Location</th>
+                  <th className="text-left font-medium px-4 py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {serviceLocationMatrix.map((cell, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="px-4 py-2">{cell.service}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{cell.location}</td>
+                    <td className="px-4 py-2">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${LOCATION_COVERAGE_STATUS_CLS[cell.status]}`}>
+                        {LOCATION_COVERAGE_STATUS_LABEL[cell.status]}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Local keyword coverage */}
+      {localKeywordCoverage.length > 0 && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b bg-muted/30 text-sm font-semibold">Local Keyword Coverage</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/20">
+                  <th className="text-left font-medium px-4 py-2">Keyword</th>
+                  <th className="text-left font-medium px-4 py-2">Mapped Page</th>
+                  <th className="text-left font-medium px-4 py-2">Status</th>
+                  <th className="text-left font-medium px-4 py-2">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {localKeywordCoverage.map((row, i) => (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="px-4 py-2 font-medium">{row.keyword}</td>
+                    <td className="px-4 py-2 text-muted-foreground">
+                      {row.mappedUrl ? <code className="font-mono text-xs">{row.mappedUrl}</code> : '—'}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${LOCATION_COVERAGE_STATUS_CLS[row.status]}`}>
+                        {LOCATION_COVERAGE_STATUS_LABEL[row.status]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">{LOCAL_KEYWORD_ACTION_LABEL[row.action]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Location page quality */}
+      {locationPageQuality.length > 0 && (
+        <div className="rounded-xl border bg-card p-5">
+          <h4 className="font-semibold mb-3">Location Page Quality</h4>
+          <ul className="text-sm space-y-2">
+            {locationPageQuality.map((p, i) => (
+              <li key={i} className="rounded-lg border bg-muted/20 p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <code className="font-mono text-xs truncate">{p.url}</code>
+                  {p.doorwayRisk && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap bg-destructive/10 text-destructive border-destructive/30">
+                      Doorway-Page Risk
+                    </span>
+                  )}
+                </div>
+                <ul className="space-y-0.5">
+                  {p.issues.map((iss, j) => (
+                    <li key={j} className="flex items-start gap-1.5 text-muted-foreground">
+                      <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+                      <span className="text-pretty">{iss}</span>
+                    </li>
+                  ))}
+                </ul>
+                {p.similarTo && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Similar to <code className="font-mono">{p.similarTo}</code>
+                    {p.similarityScore !== null ? ` (${Math.round(p.similarityScore * 100)}% similar)` : ''}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Priority opportunities */}
+      {opportunities.length > 0 && (
+        <div className="rounded-xl border bg-card p-5">
+          <h4 className="font-semibold mb-3">Priority Local SEO Opportunities</h4>
+          <ol className="space-y-2">
+            {opportunities.map((o, i) => (
+              <li key={i} className="rounded-lg border bg-muted/20 p-3 flex items-start gap-3">
+                <span className="text-xs font-semibold text-muted-foreground shrink-0 mt-0.5 w-5 text-right">{i + 1}.</span>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[o.priority]}`}>
+                      {o.priority === 'high' ? 'High' : o.priority === 'medium' ? 'Medium' : 'Low'} Priority
+                    </span>
+                    <span className="text-xs text-muted-foreground">{o.topic}</span>
+                  </div>
+                  <p className="text-sm font-medium text-pretty">{o.action}</p>
+                  <p className="text-xs text-muted-foreground text-pretty">{o.reason}</p>
+                  <p className="text-xs text-muted-foreground text-pretty">{o.evidence}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function LocalSeoSection({
   data,
   analysis,
+  intelligence,
 }: {
   data: SeoStrategy['localSeo']
   analysis: SiteAnalysis
+  intelligence: SeoStrategy['localSeoIntelligence']
 }) {
   if (!data.applicable) {
     return (
@@ -3484,10 +3743,15 @@ function LocalSeoSection({
         </ul>
       </div>
 
+      <LocalSeoIntelligenceBlock intelligence={intelligence} />
+
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-xl border p-5">
           <h4 className="font-semibold mb-3 flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" /> Google Business Profile
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap bg-muted text-muted-foreground border-border">
+              Not Verified — requires manual/API verification
+            </span>
           </h4>
           <ul className="text-sm space-y-1.5">
             {data.googleBusinessProfileTips.map((t, i) => (
@@ -3513,6 +3777,9 @@ function LocalSeoSection({
         <div className="rounded-xl border p-5">
           <h4 className="font-semibold mb-3 flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" /> Review Strategy
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap bg-muted text-muted-foreground border-border">
+              Not Evaluated — strategy recommendation, not a measured metric
+            </span>
           </h4>
           <p className="text-sm text-pretty">{data.reviewStrategy}</p>
         </div>

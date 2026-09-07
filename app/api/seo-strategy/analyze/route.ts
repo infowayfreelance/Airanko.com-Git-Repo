@@ -100,7 +100,19 @@ export interface PageAnalysis {
     emails: string[]
     addresses: string[]
   }
+  /** Phase 8 — property PRESENCE (never the values) on any JSON-LD node whose @type looks LocalBusiness-ish, one entry per such node found on the page. Empty when no such node exists — that's "not present", not "invalid". */
+  localBusinessSchemaNodes: LocalBusinessSchemaNode[]
   issues: string[]
+}
+
+/** Phase 8 — see the extraction note above analyzeHtml's JSON-LD loop for why only presence, not values, is captured. */
+export interface LocalBusinessSchemaNode {
+  types: string[]
+  hasName: boolean
+  hasAddress: boolean
+  hasTelephone: boolean
+  hasUrl: boolean
+  hasAreaServed: boolean
 }
 
 export interface SiteAnalysis {
@@ -605,6 +617,26 @@ export function analyzeHtml(
   const schemaTypes: string[] = []
   let hasJsonLd = false
   let jsonLdParseErrorCount = 0
+  // Phase 8 — captures property presence (never the values themselves,
+  // which would require trusting arbitrary site content as verified NAP
+  // data) on any JSON-LD node whose @type looks LocalBusiness-ish, so the
+  // Local SEO schema audit can tell "present but incomplete" apart from
+  // "fully missing" without re-parsing the page's JSON-LD a second time.
+  const localBusinessSchemaNodes: LocalBusinessSchemaNode[] = []
+  const LOCAL_BUSINESS_TYPE_RE = /LocalBusiness|Organization|Business$|Service$|Store|Restaurant|Shop/i
+  const inspectNode = (node: Record<string, unknown>) => {
+    if (!node || typeof node !== 'object' || !node['@type']) return
+    const types = (Array.isArray(node['@type']) ? node['@type'] : [node['@type']]).map(String)
+    if (!types.some((t) => LOCAL_BUSINESS_TYPE_RE.test(t))) return
+    localBusinessSchemaNodes.push({
+      types,
+      hasName: typeof node.name === 'string' && node.name.trim().length > 0,
+      hasAddress: node.address !== undefined && node.address !== null,
+      hasTelephone: typeof node.telephone === 'string' && node.telephone.trim().length > 0,
+      hasUrl: typeof node.url === 'string' && node.url.trim().length > 0,
+      hasAreaServed: node.areaServed !== undefined && node.areaServed !== null,
+    })
+  }
   $('script[type="application/ld+json"]').each((_, el) => {
     hasJsonLd = true
     try {
@@ -615,12 +647,14 @@ export function analyzeHtml(
           const types = Array.isArray(item['@type']) ? item['@type'] : [item['@type']]
           schemaTypes.push(...types.map(String))
         }
+        inspectNode(item)
         if (item['@graph'] && Array.isArray(item['@graph'])) {
           for (const node of item['@graph']) {
             if (node['@type']) {
               const types = Array.isArray(node['@type']) ? node['@type'] : [node['@type']]
               schemaTypes.push(...types.map(String))
             }
+            inspectNode(node)
           }
         }
       }
@@ -802,6 +836,7 @@ export function analyzeHtml(
     xRobotsTag,
     jsonLdParseErrorCount,
     contactInfo,
+    localBusinessSchemaNodes,
     issues,
   }
 }
