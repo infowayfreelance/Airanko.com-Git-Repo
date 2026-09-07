@@ -927,3 +927,87 @@ export function runEvidenceContradictionChecks(findings: Finding[], validUrls: S
   }
   return contradictions
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 12 — 2-month roadmap. buildTwoMonthRoadmap (roadmap.ts) only ever
+// projects already-validated findings into tasks, so a real contradiction
+// can't reach it by construction — this is diagnostic/defense-in-depth,
+// re-checking the same invariants Phase 10's KPI rule and Phase 11's
+// evidence rule already established, against the roadmap's own task list.
+// ─────────────────────────────────────────────────────────────────────────
+const ROADMAP_UNSUPPORTED_TARGET_RE =
+  /\b\d[\d,]*\+?\s*%?\s*(traffic|visits?|sessions?|clicks?|backlinks?|referring domains?)\b|top\s*\d+\s*rank|\bDA\s*\d+|\bDR\s*\d+|\bdomain (authority|rating)\s*\d+/i
+
+export interface RoadmapTaskLike {
+  task: string
+  url: string | null
+  category: string
+  confidence: 'high' | 'medium' | 'low' | 'not_evaluated'
+  completionCheck: string
+  needsReview: boolean
+}
+
+export interface RoadmapWeekLike {
+  week: number
+  tasks: RoadmapTaskLike[]
+}
+
+export interface RoadmapMonthLike {
+  month: 1 | 2
+  weeks: RoadmapWeekLike[]
+}
+
+export interface TwoMonthRoadmapLike {
+  months: RoadmapMonthLike[]
+}
+
+export function runRoadmapContradictionChecks(roadmap: TwoMonthRoadmapLike, crawledUrls: Set<string>, newPageUrls: Set<string>): string[] {
+  const contradictions: string[] = []
+
+  if (roadmap.months.length !== 2) {
+    contradictions.push(`Roadmap has ${roadmap.months.length} month(s) — the 2-month roadmap must always have exactly 2.`)
+  }
+  const totalWeeks = roadmap.months.flatMap((m) => m.weeks).length
+  if (totalWeeks > 8) {
+    contradictions.push(`Roadmap has ${totalWeeks} weekly stage(s) — the 2-month roadmap must never exceed 8.`)
+  }
+
+  const seenTaskKeys = new Set<string>()
+  for (const month of roadmap.months) {
+    for (const week of month.weeks) {
+      for (const t of week.tasks) {
+        const key = `${t.category}::${t.url ?? ''}`
+        if (seenTaskKeys.has(key)) {
+          contradictions.push(`Duplicate roadmap task for category "${t.category}"${t.url ? ` on ${t.url}` : ''} appears more than once.`)
+        }
+        seenTaskKeys.add(key)
+
+        if (t.category === 'Existing Page' || t.category.startsWith('Meta') || t.category === 'H1' || t.category === 'Content' || t.category === 'Images' || t.category === 'Internal Linking' || t.category === 'Heading Structure') {
+          if (t.url && !crawledUrls.has(t.url)) {
+            contradictions.push(`Roadmap task "${t.task}" references URL "${t.url}", which was never crawled/discovered.`)
+          }
+        }
+        if (t.category === 'New Page' && t.url && crawledUrls.has(t.url)) {
+          contradictions.push(`Roadmap task "${t.task}" proposes creating a new page at "${t.url}", but that URL already exists as a crawled page — conflicts with an existing target page.`)
+        }
+        if (t.category === 'New Page' && t.url && !newPageUrls.has(t.url)) {
+          contradictions.push(`Roadmap task "${t.task}" proposes a new page URL ("${t.url}") that doesn't match any validated page-opportunity suggestion.`)
+        }
+        if (ROADMAP_UNSUPPORTED_TARGET_RE.test(t.task) || ROADMAP_UNSUPPORTED_TARGET_RE.test(t.completionCheck)) {
+          contradictions.push(`Roadmap task "${t.task}" states an unsupported numeric performance target (traffic/ranking/backlink/DA-DR) — completion checks must be task/audit-based only.`)
+        }
+        if (t.confidence === 'low' && !t.needsReview) {
+          contradictions.push(`Roadmap task "${t.task}" is Low confidence but is not flagged needsReview — a Low-confidence finding must never be presented as a definite task.`)
+        }
+        if (t.confidence === 'low' && !/^review:/i.test(t.task)) {
+          contradictions.push(`Roadmap task "${t.task}" is Low confidence but its text doesn't read as a review item — an AI-inferred/low-confidence finding must never be phrased as a definite instruction.`)
+        }
+      }
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Roadmap contradiction checker found the following:', contradictions)
+  }
+  return contradictions
+}

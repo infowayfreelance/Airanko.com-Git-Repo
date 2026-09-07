@@ -40,7 +40,7 @@ const steps = [
     icon: FileText,
     step: '03',
     title: 'Get Your Full SEO Strategy',
-    desc: 'Receive a complete, client-ready SEO plan in seconds. Includes keyword strategy, content calendar, technical checklist, and a 6-month action roadmap — ready to execute.',
+    desc: 'Receive a complete, client-ready SEO plan in seconds. Includes keyword strategy, content calendar, technical checklist, and a 2-month action roadmap — ready to execute.',
   },
 ]
 
@@ -74,8 +74,8 @@ const features = [
   },
   {
     icon: Map,
-    title: '6-Month SEO Roadmap',
-    desc: 'No more guessing where to start. Get a clear, month-by-month action plan built around your goals, competition, and current site health.',
+    title: '2-Month SEO Roadmap',
+    desc: 'No more guessing where to start. Get a clear, week-by-week action plan built around your goals, competition, and current site health.',
   },
 ]
 
@@ -106,7 +106,7 @@ const comparisonRows: {
   { feature: 'Competitor analysis', airanko: true, semrush: true, ahrefs: true },
   { feature: 'Content calendar', airanko: true, semrush: false, ahrefs: false },
   { feature: 'Technical SEO checklist', airanko: true, semrush: true, ahrefs: 'Partial' },
-  { feature: '6-month action roadmap', airanko: true, semrush: false, ahrefs: false },
+  { feature: '2-month action roadmap', airanko: true, semrush: false, ahrefs: false },
   { feature: 'Local SEO audit', airanko: true, semrush: 'Paid only', ahrefs: 'Paid only' },
   { feature: 'Client-ready output', airanko: true, semrush: 'Paid only', ahrefs: false },
   { feature: 'AI-powered strategy', airanko: true, semrush: 'Partial', ahrefs: false },
@@ -165,8 +165,8 @@ const faqs = [
     a: 'Yes. Toggle on the local business option and Ai Ranko generates a full local SEO audit — including NAP consistency, geo-relevance signals, and location-based keyword strategy.',
   },
   {
-    q: 'What is included in the 6-month SEO roadmap?',
-    a: 'The roadmap breaks down your SEO plan month by month — covering what to fix technically, which keywords to target, what content to publish, and how to build authority over time.',
+    q: 'What is included in the 2-month SEO roadmap?',
+    a: 'The roadmap breaks your own audit findings into an 8-week, week-by-week plan — covering what to fix technically, which pages to improve or create, and which local/off-page opportunities to pursue, in the right order.',
   },
   {
     q: 'How accurate is the AI-generated SEO strategy?',
@@ -351,7 +351,7 @@ export default function SeoStrategyMakerSeoSections() {
               Whether you&apos;re a startup, blogger, or agency — ranking on Google without a clear SEO strategy is nearly impossible. Ai Ranko&apos;s <strong className="text-foreground">AI SEO strategy maker</strong> builds a complete, tailored plan around your website, niche, and real competition data.
             </p>
             <p>
-              Most businesses waste months publishing random content with no direction. Our tool delivers a <strong className="text-foreground">custom SEO plan</strong> with keyword research, competitor gaps, technical fixes, and a 6-month roadmap — all in seconds, completely free.
+              Most businesses waste months publishing random content with no direction. Our tool delivers a <strong className="text-foreground">custom SEO plan</strong> with keyword research, competitor gaps, technical fixes, and a 2-month roadmap — all in seconds, completely free.
             </p>
             <p>
               Unlike Semrush or Ahrefs, there&apos;s no learning curve, no monthly fees, and no setup required. Just enter your URL and get a <strong className="text-foreground">client-ready SEO strategy</strong> you can execute from day one.

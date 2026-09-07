@@ -90,7 +90,7 @@ const seoTools = [
   {
     icon: Sparkles,
     label: 'SEO Strategy Maker',
-    description: 'Generate a complete custom SEO strategy with keywords, competitors, content calendar & 6-month action plan.',
+    description: 'Generate a complete custom SEO strategy with keywords, competitors, content calendar & 2-month action plan.',
     badge: 'AI Powered',
     badgeVariant: 'secondary' as const,
     href: '/tools/seo-strategy-maker',
