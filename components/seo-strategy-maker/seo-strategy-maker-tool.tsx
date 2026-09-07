@@ -1283,10 +1283,11 @@ function StrategyReport({
         <ReportSection
           {...sectionProps('kpis')}
           icon={BarChart3}
-          title="KPI Targets"
+          title="SEO Measurement & KPIs"
           kicker="Section 18"
+          description="What's actually measured today, what requires a data source we don't have yet, and what to track."
         >
-          <KpiTable kpis={strategy.kpiTargets} />
+          <KpiMeasurementSection kpis={strategy.kpiMeasurement} />
         </ReportSection>
 
         {/* Tool stack */}
@@ -4050,34 +4051,120 @@ function RoadmapColumn({
   )
 }
 
-function KpiTable({ kpis }: { kpis: SeoStrategy['kpiTargets'] }) {
+const KPI_STATUS_LABEL: Record<SeoStrategy['kpiMeasurement'][number]['status'], string> = {
+  measured: 'Measured',
+  user_provided: 'User Provided',
+  estimated: 'Estimated',
+  not_available: 'Not Available',
+}
+
+const KPI_STATUS_BADGE_CLS: Record<SeoStrategy['kpiMeasurement'][number]['status'], string> = {
+  measured: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  user_provided: 'bg-primary/10 text-primary border-primary/30',
+  estimated: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  not_available: 'bg-muted text-muted-foreground border-border',
+}
+
+const KPI_INTEGRATION_LABEL: Record<'google_search_console' | 'google_analytics' | 'backlink_provider', string> = {
+  google_search_console: 'Google Search Console',
+  google_analytics: 'Google Analytics',
+  backlink_provider: 'a backlink data provider',
+}
+
+const KPI_CATEGORY_LABEL: Record<SeoStrategy['kpiMeasurement'][number]['category'], string> = {
+  organic_visibility: 'Organic Visibility',
+  traffic_engagement: 'Traffic & Engagement',
+  conversions: 'Conversions',
+  authority: 'Authority',
+  technical: 'Technical',
+}
+
+function formatKpiValue(kpi: SeoStrategy['kpiMeasurement'][number]): string {
+  if (kpi.value === null) return 'Not Available'
+  return kpi.unit === 'percent' ? `${kpi.value}%` : kpi.value.toLocaleString()
+}
+
+function KpiRow({ kpi }: { kpi: SeoStrategy['kpiMeasurement'][number] }) {
   return (
-    <div className="rounded-xl border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/30">
-            <tr className="text-left border-b">
-              <th className="px-4 py-3 font-medium">Metric</th>
-              <th className="px-4 py-3 font-medium">Baseline</th>
-              <th className="px-4 py-3 font-medium">3 months</th>
-              <th className="px-4 py-3 font-medium">6 months</th>
-              <th className="px-4 py-3 font-medium">12 months</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {kpis.map((k, i) => (
-              <tr key={i}>
-                <td className="px-4 py-3 font-medium">{k.metric}</td>
-                <td className="px-4 py-3 text-muted-foreground">{k.baseline}</td>
-                <td className="px-4 py-3">{k.month3Target}</td>
-                <td className="px-4 py-3 text-primary font-medium">
-                  {k.month6Target}
-                </td>
-                <td className="px-4 py-3 font-semibold">{k.month12Target}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="rounded-lg border bg-card p-4 flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="font-medium text-sm">{kpi.metric}</div>
+        <div className="text-xs text-muted-foreground mt-0.5 text-pretty">
+          {kpi.value !== null
+            ? 'Source: Ai Ranko Crawl'
+            : kpi.requiredIntegration
+              ? `Data Required: ${KPI_INTEGRATION_LABEL[kpi.requiredIntegration]}`
+              : 'Goal'}
+          {' — '}
+          {kpi.goal}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-sm font-semibold">{formatKpiValue(kpi)}</span>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${KPI_STATUS_BADGE_CLS[kpi.status]}`}>
+          {KPI_STATUS_LABEL[kpi.status]}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function KpiGroup({ title, kpis }: { title: string; kpis: SeoStrategy['kpiMeasurement'] }) {
+  if (kpis.length === 0) return null
+  return (
+    <div className="space-y-2">
+      <h4 className="font-semibold text-sm">{title}</h4>
+      <div className="space-y-2">
+        {kpis.map((k, i) => (
+          <KpiRow key={i} kpi={k} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Phase 10 — deterministic KPI & measurement catalog (lib/seo-strategy/kpi-measurement.ts). Never renders a fabricated number: a metric's value is either a real crawl-measured figure or `null` ("Not Available"), and its status badge always matches its actual source. */
+function KpiMeasurementSection({ kpis }: { kpis: SeoStrategy['kpiMeasurement'] }) {
+  const measured = kpis.filter((k) => k.status === 'measured' || k.status === 'user_provided')
+  const needsGsc = kpis.filter((k) => k.requiredIntegration === 'google_search_console')
+  const needsGa4 = kpis.filter((k) => k.requiredIntegration === 'google_analytics')
+  const needsBacklink = kpis.filter((k) => k.requiredIntegration === 'backlink_provider')
+
+  const byCategory = new Map<SeoStrategy['kpiMeasurement'][number]['category'], SeoStrategy['kpiMeasurement']>()
+  for (const k of kpis) {
+    byCategory.set(k.category, [...(byCategory.get(k.category) ?? []), k])
+  }
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground text-pretty">
+        Every metric below states exactly where it comes from. A metric with no connected data source shows &quot;Not Available&quot; rather than an invented number — connecting the relevant integration will replace that value going forward.
+      </p>
+
+      <KpiGroup title="1. Currently Measured (Ai Ranko Crawl)" kpis={measured} />
+      <KpiGroup title="2. Metrics Requiring Google Search Console" kpis={needsGsc} />
+      <KpiGroup title="3. Metrics Requiring Google Analytics" kpis={needsGa4} />
+      <KpiGroup title="4. Metrics Requiring a Backlink Data Provider" kpis={needsBacklink} />
+
+      <div className="space-y-3">
+        <h4 className="font-semibold text-sm">5. Recommended KPIs to Track</h4>
+        <div className="grid md:grid-cols-2 gap-4">
+          {Array.from(byCategory.entries()).map(([category, categoryKpis]) => (
+            <div key={category} className="rounded-xl border p-4">
+              <div className="text-sm font-semibold mb-2">{KPI_CATEGORY_LABEL[category]}</div>
+              <ul className="space-y-1.5">
+                {categoryKpis.map((k, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-sm">
+                    <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                    <span className="text-pretty">
+                      <span className="font-medium">{k.metric}:</span> {k.goal}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

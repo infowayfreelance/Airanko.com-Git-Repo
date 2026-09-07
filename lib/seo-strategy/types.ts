@@ -16,12 +16,6 @@ export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info' | 'pass' 
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
 
-/** Whether a KPI's baseline is real, merely suggested, or unavailable. */
-export type KpiStatus = 'available' | 'not_available' | 'suggested'
-
-/** Where a piece of data actually came from — never left implicit. */
-export type SourceType = 'crawled' | 'user_provided' | 'verified_api' | 'ai_suggested' | 'not_available'
-
 export type KeywordMappingStatus = 'mapped' | 'no_suitable_page'
 
 export interface KeywordPageMapping {
@@ -44,17 +38,6 @@ export interface HealthScoreBreakdown {
   /** null when local SEO couldn't be scored — never fabricated as 0. */
   local: number | null
   localStatus: LocalDataSufficiency
-}
-
-export interface KpiTarget {
-  metric: string
-  baseline: string
-  month3Target: string
-  month6Target: string
-  month12Target: string
-  status: KpiStatus
-  source: string | null
-  sourceType: SourceType
 }
 
 // ──────────────────────────────────────────────────────────────────────────

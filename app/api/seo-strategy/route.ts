@@ -5,8 +5,7 @@ import type { SiteAnalysis } from './analyze/route'
 import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
-import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
-import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, runLocalSeoContradictionChecks, runOffPageContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, runLocalSeoContradictionChecks, runOffPageContradictionChecks, runKpiContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
 import { buildTechnicalCrawlSummary, type TechnicalCrawlSummary } from '@/lib/seo-strategy/technical-summary'
@@ -15,9 +14,9 @@ import type { CompetitorProfile } from './competitor-analyze/route'
 import { buildPageOpportunities, type PageOpportunity } from '@/lib/seo-strategy/page-opportunity'
 import { buildLocalSeoIntelligence, type LocalSeoIntelligence } from '@/lib/seo-strategy/local-seo-intelligence'
 import { buildOffPageIntelligence, type OffPageIntelligence } from '@/lib/seo-strategy/off-page-intelligence'
+import { buildKpiMeasurement, type MeasurementKpi } from '@/lib/seo-strategy/kpi-measurement'
 import type {
   HealthScoreBreakdown,
-  KpiTarget,
   KeywordPageMapping,
   OnPageSummary,
   PageOnPageAudit,
@@ -233,15 +232,10 @@ const strategySchema = z.object({
     }),
   ),
 
-  kpiTargets: z.array(
-    z.object({
-      metric: z.string(),
-      baseline: z.string(),
-      month3Target: z.string(),
-      month6Target: z.string(),
-      month12Target: z.string(),
-    }),
-  ),
+  // Phase 10: KPIs are entirely deterministic (see kpiMeasurement below) —
+  // the AI is never the source of truth for a metric value, a baseline, or
+  // a numeric growth projection, since it has no way to verify any of them
+  // without a connected GSC/GA4/backlink-provider integration.
 
   toolStack: z.object({
     free: z.array(z.string()),
@@ -267,9 +261,11 @@ type RawAiStrategy = z.infer<typeof strategySchema>
  * the UI. Identical to the AI's raw output except:
  * - `healthScoreBreakdown.local` can be `null` (never a fabricated 0) and
  *   carries a `localStatus`.
- * - `kpiTargets` carries `status`/`source`/`sourceType` so unsupported
- *   metrics (organic traffic, DA, conversion rate, etc.) are never
- *   presented as measured baselines.
+ * - `kpiMeasurement` (Phase 10) replaces the AI's old kpiTargets table
+ *   entirely — every KPI's value/status/source/requiredIntegration is
+ *   computed deterministically (lib/seo-strategy/kpi-measurement.ts); the
+ *   AI is never the source of truth for a metric value or a growth
+ *   projection.
  * - `keywordPageMappings` is the deterministic keyword→page relevance data
  *   (see lib/seo-strategy/keyword-mapping.ts) that also drives the
  *   corrected `keywordStrategy.primaryKeywords[].targetPage` values.
@@ -285,9 +281,10 @@ type RawAiStrategy = z.infer<typeof strategySchema>
  *   influences these values. `onPageAudits` here carries the deterministic
  *   per-page `onPageScore`/`onPageScoreStatus` attached by that module.
  */
-export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown' | 'kpiTargets'> & {
+export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown'> & {
   healthScoreBreakdown: HealthScoreBreakdown
-  kpiTargets: KpiTarget[]
+  /** Phase 10 — deterministic KPI & measurement catalog (lib/seo-strategy/kpi-measurement.ts). Fully replaces the old AI-generated kpiTargets table; see the class doc comment above. */
+  kpiMeasurement: MeasurementKpi[]
   keywordPageMappings: KeywordPageMapping[]
   onPageAudits: PageOnPageAuditWithScore[]
   onPageSummary: OnPageSummary
@@ -468,6 +465,16 @@ export async function POST(req: Request) {
       onPageAuditsRaw,
     )
 
+    // Phase 10 — deterministic KPI & measurement catalog. Every metric this
+    // crawl cannot verify (organic traffic, rankings, conversions,
+    // backlinks, DA/DR) is not_available with an explicit
+    // requiredIntegration; every Technical metric the crawl CAN verify
+    // (pages discovered/crawled, indexable pages, broken pages,
+    // critical/high issues, metadata issues, schema coverage,
+    // internal-link issues) carries its real computed value. The AI never
+    // sees or produces this — see the trimmed kpiTargets schema below.
+    const kpiMeasurement: MeasurementKpi[] = buildKpiMeasurement(technicalCrawlSummary, onPageOverview, onPageAuditsRaw, analysis !== null)
+
     const analysisDigest = analysis
       ? buildAnalysisDigest(analysis)
       : 'No automated site analysis available. Generate strategy based on the business inputs alone.'
@@ -503,7 +510,7 @@ export async function POST(req: Request) {
 - Server response time: ${responseTime.finding}
 - Keyword → page mapping (validated deterministically — reuse these EXACT target pages verbatim in keywordStrategy.primaryKeywords; the system will overwrite anything else anyway):
 ${keywordMappingLines || '  (no keywords provided)'}
-- Metrics with NO verified data source available (no GSC/GA4/backlink API connected): organic traffic, impressions, click-through rate, keyword rankings, conversion rate, bounce rate, backlinks, referring domains, Domain Authority/Rating. Do not invent baseline numbers for these in kpiTargets — use "Not Available" as the baseline, or a suggested future target only, never a fabricated current measurement.`
+- Metrics with NO verified data source available (no GSC/GA4/backlink API connected): organic traffic, impressions, click-through rate, keyword rankings, conversion rate, bounce rate, backlinks, referring domains, Domain Authority/Rating. Never state a specific number for any of these anywhere in the report (criticalIssues, quickWins, conclusion, etc.) — say "not currently measurable without [Search Console/Analytics/a backlink data provider]" instead. KPIs themselves are computed entirely by code, not by you — see kpiMeasurement.`
 
     const onPageAuditLines = onPageAudits
       .map((a) => {
@@ -596,7 +603,6 @@ OUTPUT REQUIREMENTS — every field is required. Use these counts as targets:
 - localSeo arrays: at least 2 items each
 - offPageStrategy.summary: 2-4 sentences, relevance-first framing (no link-count targets, no DA/DR figures)
 - sixMonthRoadmap: EXACTLY 6 items, month=1 through 6, in order
-- kpiTargets: 6-8 items
 - toolStack.free: 4-6, toolStack.paid: 4-6
 - riskAssessment: 3-5 items
 - onPageAudit.schemaMarkup.recommendedTypes: 3-6 items
@@ -617,7 +623,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
 4. Do not change the local business state from what DETERMINISTIC GROUND TRUTH states.
 5. Do not assign a keyword to a different URL than its validated mapping above.
 6. Do not claim something was verified (e.g. "audited the entire site") if it was not.
-7. Use "Not Available" for KPI baselines you cannot verify, and reflect "not evaluated" findings honestly rather than guessing.
+7. Never state a specific number for organic traffic, clicks, impressions, CTR, rankings, conversions, conversion rate, backlinks, referring domains, or DA/DR anywhere in the report — those are computed entirely by code (kpiMeasurement), not by you, and reflect "not evaluated" findings honestly rather than guessing.
 8. Keep factual findings (what the crawl found) separate from strategic recommendations (what to do about it).
 9. Follow the ON-PAGE AUDIT GROUND TRUTH above exactly for suggestedTitle/suggestedMetaDescription — do not propose a change for a page marked OK, and do not invent your own rewrite for a page that needs one when a deterministic suggestion is already given.
 10. Do not invent technical findings — image alt/size issues, broken links, orphan pages, canonical/indexability/schema/OG/Twitter status all come from the PHASE 2B AUDIT GROUND TRUTH above. Match your narrative to those exact counts and per-page findings; never claim a page is clean when it's listed there, and never invent an issue on a page not listed there.`
@@ -734,6 +740,12 @@ Hard rules — a later automated validation pass checks these and will overwrite
     // structural check of the deterministic offPageIntelligence itself.
     const offPageContradictions = runOffPageContradictionChecks(strategy.offPageStrategy, offPageIntelligence, localCtx.isLocalBusiness)
 
+    // Phase 10 — structural re-validation of the deterministic kpiMeasurement
+    // catalog plus an actual correction (not just a diagnostic) of any
+    // fabricated traffic/ranking/conversion/backlink/DA-DR figure the AI
+    // slipped into criticalIssues/quickWins/conclusion.
+    const kpiResult = runKpiContradictionChecks(strategy, kpiMeasurement)
+
     const correctedCompetitorAnalysis = strategy.competitorAnalysis.map((entry) => {
       const profile = findProfileForEntry(entry, competitorProfiles)
       const domain = profile?.domain
@@ -755,6 +767,9 @@ Hard rules — a later automated validation pass checks these and will overwrite
 
     const correctedStrategy: SeoStrategy = {
       ...strategy,
+      criticalIssues: kpiResult.correctedCriticalIssues,
+      quickWins: kpiResult.correctedQuickWins,
+      conclusion: kpiResult.correctedConclusion,
       localSeo: { ...strategy.localSeo, applicable: contradictionResult.localSeoApplicable, napConsistency: localSeoResult.correctedNapConsistency },
       healthScoreBreakdown: {
         ...strategy.healthScoreBreakdown,
@@ -782,7 +797,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
           suggestedMetaDescription: correction.suggestedMetaDescription ?? p.suggestedMetaDescription,
         }
       }),
-      kpiTargets: sanitizeKpiTargets(strategy.kpiTargets),
+      kpiMeasurement,
       keywordPageMappings: keywordMappings,
       onPageAudits,
       onPageSummary,
@@ -808,6 +823,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...pageOpportunityContradictions,
       ...localSeoResult.contradictions,
       ...offPageContradictions,
+      ...kpiResult.contradictions,
     ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined
