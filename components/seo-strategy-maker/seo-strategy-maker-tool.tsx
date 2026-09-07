@@ -1025,15 +1025,22 @@ function StrategyReport({
       { id: 'kpis', label: 'KPIs' },
       { id: 'tools', label: 'Tool Stack' },
       { id: 'risks', label: 'Risk Assessment' },
+      // User-added custom sections render just above the conclusion — see
+      // the report body below — so the nav lists them in the same place.
+      ...customNotes.map((n) => ({ id: n.id, label: n.title })),
       { id: 'conclusion', label: 'Conclusion' },
     ]
     return all.filter((s) => !hiddenSections.has(s.id))
-  }, [strategy.competitorAnalysis.length, previewAvailable, hiddenSections])
+  }, [strategy.competitorAnalysis.length, previewAvailable, hiddenSections, customNotes])
 
   return (
     <div className="space-y-8">
-      {/* Action toolbar (hidden on print) */}
-      <div className="print:hidden sticky top-16 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3 -mx-4 px-4 border-b">
+      {/* Action toolbar + report navigation — a single sticky container so the
+          nav can never be covered by (or cover) the toolbar, regardless of how
+          many rows the toolbar buttons wrap onto on narrow screens. Hidden on
+          print. */}
+      <div className="print:hidden sticky top-16 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 -mx-4 px-4 border-b">
+        <div className="py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -1089,10 +1096,12 @@ function StrategyReport({
             {hiddenSections.size} section{hiddenSections.size > 1 ? 's' : ''} hidden — won&apos;t appear in PDF
           </div>
         )}
+        </div>
+        {/* Report navigation — jump to any rendered section. Stacked inside
+            the same sticky container as the toolbar (not its own sticky
+            element) so it's never covered by, or overlapping, the toolbar. */}
+        <ReportNav sections={navSections} />
       </div>
-
-      {/* Report navigation — jump to any rendered section; never shown on print/export */}
-      <ReportNav sections={navSections} />
 
       {/* Editable report body — entire report becomes inline-editable when editMode is on */}
       <div
@@ -1533,7 +1542,7 @@ function ReportNav({ sections }: { sections: { id: string; label: string }[] }) 
   if (sections.length === 0) return null
 
   return (
-    <nav aria-label="Report sections" className="print:hidden sticky top-[6.5rem] z-20 -mx-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
+    <nav aria-label="Report sections" className="print:hidden -mx-4 border-t">
       <div className="flex gap-1.5 overflow-x-auto px-4 py-2">
         {sections.map((s) => (
           <a
