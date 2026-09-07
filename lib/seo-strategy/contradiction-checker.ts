@@ -715,3 +715,59 @@ export function runLocalSeoContradictionChecks(strategy: LocalSeoNarrativeLike, 
   }
   return { correctedNapConsistency, contradictions }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 9 — Off-page SEO. Every opportunity/priority/citation/risk/metric
+// in offPageIntelligence is computed deterministically (off-page-
+// intelligence.ts) — a real contradiction can't reach it by construction.
+// This is diagnostic/defense-in-depth: it scans the AI's remaining free-text
+// offPageStrategy.summary for the exact violations Phase 9 exists to
+// remove (fabricated link/backlink counts, DA/DR claims, unverified
+// competitor backlink comparisons, guaranteed link quotas), and re-checks
+// the deterministic structure itself in case a future change to
+// off-page-intelligence.ts regresses one of its own invariants.
+// ─────────────────────────────────────────────────────────────────────────
+const OFF_PAGE_UNSUPPORTED_METRIC_RE =
+  /\b\d+[+]?\s*(backlinks?|referring domains?|links?)\b|\bdomain (authority|rating)\b|\bDA\s*\d|\bDR\s*\d+|\bspam score\b/i
+const OFF_PAGE_COMPETITOR_BACKLINK_RE =
+  /\bcompetitor[’']?s?\b(?=[^.]*\b(?:backlinks?|link profile)\b)(?=[^.]*\b(?:stronger|better|more|higher|weaker)\b)/i
+const OFF_PAGE_FIXED_QUOTA_RE = /\bbuild\s+\d+\s+backlinks?\b|\b\d+\s+(backlinks?|links?)\s*(\/|per)\s*month\b|\bguarantee(?:d|s)?\s+\d+\s+links?\b/i
+
+export interface OffPageStrategyLike {
+  summary: string
+}
+
+export function runOffPageContradictionChecks(
+  strategy: OffPageStrategyLike,
+  intelligence: { localStrategyApplicable: boolean; opportunities: { relevance: 'high' | 'medium' | 'low'; priority: 'high' | 'medium' | 'low' | 'avoid' }[] },
+  isLocalBusiness: boolean,
+): string[] {
+  const contradictions: string[] = []
+  const summary = strategy.summary
+
+  if (OFF_PAGE_UNSUPPORTED_METRIC_RE.test(summary)) {
+    contradictions.push(`offPageStrategy.summary presents a backlink/DA/DR/spam-score figure with no verified data source: "${summary}"`)
+  }
+  if (OFF_PAGE_COMPETITOR_BACKLINK_RE.test(summary)) {
+    contradictions.push(`offPageStrategy.summary claims a competitor backlink advantage with no verified backlink data source: "${summary}"`)
+  }
+  if (OFF_PAGE_FIXED_QUOTA_RE.test(summary)) {
+    contradictions.push(`offPageStrategy.summary presents a fixed/guaranteed link quota rather than an activity-based goal: "${summary}"`)
+  }
+
+  if (intelligence.localStrategyApplicable !== isLocalBusiness) {
+    contradictions.push(
+      `offPageIntelligence.localStrategyApplicable (${intelligence.localStrategyApplicable}) does not match the deterministic local-business status (${isLocalBusiness}).`,
+    )
+  }
+  for (const o of intelligence.opportunities) {
+    if (o.priority === 'high' && o.relevance === 'low') {
+      contradictions.push('An off-page opportunity with low relevance was assigned High priority — irrelevant opportunities must never rank High.')
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Off-page contradiction checker found the following:', contradictions)
+  }
+  return contradictions
+}
