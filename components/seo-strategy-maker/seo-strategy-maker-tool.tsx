@@ -310,7 +310,7 @@ export default function SeoStrategyMakerTool() {
                 AI SEO Strategy Maker — Free Custom SEO Plan Generator
               </h1>
               <p className="mt-3 text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Enter your website URL and let AI do the heavy lifting. Ai Ranko crawls your site, analyzes competitors, and builds a complete SEO strategy — keywords, content calendar, technical fixes, and a 6-month action plan.
+                Enter your website URL and let AI do the heavy lifting. Ai Ranko crawls your site, analyzes competitors, and builds a complete SEO strategy — keywords, content calendar, technical fixes, and a 2-month action plan.
               </p>
               <p className="mt-2 text-sm font-medium text-primary">
                 No guesswork. No agencies. No cost.
@@ -1268,15 +1268,15 @@ function StrategyReport({
           <OffPageSection data={strategy.offPageIntelligence} strategy={strategy.offPageStrategy} />
         </ReportSection>
 
-        {/* 6-month roadmap */}
+        {/* 2-month roadmap */}
         <ReportSection
           {...sectionProps('roadmap')}
           icon={MapIcon}
-          title="6-Month Roadmap"
+          title="2-Month SEO Roadmap"
           kicker="Section 17"
-          description="What we'll do each month and what you'll achieve."
+          description="An 8-week, site-specific action plan built from this report's own validated findings — not a generic template."
         >
-          <SixMonthRoadmap roadmap={strategy.sixMonthRoadmap} />
+          <TwoMonthRoadmapView roadmap={strategy.twoMonthRoadmap} />
         </ReportSection>
 
         {/* KPIs */}
@@ -1407,9 +1407,8 @@ function ReportCover({
           <strong className="text-foreground">
             {analysis.totalPagesCrawled} pages
           </strong>
-          , your provided keyword list, and competitive intelligence — built to
-          deliver measurable rankings, traffic, and conversion growth over the
-          next 6 months.
+          , your provided keyword list, and competitive intelligence — with a
+          focused, site-specific 2-month action plan to work through next.
         </p>
 
         <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -4009,18 +4008,74 @@ function OffPageSection({
   )
 }
 
-function SixMonthRoadmap({
-  roadmap,
-}: {
-  roadmap: SeoStrategy['sixMonthRoadmap']
-}) {
+/** Phase 12 — deterministic, personalized roadmap task row. Never a fake traffic/ranking/backlink target — completionCheck is always task/audit-based (see lib/seo-strategy/roadmap.ts). */
+function RoadmapTaskRow({ task }: { task: SeoStrategy['twoMonthRoadmap']['months'][number]['weeks'][number]['tasks'][number] }) {
   return (
-    <div className="space-y-4">
-      {roadmap.map((m) => (
-        <div
-          key={m.month}
-          className="rounded-xl border bg-card overflow-hidden print:break-inside-avoid"
-        >
+    <div className="rounded-lg border bg-card p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[task.priority]}`}>
+            {task.priority === 'high' ? 'High' : task.priority === 'medium' ? 'Medium' : 'Low'} Priority
+          </span>
+          <Badge variant="outline" className="text-xs">
+            {task.category}
+          </Badge>
+          <ConfidenceBadge confidence={task.confidence} />
+        </div>
+      </div>
+      <p className="text-sm font-medium text-pretty">{task.task}</p>
+      {task.affectedUrls.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          {task.affectedUrls.slice(0, 4).map((u, i) => (
+            <code key={i} className="text-xs bg-muted/50 px-1.5 py-0.5 rounded font-mono">
+              {u}
+            </code>
+          ))}
+          {task.affectedUrls.length > 4 && <span className="text-xs text-muted-foreground">+{task.affectedUrls.length - 4} more</span>}
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground text-pretty mt-1">
+        <span className="font-medium text-foreground">Why: </span>
+        {task.reason}
+      </p>
+      <p className="text-xs text-primary text-pretty mt-1 flex items-start gap-1">
+        <CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5" />
+        <span>
+          <span className="font-medium">Completion check: </span>
+          {task.completionCheck}
+        </span>
+      </p>
+    </div>
+  )
+}
+
+function RoadmapWeekBlock({ week }: { week: SeoStrategy['twoMonthRoadmap']['months'][number]['weeks'][number] }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Week {week.week}</div>
+      <div className="space-y-2">
+        {week.tasks.map((t, i) => (
+          <RoadmapTaskRow key={i} task={t} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Phase 12 — the 2-month/8-week roadmap. A month or week with no validated finding simply doesn't render — never a filled-in generic placeholder. */
+function TwoMonthRoadmapView({ roadmap }: { roadmap: SeoStrategy['twoMonthRoadmap'] }) {
+  if (roadmap.months.every((m) => m.weeks.length === 0)) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="h-4 w-4" />
+        No outstanding validated findings to schedule — the site is in good shape.
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-6">
+      {roadmap.months.map((m) => (
+        <div key={m.month} className="rounded-xl border bg-card overflow-hidden print:break-inside-avoid">
           <div className="flex items-center gap-4 px-5 py-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
             <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0">
               <div className="text-center leading-none">
@@ -4029,67 +4084,31 @@ function SixMonthRoadmap({
               </div>
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-balance">{m.theme}</h3>
-              <p className="text-sm text-muted-foreground text-pretty">
-                {m.focus}
-              </p>
+              <h3 className="font-semibold text-balance">{m.focus}</h3>
             </div>
           </div>
-          <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
-            <RoadmapColumn
-              title="Key tasks"
-              icon={ListChecks}
-              items={m.keyTasks}
-            />
-            <RoadmapColumn
-              title="Deliverables"
-              icon={FileText}
-              items={m.deliverables}
-            />
-            <RoadmapColumn
-              title="Expected outcomes"
-              icon={TrendingUp}
-              items={m.expectedOutcomes}
-              highlight
-            />
+          <div className="p-5 space-y-5">
+            {m.weeks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No validated findings for this month.</p>
+            ) : (
+              m.weeks.map((w) => <RoadmapWeekBlock key={w.week} week={w} />)
+            )}
+            {m.successChecks.length > 0 && (
+              <div className="rounded-lg bg-muted/30 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Month {m.month} success checks</div>
+                <ul className="text-sm space-y-1">
+                  {m.successChecks.map((c, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <ArrowRight className="h-3.5 w-3.5 text-primary mt-1 shrink-0" />
+                      <span className="text-pretty">{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       ))}
-    </div>
-  )
-}
-
-function RoadmapColumn({
-  title,
-  icon: Icon,
-  items,
-  highlight,
-}: {
-  title: string
-  icon: React.ComponentType<{ className?: string }>
-  items: string[]
-  highlight?: boolean
-}) {
-  return (
-    <div className="p-5">
-      <div
-        className={`flex items-center gap-2 mb-3 ${highlight ? 'text-primary' : ''}`}
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        <h4 className="font-semibold text-sm uppercase tracking-wider">
-          {title}
-        </h4>
-      </div>
-      <ul className="text-sm space-y-1.5">
-        {items.map((it, i) => (
-          <li key={i} className="flex items-start gap-1.5">
-            <ArrowRight
-              className={`h-3.5 w-3.5 mt-1 shrink-0 ${highlight ? 'text-primary' : 'text-muted-foreground'}`}
-            />
-            <span className="text-pretty">{it}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   )
 }

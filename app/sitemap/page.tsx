@@ -55,7 +55,7 @@ const sections: Section[] = [
     title: 'SEO AI Tools',
     subtitle: 'Strategy, audits, and rank-driven analysis powered by AI.',
     tools: [
-      { href: '/tools/seo-strategy-maker', label: 'SEO Strategy Maker',  description: 'Full AI-generated SEO plan with keywords, content calendar & 6-month roadmap.', icon: Sparkles },
+      { href: '/tools/seo-strategy-maker', label: 'SEO Strategy Maker',  description: 'Full AI-generated SEO plan with keywords, content calendar & 2-month roadmap.', icon: Sparkles },
       { href: '/tools/site-audit',         label: 'Site Audit Tool',     description: 'Crawl up to 15 pages, run 25+ checks, get AI step-by-step fixes for every issue.', icon: Globe },
       { href: '/tools/keyword-research',   label: 'Keyword Research Tool', description: 'Pull 150+ real keywords from Google Autocomplete + AI clustering by intent.', icon: Search },
       { href: '/tools/meta-checker',       label: 'Bulk Meta & OG Checker', description: 'Audit meta tags, Open Graph, and Twitter Card for one URL or many.', icon: FileText },

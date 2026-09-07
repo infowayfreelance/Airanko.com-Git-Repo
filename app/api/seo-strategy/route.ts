@@ -5,7 +5,7 @@ import type { SiteAnalysis } from './analyze/route'
 import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
-import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, runLocalSeoContradictionChecks, runOffPageContradictionChecks, runKpiContradictionChecks, runEvidenceContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, runLocalSeoContradictionChecks, runOffPageContradictionChecks, runKpiContradictionChecks, runEvidenceContradictionChecks, runRoadmapContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
 import { buildTechnicalCrawlSummary, type TechnicalCrawlSummary } from '@/lib/seo-strategy/technical-summary'
@@ -16,6 +16,7 @@ import { buildLocalSeoIntelligence, type LocalSeoIntelligence } from '@/lib/seo-
 import { buildOffPageIntelligence, type OffPageIntelligence } from '@/lib/seo-strategy/off-page-intelligence'
 import { buildKpiMeasurement, type MeasurementKpi } from '@/lib/seo-strategy/kpi-measurement'
 import { priorityFixToFinding, pageOpportunityToFinding, competitorGapToFinding, localOpportunityToFinding, offPageOpportunityToFinding, type Finding } from '@/lib/seo-strategy/evidence'
+import { buildTwoMonthRoadmap, type TwoMonthRoadmap } from '@/lib/seo-strategy/roadmap'
 import type {
   HealthScoreBreakdown,
   KeywordPageMapping,
@@ -222,16 +223,9 @@ const strategySchema = z.object({
     summary: z.string(),
   }),
 
-  sixMonthRoadmap: z.array(
-    z.object({
-      month: z.number().int(),
-      theme: z.string(),
-      focus: z.string(),
-      keyTasks: z.array(z.string()),
-      deliverables: z.array(z.string()),
-      expectedOutcomes: z.array(z.string()),
-    }),
-  ),
+  // Phase 12: the roadmap is entirely deterministic (see twoMonthRoadmap
+  // below), built only from findings already validated by earlier phases —
+  // the AI never authors a task, a week assignment, or a deliverable list.
 
   // Phase 10: KPIs are entirely deterministic (see kpiMeasurement below) —
   // the AI is never the source of truth for a metric value, a baseline, or
@@ -301,6 +295,8 @@ export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown'> & {
   localSeoIntelligence: LocalSeoIntelligence
   /** Phase 9 — deterministic, relevance-first off-page strategy (lib/seo-strategy/off-page-intelligence.ts). Replaces AI-invented backlink quotas/DA-DR guidance with a rule-based opportunity catalog scored on topical/local relevance, legitimacy, and spam risk; the AI's remaining offPageStrategy.summary is left as short prose narrative alongside this structured data. */
   offPageIntelligence: OffPageIntelligence
+  /** Phase 12 — deterministic, personalized 2-month/8-week roadmap (lib/seo-strategy/roadmap.ts). Fully replaces the old AI-generated sixMonthRoadmap; every task is a direct projection of already-validated findings from earlier phases, never AI-authored. */
+  twoMonthRoadmap: TwoMonthRoadmap
 }
 
 // ---------------------------------------------------------------------------
@@ -603,7 +599,6 @@ OUTPUT REQUIREMENTS — every field is required. Use these counts as targets:
 - competitorAnalysis: one entry per competitor provided (or empty array if none)
 - localSeo arrays: at least 2 items each
 - offPageStrategy.summary: 2-4 sentences, relevance-first framing (no link-count targets, no DA/DR figures)
-- sixMonthRoadmap: EXACTLY 6 items, month=1 through 6, in order
 - toolStack.free: 4-6, toolStack.paid: 4-6
 - riskAssessment: 3-5 items
 - onPageAudit.schemaMarkup.recommendedTypes: 3-6 items
@@ -613,9 +608,8 @@ Important content rules:
 2. technicalSeoAudit.checklist statuses must reflect the real state of the site
 3. pageByPageAudit must use the actual URLs from the crawled pages with rewritten title (50-60 chars) and meta description (140-160 chars)
 4. offPageStrategy.summary must frame off-page work as relevance-first (topical/local relevance, legitimacy, editorial value) — never mention a target link count, Domain Authority/Rating figure (e.g. "DR40+"), or any other unverified backlink metric.
-5. sixMonthRoadmap progression: M1 foundation/fixes → M2 on-page + content launch → M3 content scaling + first link building → M4 authority + technical refinement → M5 content + outreach → M6 consolidation, conversion optimization, reporting.
-6. overallHealthScore: be honest. 0-100 — sites with many critical issues = 30-50, polished sites = 70-90.
-7. Tone: confident, prescriptive, professional. No fluff.
+5. overallHealthScore: be honest. 0-100 — sites with many critical issues = 30-50, polished sites = 70-90.
+6. Tone: confident, prescriptive, professional. No fluff.
 
 Hard rules — a later automated validation pass checks these and will overwrite anything that violates them, so following them the first time avoids a corrected/inconsistent-looking report:
 1. Do not override the deterministic findings above (local business status, mobile-friendliness, robots.txt, keyword→page mappings).
@@ -769,6 +763,24 @@ Hard rules — a later automated validation pass checks these and will overwrite
     ]
     const evidenceContradictions = runEvidenceContradictionChecks(evidenceFindings, crawledUrls)
 
+    // Phase 12 — deterministic, personalized 2-month/8-week roadmap
+    // (lib/seo-strategy/roadmap.ts). Built ONLY from findings already
+    // validated by earlier phases (Phase 3/11's onPagePriorityFixes, Phase
+    // 5's technicalCrawlSummary, Phase 7/11's pageOpportunities, Phase
+    // 8/11's localSeoIntelligence.opportunities, Phase 9/11's
+    // offPageIntelligence.opportunities) — replaces the AI's old
+    // sixMonthRoadmap entirely; the AI never authors a task, a week
+    // assignment, or a deliverable list.
+    const twoMonthRoadmap: TwoMonthRoadmap = buildTwoMonthRoadmap({
+      onPagePriorityFixes,
+      technicalCrawlSummary,
+      pageOpportunities,
+      localOpportunities: localSeoIntelligence.opportunities,
+      offPageOpportunities: offPageIntelligence.opportunities,
+    })
+    const newPageUrls = new Set(pageOpportunities.filter((o) => o.suggestedUrl).map((o) => o.suggestedUrl as string))
+    const roadmapContradictions = runRoadmapContradictionChecks(twoMonthRoadmap, crawledUrls, newPageUrls)
+
     const correctedCompetitorAnalysis = strategy.competitorAnalysis.map((entry) => {
       const profile = findProfileForEntry(entry, competitorProfiles)
       const domain = profile?.domain
@@ -832,6 +844,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       pageOpportunities,
       localSeoIntelligence,
       offPageIntelligence,
+      twoMonthRoadmap,
     }
 
     // Contradiction details are diagnostic-only — never exposed to
@@ -848,6 +861,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...offPageContradictions,
       ...kpiResult.contradictions,
       ...evidenceContradictions,
+      ...roadmapContradictions,
     ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined

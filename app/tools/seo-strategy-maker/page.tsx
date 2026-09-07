@@ -10,7 +10,7 @@ import SeoStrategyMakerSeoSections from '@/components/seo-strategy-maker-seo-sec
 export const metadata: Metadata = {
   title: 'AI SEO Strategy Maker — Free Custom SEO Plan Generator | Ai Ranko',
   description:
-    'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 6-month action plan — 100% free & AI-powered.',
+    'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 2-month action plan — 100% free & AI-powered.',
   keywords:
     'SEO strategy maker, SEO plan generator, AI SEO tool, free SEO strategy, keyword strategy, content calendar, SEO roadmap, competitor analysis, technical SEO checklist',
   alternates: {
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'AI SEO Strategy Maker — Free Custom SEO Plan Generator | Ai Ranko',
     description:
-      'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 6-month action plan — 100% free & AI-powered.',
+      'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 2-month action plan — 100% free & AI-powered.',
     url: 'https://airanko.com/tools/seo-strategy-maker',
     siteName: 'AI Ranko',
     images: [
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AI SEO Strategy Maker — Free Custom SEO Plan Generator | Ai Ranko',
     description:
-      'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 6-month action plan — 100% free & AI-powered.',
+      'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 2-month action plan — 100% free & AI-powered.',
     images: [
       'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
     ],
@@ -49,7 +49,7 @@ const jsonLd = {
   '@type': 'SoftwareApplication',
   name: 'AI SEO Strategy Maker — Free Custom SEO Plan Generator',
   description:
-    'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 6-month action plan — 100% free & AI-powered.',
+    'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 2-month action plan — 100% free & AI-powered.',
   url: 'https://airanko.com/tools/seo-strategy-maker',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'All',
@@ -60,7 +60,7 @@ const jsonLd = {
     'Competitor analysis and ranking gap discovery',
     'Content calendar aligned with search intent',
     'Technical SEO checklist with prioritized fixes',
-    '6-month month-by-month SEO action roadmap',
+    '2-month week-by-week SEO action roadmap',
     'Local SEO audit support',
     'Client-ready output — no formatting needed',
   ],
@@ -130,10 +130,10 @@ const faqJsonLd = {
     },
     {
       '@type': 'Question',
-      name: 'What is included in the 6-month SEO roadmap?',
+      name: 'What is included in the 2-month SEO roadmap?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'The roadmap breaks down your SEO plan month by month — covering what to fix technically, which keywords to target, what content to publish, and how to build authority over time.',
+        text: 'The roadmap breaks your own audit findings into an 8-week, week-by-week plan — covering what to fix technically, which pages to improve or create, and which local/off-page opportunities to pursue, in the right order.',
       },
     },
     {
@@ -174,7 +174,7 @@ export default function SeoStrategyMakerPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />      <Navbar />
-      <ToolSchema name="SEO Strategy Maker" slug="seo-strategy-maker" description="Crawl your site and generate a complete AI-powered SEO strategy with keyword research, competitor analysis, content calendar and 6-month roadmap." />
+      <ToolSchema name="SEO Strategy Maker" slug="seo-strategy-maker" description="Crawl your site and generate a complete AI-powered SEO strategy with keyword research, competitor analysis, content calendar and 2-month roadmap." />
       <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'SEO Strategy Maker', href: '/tools/seo-strategy-maker' }]} />
 
       {/* Breadcrumb */}
