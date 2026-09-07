@@ -11,6 +11,7 @@ import type { LocalBusinessSchemaNode, PageAnalysis, SiteAnalysis } from '@/app/
 import type { GapItem } from './competitor-intelligence'
 import { buildPageOpportunities, type PageOpportunity } from './page-opportunity'
 import type { ConfidenceLevel, KeywordPageMapping, LocalDataSufficiency, PageOnPageAudit } from './types'
+import { deriveConfidenceFromSource, type FindingConfidence } from './evidence'
 
 export type DataSourceLabel = 'user_provided' | 'crawled' | 'competitor_crawl' | 'verified_api' | 'ai_inferred' | 'not_available'
 export type LocalSchemaStatus = 'valid' | 'incomplete' | 'invalid' | 'missing_opportunity' | 'not_evaluated'
@@ -82,6 +83,8 @@ export interface LocalOpportunity {
   reason: string
   evidence: string
   source: DataSourceLabel
+  /** Phase 11 — reflects evidence quality, derived deterministically from `source` (lib/seo-strategy/evidence.ts) — never severity-based, never AI-assigned. */
+  confidence: FindingConfidence
 }
 
 export interface LocalSeoIntelligence {
@@ -356,48 +359,57 @@ function buildOpportunities(
     if (row.action !== 'create_dedicated_page' && row.action !== 'potential_cannibalization') continue
     const source = opportunitiesByKeyword.get(row.keyword.toLowerCase().trim())
     if (!source) continue
+    const oppSource: DataSourceLabel = source.competitorEvidence ? 'competitor_crawl' : 'crawled'
+    const oppEvidence = source.competitorEvidence ?? `No suitable existing page targets "${row.keyword}".`
     opportunities.push({
       topic: row.keyword,
       location: row.location,
       priority: source.priority,
       action: row.action === 'potential_cannibalization' ? 'Improve existing page (avoid duplicate)' : 'Create dedicated page',
       reason: source.reason,
-      evidence: source.competitorEvidence ?? `No suitable existing page targets "${row.keyword}".`,
-      source: source.competitorEvidence ? 'competitor_crawl' : 'crawled',
+      evidence: oppEvidence,
+      source: oppSource,
+      confidence: deriveConfidenceFromSource(oppSource, oppEvidence.length > 0),
     })
   }
 
   if (nap.status === 'conflicting') {
+    const evidence = `${nap.conflicts.length} conflicting NAP value(s) found across crawled pages.`
     opportunities.push({
       topic: 'NAP consistency',
       location: null,
       priority: 'high',
       action: 'Fix conflicting business name/address/phone across pages',
       reason: 'Inconsistent NAP data confuses both users and local search algorithms.',
-      evidence: `${nap.conflicts.length} conflicting NAP value(s) found across crawled pages.`,
+      evidence,
       source: 'crawled',
+      confidence: deriveConfidenceFromSource('crawled', evidence.length > 0),
     })
   }
 
   if (schema.sitewideStatus === 'missing_opportunity' || schema.sitewideStatus === 'invalid') {
+    const evidence = schema.sitewideStatus === 'invalid' ? 'The homepage JSON-LD failed to parse.' : 'No LocalBusiness schema was detected on the homepage.'
     opportunities.push({
       topic: 'LocalBusiness schema',
       location: null,
       priority: schema.sitewideStatus === 'invalid' ? 'high' : 'medium',
       action: schema.sitewideStatus === 'invalid' ? 'Fix invalid LocalBusiness JSON-LD' : 'Add LocalBusiness schema to the homepage',
       reason: 'LocalBusiness structured data helps search engines understand the business identity, address, and service area.',
-      evidence: schema.sitewideStatus === 'invalid' ? 'The homepage JSON-LD failed to parse.' : 'No LocalBusiness schema was detected on the homepage.',
+      evidence,
       source: 'crawled',
+      confidence: deriveConfidenceFromSource('crawled', evidence.length > 0),
     })
   } else if (schema.sitewideStatus === 'incomplete') {
+    const evidence = 'LocalBusiness schema was found but is missing required properties.'
     opportunities.push({
       topic: 'LocalBusiness schema',
       location: null,
       priority: 'medium',
       action: 'Complete the LocalBusiness schema (name/address/telephone)',
       reason: 'A partial LocalBusiness schema is less useful to search engines than a complete one.',
-      evidence: 'LocalBusiness schema was found but is missing required properties.',
+      evidence,
       source: 'crawled',
+      confidence: deriveConfidenceFromSource('crawled', evidence.length > 0),
     })
   }
 

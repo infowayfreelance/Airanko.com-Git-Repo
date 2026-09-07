@@ -25,6 +25,7 @@ import {
 import type { KeywordPageMapping, LocalDataSufficiency, OnPageSummary, PageOnPageAudit, Severity } from './types'
 import { normalizeKeyword } from './keyword-mapping'
 import { normalizeForDuplicateCheck } from './on-page-audit'
+import type { Finding } from './evidence'
 
 export interface ChecklistItemLike {
   item: string
@@ -883,4 +884,46 @@ export function runKpiContradictionChecks<C extends KpiCriticalIssueLike, Q exte
     console.warn('[seo-strategy] KPI contradiction checker found the following:', contradictions)
   }
   return { correctedCriticalIssues, correctedQuickWins, correctedConclusion, contradictions }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 11 — Evidence + Confidence system. Every phase's recommendation
+// modules (page-opportunity.ts, competitor-intelligence.ts,
+// local-seo-intelligence.ts, off-page-intelligence.ts, and now
+// on-page-overview.ts's PriorityFix) already carry a `reason`/`evidence`/
+// `confidence`/`priority`-shaped record — this doesn't replace any of
+// them, it's a single validation pass over a common `Finding` view of all
+// of them (see lib/seo-strategy/evidence.ts), so the same invariants are
+// enforced everywhere instead of once per module. Diagnostic/defense-in-
+// depth: every producer already satisfies these rules by construction, so
+// a real violation here means a future change to one of those modules
+// regressed an invariant.
+// ─────────────────────────────────────────────────────────────────────────
+export function runEvidenceContradictionChecks(findings: Finding[], validUrls: Set<string>): string[] {
+  const contradictions: string[] = []
+
+  for (const f of findings) {
+    const hasEvidence = !!f.evidence && f.evidence.trim().length > 0
+
+    if (f.confidence === 'high' && !hasEvidence) {
+      contradictions.push(`Finding "${f.issue}" is marked High confidence but has no evidence — High confidence must always be backed by real evidence.`)
+    }
+    if (f.source === 'ai_inferred' && f.confidence === 'high') {
+      contradictions.push(`Finding "${f.issue}" is sourced ai_inferred but marked High confidence — an AI-assisted interpretation must never be presented as a verified, High-confidence claim.`)
+    }
+    if (f.source === 'competitor_crawl' && !hasEvidence) {
+      contradictions.push(`Finding "${f.issue}" claims competitor evidence (source: competitor_crawl) but has no evidence text — a competitor claim requires verifiable evidence.`)
+    }
+    if (f.source === 'not_available' && f.confidence !== 'not_evaluated') {
+      contradictions.push(`Finding "${f.issue}" is sourced not_available but marked "${f.confidence}" confidence — unavailable data must never be used as factual evidence.`)
+    }
+    if (f.affectedUrl && !validUrls.has(f.affectedUrl)) {
+      contradictions.push(`Finding "${f.issue}" references URL "${f.affectedUrl}", which was never crawled/discovered — a recommendation must not point at a nonexistent URL.`)
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Evidence contradiction checker found the following:', contradictions)
+  }
+  return contradictions
 }

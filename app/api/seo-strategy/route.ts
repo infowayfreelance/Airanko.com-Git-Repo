@@ -5,7 +5,7 @@ import type { SiteAnalysis } from './analyze/route'
 import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
-import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, runLocalSeoContradictionChecks, runOffPageContradictionChecks, runKpiContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, runLocalSeoContradictionChecks, runOffPageContradictionChecks, runKpiContradictionChecks, runEvidenceContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
 import { buildTechnicalCrawlSummary, type TechnicalCrawlSummary } from '@/lib/seo-strategy/technical-summary'
@@ -15,6 +15,7 @@ import { buildPageOpportunities, type PageOpportunity } from '@/lib/seo-strategy
 import { buildLocalSeoIntelligence, type LocalSeoIntelligence } from '@/lib/seo-strategy/local-seo-intelligence'
 import { buildOffPageIntelligence, type OffPageIntelligence } from '@/lib/seo-strategy/off-page-intelligence'
 import { buildKpiMeasurement, type MeasurementKpi } from '@/lib/seo-strategy/kpi-measurement'
+import { priorityFixToFinding, pageOpportunityToFinding, competitorGapToFinding, localOpportunityToFinding, offPageOpportunityToFinding, type Finding } from '@/lib/seo-strategy/evidence'
 import type {
   HealthScoreBreakdown,
   KeywordPageMapping,
@@ -746,6 +747,28 @@ Hard rules — a later automated validation pass checks these and will overwrite
     // slipped into criticalIssues/quickWins/conclusion.
     const kpiResult = runKpiContradictionChecks(strategy, kpiMeasurement)
 
+    // Phase 11 — Evidence + Confidence system. Every recommendation module
+    // above (Phase 3's onPagePriorityFixes, Phase 7's pageOpportunities,
+    // Phase 6's competitorIntelligence.opportunities, Phase 8's
+    // localSeoIntelligence.opportunities, Phase 9's
+    // offPageIntelligence.opportunities) already carries its own
+    // evidence/reason/confidence/priority — this doesn't add a new
+    // recommendation system, it's a single validation pass over a common
+    // `Finding` view of all of them, catching a High-confidence claim with
+    // no evidence, an AI-inferred claim presented as verified, a
+    // competitor claim with no competitor evidence, "not available" data
+    // used as fact, or a recommendation pointing at a URL that was never
+    // crawled.
+    const crawledUrls = new Set(onPageAuditsRaw.map((a) => a.url))
+    const evidenceFindings: Finding[] = [
+      ...onPagePriorityFixes.map(priorityFixToFinding),
+      ...pageOpportunities.map(pageOpportunityToFinding),
+      ...competitorIntelligence.opportunities.map(competitorGapToFinding),
+      ...localSeoIntelligence.opportunities.map(localOpportunityToFinding),
+      ...offPageIntelligence.opportunities.map(offPageOpportunityToFinding),
+    ]
+    const evidenceContradictions = runEvidenceContradictionChecks(evidenceFindings, crawledUrls)
+
     const correctedCompetitorAnalysis = strategy.competitorAnalysis.map((entry) => {
       const profile = findProfileForEntry(entry, competitorProfiles)
       const domain = profile?.domain
@@ -824,6 +847,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...localSeoResult.contradictions,
       ...offPageContradictions,
       ...kpiResult.contradictions,
+      ...evidenceContradictions,
     ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined

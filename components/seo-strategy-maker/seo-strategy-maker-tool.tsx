@@ -1205,7 +1205,7 @@ function StrategyReport({
           <p className="text-muted-foreground mb-6">
             {strategy.keywordStrategy.summary}
           </p>
-          <KeywordStrategy data={strategy.keywordStrategy} />
+          <KeywordStrategy data={strategy.keywordStrategy} keywordPageMappings={strategy.keywordPageMappings} />
         </ReportSection>
 
         {/* Pages to create */}
@@ -2474,15 +2474,26 @@ function PriorityFixesList({ fixes }: { fixes: SeoStrategy['onPagePriorityFixes'
       {fixes.map((f, i) => (
         <li key={`${f.url}-${f.category}-${i}`} className="rounded-lg border bg-card p-3 flex items-start gap-3">
           <span className="text-xs font-semibold text-muted-foreground shrink-0 mt-0.5 w-5 text-right">{i + 1}.</span>
-          <div className="min-w-0 flex-1 space-y-1">
+          <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <SeverityBadge severity={f.severity} />
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[f.priority]}`}>
+                {f.priority === 'high' ? 'High' : f.priority === 'medium' ? 'Medium' : 'Low'} Priority
+              </span>
               <Badge variant="outline" className="text-xs">
                 {f.category}
               </Badge>
               <span className="text-xs text-muted-foreground truncate">{f.pageName}</span>
             </div>
-            <p className="text-sm text-pretty">{f.fix}</p>
+            <p className="text-sm text-pretty">{f.evidence}</p>
+            <p className="text-xs text-muted-foreground text-pretty">
+              <span className="font-medium text-foreground">Why: </span>
+              {f.reason}
+            </p>
+            <p className="text-xs text-primary text-pretty">
+              <span className="font-medium">Action: </span>
+              {f.action}
+            </p>
           </div>
         </li>
       ))}
@@ -2962,7 +2973,8 @@ function Phase2BSummaryBlock({ onPage }: { onPage: SeoStrategy['onPageAudits'][n
   )
 }
 
-function KeywordStrategy({ data }: { data: SeoStrategy['keywordStrategy'] }) {
+function KeywordStrategy({ data, keywordPageMappings }: { data: SeoStrategy['keywordStrategy']; keywordPageMappings: SeoStrategy['keywordPageMappings'] }) {
+  const mappingByKeyword = new Map(keywordPageMappings.map((m) => [m.keyword.toLowerCase().trim(), m]))
   return (
     <div className="space-y-6">
       <div className="rounded-xl border overflow-hidden">
@@ -2978,30 +2990,37 @@ function KeywordStrategy({ data }: { data: SeoStrategy['keywordStrategy'] }) {
                 <th className="px-4 py-2.5 font-medium hidden md:table-cell">Difficulty</th>
                 <th className="px-4 py-2.5 font-medium">Priority</th>
                 <th className="px-4 py-2.5 font-medium">Target Page</th>
+                <th className="px-4 py-2.5 font-medium hidden lg:table-cell">Mapping Confidence</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {data.primaryKeywords.map((k, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-3 font-medium">{k.keyword}</td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    <Badge variant="outline" className="capitalize">
-                      {k.intent}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 hidden md:table-cell capitalize text-muted-foreground">
-                    {k.difficulty}
-                  </td>
-                  <td className="px-4 py-3">
-                    <PriorityBadge priority={k.priority} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">
-                      {k.targetPage}
-                    </code>
-                  </td>
-                </tr>
-              ))}
+              {data.primaryKeywords.map((k, i) => {
+                const mapping = mappingByKeyword.get(k.keyword.toLowerCase().trim())
+                return (
+                  <tr key={i}>
+                    <td className="px-4 py-3 font-medium">{k.keyword}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <Badge variant="outline" className="capitalize">
+                        {k.intent}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell capitalize text-muted-foreground">
+                      {k.difficulty}
+                    </td>
+                    <td className="px-4 py-3">
+                      <PriorityBadge priority={k.priority} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">
+                        {k.targetPage}
+                      </code>
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {mapping ? <ConfidenceBadge confidence={mapping.confidence} /> : <span className="text-xs text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -3104,6 +3123,7 @@ function PageOpportunitiesList({ opportunities }: { opportunities: SeoStrategy['
                       {OPPORTUNITY_TYPE_LABEL[o.pageType]}
                     </Badge>
                     <span className="text-xs text-muted-foreground">{OPPORTUNITY_ACTION_LABEL[o.action]}</span>
+                    <ConfidenceBadge confidence={o.confidence} />
                   </div>
                   <p className="text-sm font-medium text-pretty">{o.suggestedTitle}</p>
                   <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
@@ -3289,6 +3309,27 @@ function CompetitorComparisonTable({ intelligence }: { intelligence: SeoStrategy
   )
 }
 
+/** Phase 11 — shared confidence badge. Reflects evidence QUALITY, never issue severity; used only on findings the report calls out as important (page/content recommendations, competitor insights, Local SEO opportunities) — never cluttering a simple pass/fail check. */
+const CONFIDENCE_BADGE_CLS: Record<'high' | 'medium' | 'low' | 'not_evaluated', string> = {
+  high: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+  medium: 'bg-primary/10 text-primary border-primary/30',
+  low: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  not_evaluated: 'bg-muted text-muted-foreground border-border',
+}
+const CONFIDENCE_LABEL: Record<'high' | 'medium' | 'low' | 'not_evaluated', string> = {
+  high: 'High Confidence',
+  medium: 'Medium Confidence',
+  low: 'Low Confidence',
+  not_evaluated: 'Not Evaluated',
+}
+function ConfidenceBadge({ confidence }: { confidence: 'high' | 'medium' | 'low' | 'not_evaluated' }) {
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${CONFIDENCE_BADGE_CLS[confidence]}`}>
+      {CONFIDENCE_LABEL[confidence]}
+    </span>
+  )
+}
+
 const PRIORITY_BADGE_CLS: Record<'high' | 'medium' | 'low', string> = {
   high: 'bg-destructive/10 text-destructive border-destructive/30',
   medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
@@ -3310,6 +3351,7 @@ function CompetitorOpportunities({ opportunities }: { opportunities: SeoStrategy
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[o.priority]}`}>
                   {o.priority === 'high' ? 'High' : o.priority === 'medium' ? 'Medium' : 'Low'} Priority
                 </span>
+                <ConfidenceBadge confidence={o.confidence} />
                 <span className="text-xs text-muted-foreground">{o.topic}</span>
               </div>
               <p className="text-sm text-pretty">{o.opportunity}</p>
@@ -3645,6 +3687,7 @@ function LocalSeoIntelligenceBlock({ intelligence }: { intelligence: SeoStrategy
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[o.priority]}`}>
                       {o.priority === 'high' ? 'High' : o.priority === 'medium' ? 'Medium' : 'Low'} Priority
                     </span>
+                    <ConfidenceBadge confidence={o.confidence} />
                     <span className="text-xs text-muted-foreground">{o.topic}</span>
                   </div>
                   <p className="text-sm font-medium text-pretty">{o.action}</p>
