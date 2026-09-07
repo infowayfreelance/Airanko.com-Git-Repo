@@ -771,3 +771,70 @@ export function runOffPageContradictionChecks(
   }
   return contradictions
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 10 — KPI & measurement. Every kpiMeasurement entry is computed
+// deterministically (kpi-measurement.ts) — a real contradiction in that
+// catalog can't reach the report by construction. This is
+// diagnostic/defense-in-depth: it (a) re-validates the deterministic
+// catalog's own invariants in case a future change regresses one, and (b)
+// scans the AI's remaining free-text narrative (criticalIssues, quickWins,
+// conclusion) for the exact fabricated-metric patterns Phase 10 exists to
+// remove, since the AI no longer has a structured kpiTargets field to put
+// them in but could still slip one into prose.
+// ─────────────────────────────────────────────────────────────────────────
+const FABRICATED_METRIC_RE =
+  /\b\d[\d,]*\+?\s*(organic )?(visits?|sessions?|clicks?|impressions?|backlinks?|referring domains?|ranking keywords?)\b|\b\d+(\.\d+)?%\s*(conversion|bounce|engagement|ctr|click[- ]through)\b|\bDA\s*\d+|\bDR\s*\d+|\bdomain (authority|rating)\s*(of\s*)?\d+|\baverage position (of )?\d+(\.\d+)?\b/i
+
+export interface KpiMeasurementLike {
+  metric: string
+  category: string
+  value: number | null
+  status: 'measured' | 'user_provided' | 'estimated' | 'not_available'
+  source: 'crawled' | 'user_provided' | 'verified_api' | 'calculated_from_verified_data' | 'ai_estimated' | 'not_available'
+  requiredIntegration: 'google_search_console' | 'google_analytics' | 'backlink_provider' | null
+}
+
+export interface KpiNarrativeLike {
+  criticalIssues: { title: string; description: string; howToFix: string }[]
+  quickWins: { title: string; description: string; expectedImpact: string }[]
+  conclusion: string
+}
+
+export function runKpiContradictionChecks(strategy: KpiNarrativeLike, kpis: KpiMeasurementLike[]): string[] {
+  const contradictions: string[] = []
+
+  for (const kpi of kpis) {
+    if (kpi.value !== null && (kpi.status === 'not_available' || kpi.source === 'not_available')) {
+      contradictions.push(`KPI "${kpi.metric}" has a numeric value but is marked not_available — a real value must never be paired with an unavailable/not_available status or source.`)
+    }
+    if (kpi.value === null && kpi.status !== 'not_available') {
+      contradictions.push(`KPI "${kpi.metric}" has no value but is marked "${kpi.status}" — a null value must always carry status "not_available", never presented as measured/estimated.`)
+    }
+    if (kpi.status === 'measured' && kpi.source !== 'crawled' && kpi.source !== 'verified_api' && kpi.source !== 'calculated_from_verified_data') {
+      contradictions.push(`KPI "${kpi.metric}" is marked "measured" but its source ("${kpi.source}") is not a verified source — an estimated or unavailable metric must never be labeled Measured.`)
+    }
+    if (kpi.status === 'not_available' && !kpi.requiredIntegration && kpi.category !== 'technical') {
+      contradictions.push(`KPI "${kpi.metric}" is not_available but names no requiredIntegration — the report must say what data source would make it available.`)
+    }
+    if (/\b(domain authority|domain rating|\bDA\b|\bDR\b)\b/i.test(kpi.metric)) {
+      contradictions.push(`KPI "${kpi.metric}" — DA/DR is a third-party metric with no connected provider and must not appear in the KPI catalog at all, even as not_available.`)
+    }
+  }
+
+  const freeText = [
+    ...strategy.criticalIssues.map((c) => `${c.title}. ${c.description} ${c.howToFix}`),
+    ...strategy.quickWins.map((q) => `${q.title}. ${q.description} ${q.expectedImpact}`),
+    strategy.conclusion,
+  ]
+  for (const line of freeText) {
+    if (FABRICATED_METRIC_RE.test(line)) {
+      contradictions.push(`Report narrative states a specific traffic/ranking/conversion/backlink/DA-DR figure with no verified data source: "${line}"`)
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] KPI contradiction checker found the following:', contradictions)
+  }
+  return contradictions
+}
