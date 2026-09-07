@@ -7,7 +7,7 @@
 // reinventing any of them. Nothing here is AI-generated — see each
 // section's own note for what's genuinely new vs reused.
 // ──────────────────────────────────────────────────────────────────────────
-import type { PageAnalysis, SiteAnalysis } from '@/app/api/seo-strategy/analyze/route'
+import type { LocalBusinessSchemaNode, PageAnalysis, SiteAnalysis } from '@/app/api/seo-strategy/analyze/route'
 import type { GapItem } from './competitor-intelligence'
 import { buildPageOpportunities, type PageOpportunity } from './page-opportunity'
 import type { ConfidenceLevel, KeywordPageMapping, LocalDataSufficiency, PageOnPageAudit } from './types'
@@ -127,26 +127,38 @@ function mostCommon(values: string[]): string | null {
   return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0][0]
 }
 
+/** Canonicalizes a phone number to digits-only (with a leading + kept for international format) so "(555) 123-4567" and "555-123-4567" compare as the same number rather than a fabricated conflict. */
+function normalizePhone(phone: string): string {
+  const hasPlus = phone.trim().startsWith('+')
+  const digits = phone.replace(/\D/g, '')
+  return hasPlus ? `+${digits}` : digits
+}
+
+/** Canonicalizes an address for comparison — trims, lowercases, and collapses whitespace/punctuation differences (unit separators, extra spaces) that don't represent a real conflict. */
+function normalizeAddress(address: string): string {
+  return address.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()
+}
+
 function buildNapAudit(businessName: string, analysis: SiteAnalysis | null, pages: PageAnalysis[]): NapAudit {
   if (!analysis) {
     return { status: 'not_evaluated', businessName: businessName || null, businessNameSource: businessName ? 'user_provided' : 'not_available', phones: [], addresses: [], contactSource: 'not_available', conflicts: [], missingElements: ['phone', 'address'] }
   }
 
-  const allPagePhones = pages.flatMap((p) => p.contactInfo.phones)
-  const allPageAddresses = pages.flatMap((p) => p.contactInfo.addresses)
-  const dominantPhone = mostCommon(allPagePhones)
-  const dominantAddress = mostCommon(allPageAddresses)
+  const allPagePhonesNormalized = pages.flatMap((p) => p.contactInfo.phones.map(normalizePhone))
+  const allPageAddressesNormalized = pages.flatMap((p) => p.contactInfo.addresses.map(normalizeAddress))
+  const dominantPhone = mostCommon(allPagePhonesNormalized)
+  const dominantAddress = mostCommon(allPageAddressesNormalized)
 
   const conflicts: NapConflict[] = []
   for (const p of pages) {
     for (const phone of p.contactInfo.phones) {
-      if (dominantPhone && phone !== dominantPhone) {
-        conflicts.push({ url: p.url, issue: `Phone number "${phone}" differs from the site's dominant number "${dominantPhone}".` })
+      if (dominantPhone && normalizePhone(phone) !== dominantPhone) {
+        conflicts.push({ url: p.url, issue: `Phone number "${phone}" differs from the site's dominant number.` })
       }
     }
     for (const address of p.contactInfo.addresses) {
-      if (dominantAddress && address !== dominantAddress) {
-        conflicts.push({ url: p.url, issue: `Address "${address}" differs from the site's dominant address "${dominantAddress}".` })
+      if (dominantAddress && normalizeAddress(address) !== dominantAddress) {
+        conflicts.push({ url: p.url, issue: `Address "${address}" differs from the site's dominant address.` })
       }
     }
   }
@@ -175,18 +187,33 @@ function buildNapAudit(businessName: string, analysis: SiteAnalysis | null, page
 // downgrades a page below "valid" (spec: "do not treat every optional
 // property as required").
 // ---------------------------------------------------------------------------
+function missingPropertiesFor(node: LocalBusinessSchemaNode): string[] {
+  const missing: string[] = []
+  if (!node.hasName) missing.push('name')
+  if (!node.hasAddress) missing.push('address')
+  if (!node.hasTelephone) missing.push('telephone')
+  return missing
+}
+
 function classifyLocalSchemaForPage(page: PageAnalysis): LocalSchemaPageResult {
-  const node = page.localBusinessSchemaNodes[0]
-  if (!node) {
-    const status: LocalSchemaStatus = page.jsonLdParseErrorCount > 0 ? 'invalid' : 'missing_opportunity'
-    return { url: page.url, pageName: page.title || page.url, status, types: [], missingProperties: [] }
+  const nodes = page.localBusinessSchemaNodes
+  if (nodes.length === 0) {
+    // A page can carry OTHER, unrelated JSON-LD (Product, BreadcrumbList,
+    // …) that fails to parse — that error can't be attributed to a
+    // LocalBusiness attempt we never actually found evidence of, so the
+    // absence of any matching node is always "missing_opportunity", never
+    // "invalid" (which would misleadingly suggest "fix your LocalBusiness
+    // JSON-LD" when there isn't any to fix).
+    return { url: page.url, pageName: page.title || page.url, status: 'missing_opportunity', types: [], missingProperties: [] }
   }
-  const missingProperties: string[] = []
-  if (!node.hasName) missingProperties.push('name')
-  if (!node.hasAddress) missingProperties.push('address')
-  if (!node.hasTelephone) missingProperties.push('telephone')
-  const status: LocalSchemaStatus = missingProperties.length === 0 ? 'valid' : 'incomplete'
-  return { url: page.url, pageName: page.title || page.url, status, types: node.types, missingProperties }
+  // Multiple matching nodes (e.g. an incomplete Organization alongside a
+  // complete LocalBusiness in the same @graph) — take the BEST result
+  // across all of them, not just document order, so one incomplete node
+  // doesn't hide a genuinely valid one found elsewhere on the page.
+  const perNode = nodes.map((node) => ({ node, missingProperties: missingPropertiesFor(node) }))
+  const best = perNode.reduce((a, b) => (b.missingProperties.length < a.missingProperties.length ? b : a))
+  const status: LocalSchemaStatus = best.missingProperties.length === 0 ? 'valid' : 'incomplete'
+  return { url: page.url, pageName: page.title || page.url, status, types: best.node.types, missingProperties: best.missingProperties }
 }
 
 const SCHEMA_STATUS_RANK: Record<LocalSchemaStatus, number> = { valid: 4, incomplete: 3, missing_opportunity: 1, invalid: 0, not_evaluated: 2 }
@@ -223,15 +250,17 @@ function buildServiceLocationMatrix(targetPages: PageOnPageAudit[], keywordMappi
   const servicePages = targetPages.filter((p) => p.content.pageType === 'service')
   if (servicePages.length === 0 || !location.trim()) return []
 
+  const locationLower = location.toLowerCase()
   return servicePages.slice(0, 8).map((page) => {
     const service = serviceLabelFor(page)
-    // A mapped keyword combining this page's own topic with the location
-    // means the service is validated as covered for that location; a page
-    // exists but no such keyword mapping validates it -> partial.
-    const combinedKeyword = `${service} ${location}`.toLowerCase()
-    const strongMapping = keywordMappings.find(
-      (m) => m.status === 'mapped' && m.mappedUrl === page.url && (m.keyword.toLowerCase().includes(location.toLowerCase()) || combinedKeyword.includes(m.keyword.toLowerCase())),
-    )
+    // "Covered" requires actual geographic evidence: a validated keyword
+    // mapping for this exact page whose OWN keyword text mentions the
+    // location — never inferred by constructing "service + location" and
+    // checking whether the mapping is a substring of that (which is true
+    // for almost any short mapped keyword regardless of location
+    // relevance, and would mark every ordinary service page "covered" for
+    // every location the user happens to type in).
+    const strongMapping = keywordMappings.find((m) => m.status === 'mapped' && m.mappedUrl === page.url && m.keyword.toLowerCase().includes(locationLower))
     return {
       service,
       location,

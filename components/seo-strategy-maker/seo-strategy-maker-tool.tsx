@@ -3622,7 +3622,7 @@ function LocalSeoIntelligenceBlock({ intelligence }: { intelligence: SeoStrategy
                 {p.similarTo && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Similar to <code className="font-mono">{p.similarTo}</code>
-                    {p.similarityScore !== null ? ` (${Math.round(p.similarityScore * 100)}% similar)` : ''}
+                    {p.similarityScore !== null ? ` (${Math.round(p.similarityScore)}% similar)` : ''}
                   </p>
                 )}
               </li>
