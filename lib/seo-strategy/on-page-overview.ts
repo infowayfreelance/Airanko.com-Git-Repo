@@ -19,6 +19,7 @@ import {
   type ScoreStatus,
 } from './on-page-score-thresholds'
 import type { PageImportance, PageOnPageAudit, Severity, SerpPixelStatus } from './types'
+import type { EvidenceSource, FindingConfidence, FindingPriority } from './evidence'
 
 /** Phase 4 — sitewide count of pages whose CURRENT title/description falls into each SERP display-fit bucket (never the raw issue count — one page contributes to at most one bucket, or none if "good"/"not_available"). */
 export interface PixelDisplaySummary {
@@ -80,8 +81,23 @@ export interface PriorityFix {
   pageName: string
   category: string
   severity: Severity
-  /** One concise, actionable sentence — never long AI prose. */
-  fix: string
+  /**
+   * Phase 11 — how soon to act, distinct from `severity`: derived from
+   * severity + the page's own importance (computePriority below), so a
+   * low-severity issue on a high-importance page (e.g. the homepage) can
+   * still outrank a high-severity issue on a low-importance page.
+   */
+  priority: FindingPriority
+  /** The actual detected fact — e.g. "Missing meta description" — never an instruction. Always the real issue text from the Phase 2A/2B audit, never AI prose. */
+  evidence: string
+  /** Short, deterministic "why it matters" for this category — never a generic AI paragraph. */
+  reason: string
+  /** Concrete, specific recommended fix for this category — never "Improve SEO." */
+  action: string
+  /** Always High: this is a direct, structurally-detected crawl fact (a missing tag, a duplicate H1, etc.), not an inference. */
+  confidence: FindingConfidence
+  /** Always "crawled": every PriorityFix comes straight from the Phase 2A/2B audit of the live page. */
+  source: EvidenceSource
 }
 
 // ---------------------------------------------------------------------------
@@ -350,18 +366,117 @@ export function buildAffectedPageList(
 // Priority fix list — top 5-10 highest-value fixes, sorted deterministically
 // (severity, then page importance, then issue count). The AI never reorders
 // or selects this list.
+//
+// Phase 11 — `priority` is computed from severity + page importance, kept
+// strictly separate from `severity` itself (spec §5): a low/medium-severity
+// issue on a high-importance page (e.g. the homepage) can still land at
+// Medium/High priority, exactly like the spec's own example.
 // ---------------------------------------------------------------------------
+const FIX_SEVERITY_WEIGHT: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0, pass: 0, not_evaluated: 0 }
+const FIX_IMPORTANCE_WEIGHT: Record<PageImportance, number> = { high: 2, medium: 1, low: 0 }
+
+function computeFixPriority(severity: Severity, importance: PageImportance): FindingPriority {
+  if (severity === 'critical') return 'high'
+  const score = FIX_SEVERITY_WEIGHT[severity] + FIX_IMPORTANCE_WEIGHT[importance]
+  if (score >= 4) return 'high'
+  if (score >= 2) return 'medium'
+  return 'low'
+}
+
+/**
+ * Codex fix — the list must actually be ordered (and truncated to
+ * PRIORITY_FIX_MAX) by the computed `priority`, not just labeled with it.
+ * Sorting by severity/importance alone let a Medium-priority fix on a
+ * high-severity/low-importance page rank above a High-priority fix on a
+ * medium-severity/high-importance page, and could drop the High-priority
+ * one past the truncation cutoff entirely.
+ */
+const FIX_PRIORITY_RANK: Record<FindingPriority, number> = { high: 3, medium: 2, low: 1 }
+
+function compareByPriorityThenSeverity(
+  x: { priority: FindingPriority; severity: Severity; importance: PageImportance; issueCount: number },
+  y: { priority: FindingPriority; severity: Severity; importance: PageImportance; issueCount: number },
+): number {
+  const priorityDiff = FIX_PRIORITY_RANK[y.priority] - FIX_PRIORITY_RANK[x.priority]
+  if (priorityDiff !== 0) return priorityDiff
+  return compareBySeverityThenImportance(x, y)
+}
+
+/** Deterministic, category-level "why it matters" / "recommended action" text — never AI-generated, never a generic "Improve SEO." */
+const CATEGORY_REASON: Record<string, string> = {
+  'Meta Title': 'The title tag is a primary ranking and click-through signal in search results.',
+  'Meta Description': 'The meta description influences click-through rate from search results even though it is not a direct ranking factor.',
+  H1: "The H1 heading helps both users and search engines understand the page's main topic.",
+  'Heading Structure': 'A clear heading hierarchy helps search engines parse page structure and content relevance.',
+  Content: "Thin or duplicate content reduces the page's ability to rank for its target topic.",
+  Images: 'Missing alt text and oversized images hurt accessibility, image search visibility, and page speed.',
+  'Internal Linking': 'Internal links help both users and search engines discover and understand the importance of this page.',
+  Technical: 'Technical issues can prevent the page from being properly crawled, indexed, or understood by search engines.',
+}
+
+const CATEGORY_ACTION: Record<string, string> = {
+  'Meta Title': 'Rewrite the title to be unique, descriptive, and roughly 50-60 characters.',
+  'Meta Description': 'Add or rewrite a unique meta description roughly 140-160 characters long.',
+  H1: "Add a single, descriptive H1 that reflects the page's main topic.",
+  'Heading Structure': 'Fix the heading hierarchy so H2s/H3s follow a logical order without skipping levels.',
+  Content: 'Expand thin content, or de-duplicate content that overlaps with another page.',
+  Images: 'Add descriptive alt text to affected images and compress oversized files.',
+  'Internal Linking': 'Add 2-3 relevant contextual internal links from related pages.',
+  Technical: 'Resolve the specific technical issue named above (canonical, indexability, status code, schema, Open Graph, Twitter, or URL structure).',
+}
+
 function pushCategoryFixes(
   out: (PriorityFix & { importance: PageImportance; issueCount: number })[],
   a: PageOnPageAudit,
   category: string,
   severity: Severity,
   issueCount: number,
-  fix: string,
+  evidence: string,
+  overrides?: { confidence?: FindingConfidence; action?: string },
 ): void {
   if (issueCount <= 0) return
   if (severity !== 'critical' && severity !== 'high' && severity !== 'medium') return
-  out.push({ url: a.url, pageName: a.pageName, category, severity, fix, importance: a.importance, issueCount })
+  out.push({
+    url: a.url,
+    pageName: a.pageName,
+    category,
+    severity,
+    priority: computeFixPriority(severity, a.importance),
+    evidence,
+    reason: CATEGORY_REASON[category] ?? '',
+    action: overrides?.action ?? CATEGORY_ACTION[category] ?? '',
+    confidence: overrides?.confidence ?? 'high',
+    source: 'crawled',
+    importance: a.importance,
+    issueCount,
+  })
+}
+
+/**
+ * Codex fix — the category's fixed action text assumed every Internal
+ * Linking issue was an orphan page needing more inbound links, but the
+ * category also covers broken outgoing links and weak linking, each of
+ * which needs a different fix. Chooses the action from the actual audit
+ * fields, never from a single fixed string for the whole category.
+ */
+function internalLinkingAction(links: PageOnPageAudit['internalLinks']): string {
+  if (links.brokenLinks.length > 0) return 'Fix or remove the broken internal link(s) identified in the evidence above.'
+  if (links.orphan) return 'Add 2-3 relevant contextual internal links pointing to this page from related pages.'
+  if (links.weaklyLinked) return 'Add more contextual internal links pointing to this page to strengthen its internal link equity.'
+  return 'Review and resolve the flagged internal-linking issue.'
+}
+
+/**
+ * Codex fix — an apparent orphan page is only Medium confidence when the
+ * crawl coverage was partial (orphanConfidence, set by the Phase 2B
+ * internal-link audit itself, reflects exactly this) — a missing inbound
+ * link can be a crawl artifact rather than a real orphan in that case, so
+ * it must never be presented at the same High confidence as a directly
+ * observed fact.
+ */
+function internalLinkingConfidence(links: PageOnPageAudit['internalLinks']): FindingConfidence {
+  if (links.orphan && links.orphanConfidence) return links.orphanConfidence
+  return 'high'
 }
 
 export function buildPriorityFixes(audits: PageOnPageAudit[]): PriorityFix[] {
@@ -395,6 +510,7 @@ export function buildPriorityFixes(audits: PageOnPageAudit[]): PriorityFix[] {
       a.internalLinks.severity,
       a.internalLinks.issues.length,
       a.internalLinks.issues[0] ?? '',
+      { confidence: internalLinkingConfidence(a.internalLinks), action: internalLinkingAction(a.internalLinks) },
     )
     const tech = a.technicalOnPage
     // Pick the fix text from whichever sub-check actually carries `tech.severity`
@@ -419,7 +535,7 @@ export function buildPriorityFixes(audits: PageOnPageAudit[]): PriorityFix[] {
     pushCategoryFixes(candidates, a, 'Technical', tech.severity, techIssueCount, techIssue)
   }
 
-  candidates.sort((x, y) => compareBySeverityThenImportance(x, y))
+  candidates.sort((x, y) => compareByPriorityThenSeverity(x, y))
 
   return candidates.slice(0, PRIORITY_FIX_MAX).map(({ importance: _importance, issueCount: _issueCount, ...rest }) => rest)
 }
