@@ -649,3 +649,69 @@ export function runPageOpportunityContradictionChecks(
   }
   return contradictions
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 8 — Local SEO. "Local Business ON but report says non-local" is
+// already covered by check #1 in runContradictionChecks() above (the same
+// localSeo.applicable force-correction serves both phases). This adds:
+// - correcting the AI's napConsistency.issues when it claims NAP is
+//   consistent while the deterministic crawl-based audit found real
+//   conflicts (an actual correction, like the crawl-coverage summary —
+//   the exact conflicting URLs are known, so this is safe to rewrite).
+// - flagging (logged only — free-form prose can't be safely rewritten)
+//   any GBP/review/citation claim that reads as a specific, MEASURED
+//   number rather than a generic strategy recommendation, since neither
+//   is ever verified without an external API connection.
+// ─────────────────────────────────────────────────────────────────────────
+const MEASURED_LOCAL_CLAIM_RE =
+  /\b\d+(\.\d+)?\s*(reviews?|stars?|ratings?)\b|\byour (gbp|google business profile) (has|currently has|shows)\b|\bfully (optimized|verified|complete)\b|\b100%\s*complete\b|currently ranks?\b/i
+
+export interface NapConsistencyLike {
+  issues: string[]
+  recommendations: string[]
+  websiteNap: { name: string | null; addresses: string[]; phones: string[] }
+}
+
+export interface LocalSeoNarrativeLike {
+  napConsistency: NapConsistencyLike
+  googleBusinessProfileTips: string[]
+  reviewStrategy: string
+}
+
+export interface LocalNapAuditLike {
+  status: 'consistent' | 'conflicting' | 'not_evaluated'
+  conflicts: { url: string; issue: string }[]
+}
+
+export interface LocalSeoCheckResult {
+  correctedNapConsistency: NapConsistencyLike
+  contradictions: string[]
+}
+
+export function runLocalSeoContradictionChecks(strategy: LocalSeoNarrativeLike, napAudit: LocalNapAuditLike): LocalSeoCheckResult {
+  const contradictions: string[] = []
+  let correctedNapConsistency = strategy.napConsistency
+
+  if (napAudit.status === 'conflicting' && strategy.napConsistency.issues.length === 0) {
+    contradictions.push(
+      `localSeo.napConsistency reported no issues, but the deterministic crawl found ${napAudit.conflicts.length} conflicting NAP value(s) — corrected with the exact affected URLs.`,
+    )
+    correctedNapConsistency = {
+      ...strategy.napConsistency,
+      issues: [...strategy.napConsistency.issues, ...napAudit.conflicts.map((c) => `${c.url}: ${c.issue}`)],
+      recommendations: [...strategy.napConsistency.recommendations, 'Make the business name, address, and phone number identical on every page.'],
+    }
+  }
+
+  const allText = [...strategy.googleBusinessProfileTips, strategy.reviewStrategy]
+  for (const line of allText) {
+    if (MEASURED_LOCAL_CLAIM_RE.test(line)) {
+      contradictions.push(`Local SEO narrative presents a specific GBP/review metric as measured with no verified data source: "${line}"`)
+    }
+  }
+
+  if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn('[seo-strategy] Local SEO contradiction checker found the following:', contradictions)
+  }
+  return { correctedNapConsistency, contradictions }
+}
