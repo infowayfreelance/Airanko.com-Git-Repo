@@ -250,7 +250,7 @@ export interface SitemapAuditResult {
 const USER_AGENT =
   'Mozilla/5.0 (compatible; AiRankoBot/1.0; +https://airanko.com/bot)'
 
-function normalizeUrl(input: string): string {
+export function normalizeUrl(input: string): string {
   let url = input.trim()
   if (!/^https?:\/\//i.test(url)) {
     url = `https://${url}`
@@ -258,7 +258,7 @@ function normalizeUrl(input: string): string {
   return url
 }
 
-async function fetchWithTimeout(
+export async function fetchWithTimeout(
   url: string,
   timeoutMs = 12000,
 ): Promise<{ html: string; status: number; finalUrl: string; loadTimeMs: number; byteSize: number; headers: Record<string, string> } | null> {
@@ -536,7 +536,7 @@ function isLikelyTrackingOrSpacer(src: string, width: number | null, height: num
   return false
 }
 
-function analyzeHtml(
+export function analyzeHtml(
   url: string,
   html: string,
   status: number,
@@ -806,7 +806,7 @@ function analyzeHtml(
   }
 }
 
-function extractInternalLinks(html: string, baseUrl: URL): string[] {
+export function extractInternalLinks(html: string, baseUrl: URL): string[] {
   const $ = cheerio.load(html)
   const links = new Set<string>()
   $('a[href]').each((_, el) => {

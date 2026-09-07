@@ -204,6 +204,30 @@ export default function SeoStrategyMakerTool() {
       const siteAnalysis: SiteAnalysis = analyzeData.analysis
       setAnalysis(siteAnalysis)
 
+      // Phase 1.5 (Phase 6) — crawl each provided competitor URL. A failed
+      // competitor crawl never blocks the report — it just comes back
+      // status: 'not_evaluated' and contributes no fabricated findings.
+      const competitorUrls = form.competitors.filter(Boolean)
+      let competitorProfiles: unknown[] = []
+      if (competitorUrls.length > 0) {
+        setProgressMsg('Crawling competitor websites…')
+        competitorProfiles = await Promise.all(
+          competitorUrls.map(async (url) => {
+            try {
+              const res = await fetch('/api/seo-strategy/competitor-analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, location: form.location }),
+              })
+              const data = await safeReadJson(res, 'analyze a competitor')
+              return data.profile ?? null
+            } catch {
+              return null
+            }
+          }),
+        )
+      }
+
       // Phase 2: generate strategy
       setPhase('generating')
       setProgressMsg('Building your custom SEO strategy with AI…')
@@ -217,11 +241,12 @@ export default function SeoStrategyMakerTool() {
           gmbUrl: form.gmbUrl,
           isLocal: form.isLocal,
           keywords: form.keywords,
-          competitors: form.competitors.filter(Boolean),
+          competitors: competitorUrls,
           location: form.location,
           industry: form.industry,
           notes: form.notes,
           analysis: siteAnalysis,
+          competitorProfiles,
         }),
       })
       const stratData = await safeReadJson(stratRes, 'generate the strategy')
@@ -1195,7 +1220,11 @@ function StrategyReport({
             title="Competitor Analysis"
             kicker="Section 14"
           >
+            <div className="space-y-6">
+            <CompetitorComparisonTable intelligence={strategy.competitorIntelligence} />
             <CompetitorAnalysis competitors={strategy.competitorAnalysis} />
+            <CompetitorOpportunities opportunities={strategy.competitorIntelligence.opportunities} />
+          </div>
           </ReportSection>
         )}
 
@@ -3101,6 +3130,89 @@ function BlogIdeas({ ideas }: { ideas: SeoStrategy['blogIdeas'] }) {
           </p>
         </div>
       ))}
+    </div>
+  )
+}
+
+/** Phase 6 — side-by-side comparison table, straight from SeoStrategy.competitorIntelligence. Only shows metrics that were actually measured (a not-evaluated competitor shows "Not Evaluated", never a fabricated 0). */
+function CompetitorComparisonTable({ intelligence }: { intelligence: SeoStrategy['competitorIntelligence'] }) {
+  if (intelligence.comparison.length === 0) return null
+  const rows: { label: string; targetValue: number | null; key: 'servicePages' | 'locationPages' | 'blogPages' | 'schemaCoverage' }[] = [
+    { label: 'Service Pages', targetValue: intelligence.target.servicePages, key: 'servicePages' },
+    { label: 'Location Pages', targetValue: intelligence.target.locationPages, key: 'locationPages' },
+    { label: 'Blog Pages', targetValue: intelligence.target.blogPages, key: 'blogPages' },
+    { label: 'Schema Coverage', targetValue: intelligence.target.schemaCoverage, key: 'schemaCoverage' },
+  ]
+  const fmt = (v: number | null, isPct: boolean) => (v === null ? 'Not Evaluated' : isPct ? `${v}%` : String(v))
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b bg-muted/30 text-sm font-semibold">Side-by-Side Comparison</div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/20">
+              <th className="text-left font-medium px-4 py-2">Metric</th>
+              <th className="text-right font-medium px-4 py-2">Your Site</th>
+              {intelligence.comparison.map((c) => (
+                <th key={c.domain} className="text-right font-medium px-4 py-2 whitespace-nowrap">
+                  {c.domain}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-b last:border-0">
+                <td className="px-4 py-2 text-muted-foreground">{r.label}</td>
+                <td className="px-4 py-2 text-right font-medium tabular-nums">{fmt(r.targetValue, r.key === 'schemaCoverage')}</td>
+                {intelligence.comparison.map((c) => (
+                  <td key={c.domain} className="px-4 py-2 text-right tabular-nums">
+                    {c.status === 'not_evaluated' ? (
+                      <span className="text-muted-foreground text-xs">Not Evaluated</span>
+                    ) : (
+                      fmt(c[r.key], r.key === 'schemaCoverage')
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+const PRIORITY_BADGE_CLS: Record<'high' | 'medium' | 'low', string> = {
+  high: 'bg-destructive/10 text-destructive border-destructive/30',
+  medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  low: 'bg-muted text-muted-foreground border-border',
+}
+
+/** Phase 6 — top opportunities merged from service/location/content gaps, already sorted deterministically (lib/seo-strategy/competitor-intelligence.ts) — never reordered here. */
+function CompetitorOpportunities({ opportunities }: { opportunities: SeoStrategy['competitorIntelligence']['opportunities'] }) {
+  if (opportunities.length === 0) return null
+  return (
+    <div className="rounded-xl border bg-card p-5">
+      <div className="text-sm font-semibold mb-3">Priority Opportunities</div>
+      <ol className="space-y-2">
+        {opportunities.map((o, i) => (
+          <li key={i} className="rounded-lg border bg-muted/20 p-3 flex items-start gap-3">
+            <span className="text-xs font-semibold text-muted-foreground shrink-0 mt-0.5 w-5 text-right">{i + 1}.</span>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${PRIORITY_BADGE_CLS[o.priority]}`}>
+                  {o.priority === 'high' ? 'High' : o.priority === 'medium' ? 'Medium' : 'Low'} Priority
+                </span>
+                <span className="text-xs text-muted-foreground">{o.topic}</span>
+              </div>
+              <p className="text-sm text-pretty">{o.opportunity}</p>
+              <p className="text-xs text-muted-foreground text-pretty">{o.evidence}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }
