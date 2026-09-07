@@ -161,31 +161,44 @@ const PRIORITY_RANK: Record<OpportunityPriority, number> = { high: 2, medium: 1,
 
 // ---------------------------------------------------------------------------
 // Strengths / advantages — one evidence-backed statement per meaningfully
-// large gap in a measured metric. "Meaningful" = a difference of at least 2
-// (or, for percentages, 15 points) so normal crawl noise doesn't produce a
-// strength/advantage out of a 1-page difference.
+// large gap in a measured metric. "Meaningful" requires BOTH a raw
+// difference of at least `minDiff` AND a meaningful difference in rate
+// (count / pages crawled) — the target's crawl (quick mode: ~9 pages) and
+// a competitor's crawl (up to 16 pages) are different-sized samples, so
+// comparing raw counts alone would make a competitor's larger sample look
+// "ahead" on every metric regardless of the actual site. Percentage
+// metrics (schema coverage) are already rates, so they skip the ratio
+// check and use `minDiff` as a point-difference threshold directly.
 // ---------------------------------------------------------------------------
 function compareMetric(
   label: string,
   targetValue: number,
+  targetSampleSize: number,
   competitorValue: number,
+  competitorSampleSize: number,
   competitorDomain: string,
   minDiff = 2,
+  isRate = false,
 ): { strength?: EvidenceStatement; weakness?: EvidenceStatement; advantage?: EvidenceStatement } {
   const diff = competitorValue - targetValue
-  if (diff >= minDiff) {
+  const targetRate = isRate ? targetValue : targetSampleSize > 0 ? targetValue / targetSampleSize : 0
+  const competitorRate = isRate ? competitorValue : competitorSampleSize > 0 ? competitorValue / competitorSampleSize : 0
+  const rateDiff = competitorRate - targetRate
+  const minRateDiff = isRate ? minDiff : 0.1 // a >=10-percentage-point difference in share of crawled pages
+
+  if (diff >= minDiff && rateDiff >= minRateDiff) {
     // Competitor ahead on this metric — a strength for them.
     return {
       strength: {
         statement: `${competitorDomain} has more ${label} than your site.`,
-        evidence: `${competitorValue} ${label} detected on ${competitorDomain} vs ${targetValue} on your site.`,
+        evidence: `${competitorValue} ${label} detected on ${competitorDomain} (of ${competitorSampleSize} pages crawled) vs ${targetValue} on your site (of ${targetSampleSize} pages crawled).`,
         competitorDomain,
       },
     }
   }
-  if (-diff >= minDiff) {
+  if (-diff >= minDiff && -rateDiff >= minRateDiff) {
     // Target ahead on this metric — a weakness for the competitor, and an advantage for the target (same fact, two framings for two report sections).
-    const evidence = `${targetValue} ${label} detected on your site vs ${competitorValue} on ${competitorDomain}.`
+    const evidence = `${targetValue} ${label} detected on your site (of ${targetSampleSize} pages crawled) vs ${competitorValue} on ${competitorDomain} (of ${competitorSampleSize} pages crawled).`
     return {
       weakness: { statement: `${competitorDomain} has fewer ${label} than your site.`, evidence, competitorDomain },
       advantage: { statement: `Your site has more ${label} than ${competitorDomain}.`, evidence, competitorDomain },
@@ -228,13 +241,22 @@ export function buildCompetitorIntelligence(targetPages: PageOnPageAudit[], comp
       ['blog/content pages', target.blogPages, c.blogPages],
     ]
     for (const [label, targetValue, competitorValue] of metrics) {
-      const { strength, weakness, advantage } = compareMetric(label, targetValue, competitorValue, domain)
+      const { strength, weakness, advantage } = compareMetric(label, targetValue, targetPages.length, competitorValue, c.pagesCrawled, domain)
       if (strength) strengths.push(strength)
       if (weakness) weaknesses.push(weakness)
       if (advantage) advantages.push(advantage)
     }
     if (target.schemaCoverage !== null && c.schemaCoverage !== null) {
-      const { strength, weakness, advantage } = compareMetric('schema coverage (%)', target.schemaCoverage, c.schemaCoverage, domain, 15)
+      const { strength, weakness, advantage } = compareMetric(
+        'schema coverage (%)',
+        target.schemaCoverage,
+        targetPages.length,
+        c.schemaCoverage,
+        c.pagesCrawled,
+        domain,
+        15,
+        true,
+      )
       if (strength) strengths.push(strength)
       if (weakness) weaknesses.push(weakness)
       if (advantage) advantages.push(advantage)

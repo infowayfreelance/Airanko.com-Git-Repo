@@ -544,7 +544,7 @@ export interface CompetitorAnalysisEntryLike {
 }
 
 /** Matches an AI competitorAnalysis entry to its crawled profile by domain — falls back to a loose URL substring match since the AI's `url` field is free text, not guaranteed to be an exact echo of the user's input. */
-function findProfileForEntry<T extends { inputUrl: string; domain: string | null }>(entry: CompetitorAnalysisEntryLike, profiles: T[]): T | undefined {
+export function findProfileForEntry<T extends { inputUrl: string; domain: string | null }>(entry: CompetitorAnalysisEntryLike, profiles: T[]): T | undefined {
   return profiles.find((p) => {
     if (p.domain && entry.url.toLowerCase().includes(p.domain.toLowerCase())) return true
     return entry.url.trim() !== '' && p.inputUrl.toLowerCase().includes(entry.url.toLowerCase().replace(/^https?:\/\//, '').split('/')[0])

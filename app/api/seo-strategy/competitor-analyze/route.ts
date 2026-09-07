@@ -87,6 +87,16 @@ export async function POST(req: Request) {
     if (!home) {
       return Response.json({ profile: notEvaluatedProfile(url, 'Could not reach the competitor site — it may block automated requests or be temporarily unavailable.') })
     }
+    // fetchWithTimeout() only returns null on a network-level failure — an
+    // error/blocked page (403 from bot protection, 429 rate limit, 404,
+    // 5xx) still comes back as a normal result. Treating that as an
+    // "evaluated" competitor would classify an error document as pages and
+    // report fabricated weaknesses/advantages from its near-zero counts.
+    if (home.status < 200 || home.status >= 300) {
+      return Response.json({
+        profile: notEvaluatedProfile(url, `The competitor site returned HTTP ${home.status} — the crawl could not be evaluated.`),
+      })
+    }
 
     const finalUrl = home.finalUrl
     const finalBase = new URL(finalUrl)
@@ -97,7 +107,7 @@ export async function POST(req: Request) {
 
     const crawlResults = await mapWithConcurrency(toCrawl, 5, async (pageUrl) => {
       const r = await fetchWithTimeout(pageUrl, 8000)
-      if (!r) return null
+      if (!r || r.status < 200 || r.status >= 300) return null
       return analyzeHtml(pageUrl, r.html, r.status, r.loadTimeMs, r.byteSize, finalBase, r.headers['x-robots-tag'] ?? null)
     })
     const crawledPages = crawlResults.filter((p): p is NonNullable<typeof p> => p !== null)

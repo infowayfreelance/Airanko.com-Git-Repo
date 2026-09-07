@@ -205,12 +205,29 @@ export default function SeoStrategyMakerTool() {
       setAnalysis(siteAnalysis)
 
       // Phase 1.5 (Phase 6) — crawl each provided competitor URL. A failed
-      // competitor crawl never blocks the report — it just comes back
-      // status: 'not_evaluated' and contributes no fabricated findings.
+      // competitor crawl never blocks the report — it comes back as a
+      // well-formed status: 'not_evaluated' profile (never null/undefined,
+      // which the strategy endpoint's deterministic comparison can't
+      // safely dereference) and contributes no fabricated findings.
       const competitorUrls = form.competitors.filter(Boolean)
       let competitorProfiles: unknown[] = []
       if (competitorUrls.length > 0) {
         setProgressMsg('Crawling competitor websites…')
+        const notEvaluatedProfile = (url: string, reason: string) => ({
+          inputUrl: url,
+          domain: null,
+          status: 'not_evaluated' as const,
+          reason,
+          pagesDiscovered: 0,
+          pagesCrawled: 0,
+          pagesFailed: 0,
+          servicePages: 0,
+          locationPages: 0,
+          blogPages: 0,
+          schemaCoverage: null,
+          averageWordCount: null,
+          pages: [],
+        })
         competitorProfiles = await Promise.all(
           competitorUrls.map(async (url) => {
             try {
@@ -220,9 +237,9 @@ export default function SeoStrategyMakerTool() {
                 body: JSON.stringify({ url, location: form.location }),
               })
               const data = await safeReadJson(res, 'analyze a competitor')
-              return data.profile ?? null
+              return data.profile ?? notEvaluatedProfile(url, 'The competitor crawl did not return a result.')
             } catch {
-              return null
+              return notEvaluatedProfile(url, 'The competitor crawl request failed.')
             }
           }),
         )

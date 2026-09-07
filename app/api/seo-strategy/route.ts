@@ -6,7 +6,7 @@ import { resolveLocalBusinessContext } from '@/lib/seo-strategy/local-business'
 import { mapKeywordsToPages, parseKeywordList, normalizeKeyword } from '@/lib/seo-strategy/keyword-mapping'
 import { evaluateMobileFriendliness, evaluateRobotsTxt, evaluateResponseTime } from '@/lib/seo-strategy/severity'
 import { sanitizeKpiTargets } from '@/lib/seo-strategy/kpi'
-import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks } from '@/lib/seo-strategy/contradiction-checker'
+import { runContradictionChecks, runOnPageContradictionChecks, runPhase2BContradictionChecks, runSerpPixelContradictionChecks, runCrawlCoverageContradictionChecks, runCompetitorContradictionChecks, runPageOpportunityContradictionChecks, findProfileForEntry } from '@/lib/seo-strategy/contradiction-checker'
 import { buildFullPageAudits, aggregateFullPageIssues } from '@/lib/seo-strategy/page-audit'
 import { attachPageScores, buildOnPageOverview, buildPriorityFixes, emptyOnPageCategorySlice, type OnPageOverview, type PageOnPageAuditWithScore, type PriorityFix } from '@/lib/seo-strategy/on-page-overview'
 import { buildTechnicalCrawlSummary, type TechnicalCrawlSummary } from '@/lib/seo-strategy/technical-summary'
@@ -428,7 +428,15 @@ export async function POST(req: Request) {
     // from this site's own Phase 2B page-type/schema audit plus whatever
     // competitor profiles the client already crawled via
     // /api/seo-strategy/competitor-analyze — never AI-guessed.
-    const competitorProfiles: CompetitorProfile[] = Array.isArray(input.competitorProfiles) ? input.competitorProfiles : []
+    // `competitorProfiles` comes from the client's own earlier crawl calls
+    // (untyped in the request schema — see inputSchema above), so a
+    // malformed or missing entry (a client bug, or a caller bypassing the
+    // UI) is filtered out here rather than trusted — a null/non-object
+    // entry would otherwise crash buildCompetitorIntelligence() when it
+    // reads `.status`.
+    const isValidCompetitorProfile = (p: unknown): p is CompetitorProfile =>
+      typeof p === 'object' && p !== null && 'status' in p && ((p as { status: unknown }).status === 'evaluated' || (p as { status: unknown }).status === 'not_evaluated')
+    const competitorProfiles: CompetitorProfile[] = Array.isArray(input.competitorProfiles) ? input.competitorProfiles.filter(isValidCompetitorProfile) : []
     const competitorIntelligence: CompetitorIntelligence = buildCompetitorIntelligence(onPageAuditsRaw, competitorProfiles)
 
     // Phase 7 — deterministic content-gap / pages-to-create strategy.
@@ -679,20 +687,22 @@ Hard rules — a later automated validation pass checks these and will overwrite
 
     // Phase 6 — the AI's free-text competitorAnalysis[].strengths/
     // weaknesses/opportunitiesToOutrank/contentGaps are entirely replaced
-    // with deterministic, evidence-based content (matched by array index —
-    // both this AI array and competitorProfiles are built from the same
-    // ordered input.competitors list). A competitor the AI listed but that
-    // was never crawled (an older client, or a competitor whose crawl
-    // failed) keeps only what's actually verifiable: its name/URL, with
-    // empty finding arrays rather than fabricated ones.
+    // with deterministic, evidence-based content. The AI schema doesn't
+    // enforce ordering, so each entry is matched to its crawled profile by
+    // normalized domain/URL (findProfileForEntry — the same matcher the
+    // contradiction checker below uses), never by array position. A
+    // competitor the AI listed but that was never crawled (an older
+    // client, or a competitor whose crawl failed) keeps only what's
+    // actually verifiable: its name/URL, with empty finding arrays rather
+    // than fabricated ones.
     const competitorContradictions = runCompetitorContradictionChecks(strategy.competitorAnalysis, competitorProfiles)
 
     // Phase 7 — diagnostic-only check of the AI's pagesToCreate/blogIdeas
     // prose against P0's keyword-page mapping (the deterministic
     // pageOpportunities list above is what the report actually shows).
     const pageOpportunityContradictions = runPageOpportunityContradictionChecks(strategy.pagesToCreate, strategy.blogIdeas, keywordMappings)
-    const correctedCompetitorAnalysis = strategy.competitorAnalysis.map((entry, i) => {
-      const profile = competitorProfiles[i]
+    const correctedCompetitorAnalysis = strategy.competitorAnalysis.map((entry) => {
+      const profile = findProfileForEntry(entry, competitorProfiles)
       const domain = profile?.domain
       const forDomain = (s: { competitorDomain: string }) => domain !== undefined && domain !== null && s.competitorDomain === domain
       return {
