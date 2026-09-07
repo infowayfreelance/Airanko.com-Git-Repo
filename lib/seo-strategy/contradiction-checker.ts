@@ -482,25 +482,41 @@ export function runSerpPixelContradictionChecks(onPageAudits: PageOnPageAudit[])
 // Phase 5 — crawl coverage. The AI's technicalSeoAudit.summary must never
 // claim complete/full-site coverage when the deterministic crawl actually
 // skipped discovered URLs (bounded crawl limits — see analyze/route.ts).
-// Logged only, like the other narrative checks above — safely rewriting
-// free-form AI prose isn't possible without another generation pass.
+// Unlike the purely-logged narrative checks above, this one IS corrected —
+// the claim is specific and mechanical enough (a fixed phrase pattern) to
+// safely rewrite without another AI generation pass, and "do not allow
+// this contradiction into the final report" is an explicit Phase 5
+// requirement, not just a diagnostic.
 // ─────────────────────────────────────────────────────────────────────────
+// Deliberately not global: only the first match is replaced (the phrase is
+// vanishingly unlikely to appear twice), and a non-global regex avoids the
+// classic `lastIndex` statefulness bug across repeated calls on this
+// module-level constant.
 const FULL_COVERAGE_CLAIM_RE = /entire site|full site (audit|crawl)|every page (was|has been) (crawled|audited)|all pages (were|have been) (crawled|audited)|whole website was (crawled|audited)/i
 
 export interface CrawlCoverageNarrativeLike {
   technicalSeoAudit: { summary: string }
 }
 
-export function runCrawlCoverageContradictionChecks(strategy: CrawlCoverageNarrativeLike, analysis: SiteAnalysis | null): string[] {
+export interface CrawlCoverageCheckResult {
+  /** The summary to actually use — identical to the input unless a contradiction was found and corrected. */
+  correctedSummary: string
+  contradictions: string[]
+}
+
+export function runCrawlCoverageContradictionChecks(strategy: CrawlCoverageNarrativeLike, analysis: SiteAnalysis | null): CrawlCoverageCheckResult {
   const contradictions: string[] = []
-  if (analysis && analysis.crawlStats.excluded > 0 && FULL_COVERAGE_CLAIM_RE.test(strategy.technicalSeoAudit.summary)) {
+  let correctedSummary = strategy.technicalSeoAudit.summary
+
+  if (analysis && analysis.crawlStats.excluded > 0 && FULL_COVERAGE_CLAIM_RE.test(correctedSummary)) {
     contradictions.push(
-      `technicalSeoAudit.summary claims the entire site/full site was crawled, but ${analysis.crawlStats.excluded} discovered URL(s) were not attempted (crawl mode: ${analysis.crawlMode}) — this was a partial crawl.`,
+      `technicalSeoAudit.summary claims the entire site/full site was crawled, but ${analysis.crawlStats.excluded} discovered URL(s) were not attempted (crawl mode: ${analysis.crawlMode}) — corrected to reflect a partial crawl.`,
     )
+    correctedSummary = `${correctedSummary.replace(FULL_COVERAGE_CLAIM_RE, 'a partial crawl of the site')} (Note: ${analysis.crawlStats.excluded} discovered URL(s) were not attempted within this ${analysis.crawlMode === 'full' ? 'full' : 'quick'} crawl's safe limits.)`
   }
 
   if (contradictions.length > 0 && process.env.NODE_ENV !== 'production') {
     console.warn('[seo-strategy] Crawl coverage contradiction checker found the following:', contradictions)
   }
-  return contradictions
+  return { correctedSummary, contradictions }
 }

@@ -647,8 +647,10 @@ Hard rules — a later automated validation pass checks these and will overwrite
     const serpPixelContradictions = runSerpPixelContradictionChecks(onPageAudits)
 
     // Phase 5 — the AI must never claim complete/full-site crawl coverage
-    // when the deterministic crawl actually skipped discovered URLs.
-    const crawlCoverageContradictions = runCrawlCoverageContradictionChecks(strategy, analysis)
+    // when the deterministic crawl actually skipped discovered URLs. Unlike
+    // the other narrative checks, this one's correction is actually applied
+    // below (technicalSeoAudit.summary), not just logged.
+    const crawlCoverageResult = runCrawlCoverageContradictionChecks(strategy, analysis)
 
     const correctedStrategy: SeoStrategy = {
       ...strategy,
@@ -661,6 +663,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       technicalSeoAudit: {
         ...strategy.technicalSeoAudit,
         checklist: contradictionResult.correctedChecklist,
+        summary: crawlCoverageResult.correctedSummary,
       },
       keywordStrategy: {
         ...strategy.keywordStrategy,
@@ -694,7 +697,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
       ...onPageContradictionResult.contradictions,
       ...phase2bContradictions,
       ...serpPixelContradictions,
-      ...crawlCoverageContradictions,
+      ...crawlCoverageResult.contradictions,
     ]
     const debug =
       process.env.NODE_ENV !== 'production' && allContradictions.length > 0 ? { contradictions: allContradictions } : undefined
