@@ -113,6 +113,14 @@ export default function PortfolioRecorderTool() {
   // from iframe/container/viewport size once recording begins.
   const fullPageHeightRef     = useRef(0)
   const recordingDistanceRef  = useRef(0)
+  // Guards beginRecording() against being entered twice concurrently (e.g. a
+  // fast double-click before React re-renders the button away). Checked and
+  // set synchronously, before any await, since two click events dispatched
+  // back-to-back can both fire while `stage` state is still 'idle' in both
+  // closures. Without this, a second run's preload/reveal pass shares the
+  // same iframe and resets its scroll position to 0 mid-flight while the
+  // first run's recording is still capturing that reset.
+  const recordingInProgressRef = useRef(false)
 
   const dev             = devices[device]
   const estimatedHeight = Math.round(dev.height * pageLengths[pageLength].multiplier)
@@ -215,6 +223,7 @@ export default function PortfolioRecorderTool() {
     proxyRequestIdRef.current++ // invalidate any in-flight fetch
     setProxyHtml(null)
     setProxyStatus('idle')
+    recordingInProgressRef.current = false
   }
 
   function clearMeasureTimeouts() {
@@ -386,6 +395,8 @@ export default function PortfolioRecorderTool() {
 
   async function beginRecording() {
     if (!loadedUrl || proxyStatus === 'loading') return
+    if (recordingInProgressRef.current) return
+    recordingInProgressRef.current = true
     setError(null)
 
     // ── Phase 1: settle, reveal lazy content, reset to the exact top ──────
@@ -436,6 +447,7 @@ export default function PortfolioRecorderTool() {
         'Screen capture was cancelled. Click "Start Recording" again, then click "Share" when the browser asks.'
       )
       setStage('idle')
+      recordingInProgressRef.current = false
       return
     }
 
@@ -503,6 +515,7 @@ export default function PortfolioRecorderTool() {
       feedVideo.pause()
       feedVideo.srcObject = null
       setStage('done')
+      recordingInProgressRef.current = false
     }
 
     // Gracefully handle the user clicking "Stop sharing" in the browser UI
@@ -579,6 +592,7 @@ export default function PortfolioRecorderTool() {
     setPreloadProgress(0)
     setIframeExpanded(false)
     scrollIframeTo(0)
+    recordingInProgressRef.current = false
   }
 
   useEffect(() => {
