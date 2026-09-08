@@ -34,6 +34,9 @@ const devices: Record<
   mobile:  { label: 'Mobile',  icon: Smartphone, width: 390, height: 780 },
 }
 
+// Fallback estimate only — used when the loaded site's real height can't be
+// read (cross-origin, the common case). Whenever the real height IS
+// readable, it always wins over this guess.
 const pageLengths: Record<string, { label: string; multiplier: number }> = {
   short:  { label: 'Short',      multiplier: 1.8 },
   medium: { label: 'Medium',     multiplier: 3   },
@@ -62,6 +65,7 @@ export default function PortfolioRecorderTool() {
   const [recordedUrl, setRecordedUrl]     = useState<string | null>(null)
   const [error, setError]                 = useState<string | null>(null)
   const [iframeError, setIframeError]     = useState(false)
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null)
 
   const viewportRef       = useRef<HTMLDivElement>(null)
   const iframeRef         = useRef<HTMLIFrameElement>(null)
@@ -71,9 +75,15 @@ export default function PortfolioRecorderTool() {
   const rafRef            = useRef<number | null>(null)
   const cropRafRef        = useRef<number | null>(null)
   const startTimeRef      = useRef<number>(0)
+  const measuredHeightRef = useRef<number | null>(null)
+  const measureTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
-  const dev         = devices[device]
-  const scrollHeight = Math.round(dev.height * pageLengths[pageLength].multiplier)
+  const dev            = devices[device]
+  const estimatedHeight = Math.round(dev.height * pageLengths[pageLength].multiplier)
+  // The real, detected scrollable height of the loaded page always wins over
+  // the guessed estimate — the estimate is only a fallback for sites whose
+  // DOM the parent page cannot read cross-origin.
+  const scrollHeight = Math.max(measuredHeight ?? estimatedHeight, dev.height)
   const maxScroll    = scrollHeight - dev.height
 
   const previewMaxWidth = device === 'desktop' ? 760 : device === 'tablet' ? 460 : 320
@@ -100,7 +110,56 @@ export default function PortfolioRecorderTool() {
     setUrl(valid)
     setLoadedUrl(valid)
     setStage('idle')
+    clearMeasureTimeouts()
+    measuredHeightRef.current = null
+    setMeasuredHeight(null)
     if (iframeRef.current) iframeRef.current.style.transform = 'translateY(0px)'
+  }
+
+  function clearMeasureTimeouts() {
+    measureTimeoutsRef.current.forEach(clearTimeout)
+    measureTimeoutsRef.current = []
+  }
+
+  // Cross-origin sites throw a SecurityError on any of these reads — this is
+  // the browser's same-origin policy and cannot be bypassed, so a null
+  // result (falling back to the estimate) is the expected, common outcome
+  // for real external websites.
+  function measureRealHeight(): number | null {
+    try {
+      const doc = iframeRef.current?.contentWindow?.document
+      if (!doc) return null
+      const root = doc.documentElement
+      const body = doc.body
+      const h = Math.max(
+        root?.scrollHeight ?? 0,
+        body?.scrollHeight ?? 0,
+        root?.offsetHeight ?? 0,
+        body?.offsetHeight ?? 0,
+      )
+      return h > 0 ? h : null
+    } catch {
+      return null
+    }
+  }
+
+  // Re-measures and only ever grows the recorded height, so content that
+  // renders in late (images, fonts, lazy sections) after the first read
+  // still gets picked up.
+  function refreshMeasuredHeight() {
+    const h = measureRealHeight()
+    if (h && (measuredHeightRef.current === null || h > measuredHeightRef.current)) {
+      measuredHeightRef.current = h
+      setMeasuredHeight(h)
+    }
+  }
+
+  function scheduleHeightRechecks() {
+    clearMeasureTimeouts()
+    refreshMeasuredHeight()
+    ;[400, 1200, 2800].forEach((delay) => {
+      measureTimeoutsRef.current.push(setTimeout(refreshMeasuredHeight, delay))
+    })
   }
 
   const cleanupAll = useCallback(() => {
@@ -110,6 +169,7 @@ export default function PortfolioRecorderTool() {
       streamRef.current.getTracks().forEach((t) => t.stop())
       streamRef.current = null
     }
+    clearMeasureTimeouts()
   }, [])
 
   // ── Phase 1: pre-load by slowly scrolling the iframe top→bottom, then reset ──
@@ -129,9 +189,12 @@ export default function PortfolioRecorderTool() {
         if (t < 1) {
           requestAnimationFrame(tick)
         } else {
-          // Snap back to top
+          // Snap back to top. The scroll-down pass may have triggered
+          // lazy-loaded sections, so re-measure the real height once more
+          // before recording locks in the scroll distance.
           setTimeout(() => {
             if (iframeRef.current) iframeRef.current.style.transform = 'translateY(0px)'
+            refreshMeasuredHeight()
             setPreloadProgress(100)
             resolve()
           }, 400)
@@ -425,6 +488,7 @@ export default function PortfolioRecorderTool() {
                           src={loadedUrl}
                           title="Website preview"
                           onError={() => setIframeError(true)}
+                          onLoad={() => scheduleHeightRechecks()}
                           style={{
                             width: dev.width,
                             height: scrollHeight,
@@ -649,6 +713,11 @@ export default function PortfolioRecorderTool() {
                   )
                 })}
               </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                {measuredHeight
+                  ? `Real page height detected (~${measuredHeight}px) — used automatically, these presets are ignored.`
+                  : "This site's real height isn't readable from the browser (cross-origin) — the preset above is used as an estimate."}
+              </p>
 
               <p className="mt-4 flex items-center gap-1.5 text-sm font-medium text-foreground">
                 <Gauge className="h-4 w-4 text-primary" />
