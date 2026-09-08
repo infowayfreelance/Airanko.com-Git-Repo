@@ -36,13 +36,18 @@ const devices: Record<
 }
 
 // Fallback estimate only — used when the loaded site's real height can't be
-// read (cross-origin, the common case). Whenever the real height IS
-// readable, it always wins over this guess.
+// read (cross-origin, which is the normal case for an arbitrary external
+// website: the browser's same-origin policy makes exact measurement
+// impossible, full stop, no workaround). These are intentionally generous
+// — undershooting truncates real content (the page never actually reaches
+// its true bottom), while overshooting only adds some blank space at the
+// very end of the video. Between those two failure modes, truncating real
+// content is by far the worse one, so the estimate errs high.
 const pageLengths: Record<string, { label: string; multiplier: number }> = {
-  short:  { label: 'Short',      multiplier: 1.8 },
-  medium: { label: 'Medium',     multiplier: 3   },
-  long:   { label: 'Long',       multiplier: 4.5 },
-  full:   { label: 'Extra long', multiplier: 6.5 },
+  short:  { label: 'Short',      multiplier: 3  },
+  medium: { label: 'Medium',     multiplier: 7  },
+  long:   { label: 'Long',       multiplier: 12 },
+  full:   { label: 'Extra long', multiplier: 20 },
 }
 
 type Easing = 'smooth' | 'linear'
@@ -63,7 +68,10 @@ export default function PortfolioRecorderTool() {
   const [view, setView]                   = useState<View>('setup')
   const [device, setDevice]               = useState<DeviceId>('desktop')
   const [duration, setDuration]           = useState(20)
-  const [pageLength, setPageLength]       = useState<keyof typeof pageLengths>('medium')
+  // Defaults to the most generous fallback estimate, since undershooting
+  // (truncating real content) is much worse than a bit of blank space at
+  // the end — see the comment on `pageLengths` above.
+  const [pageLength, setPageLength]       = useState<keyof typeof pageLengths>('full')
   const [easing, setEasing]               = useState<Easing>('smooth')
   const [stage, setStage]                 = useState<Stage>('idle')
   const [countdown, setCountdown]         = useState(3)
