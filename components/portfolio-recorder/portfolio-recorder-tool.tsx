@@ -88,6 +88,10 @@ export default function PortfolioRecorderTool() {
   const measuredHeightRef  = useRef<number | null>(null)
   const canControlDomRef   = useRef(false)
   const measureTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  // Locked once, right after preload/reveal finishes — never recalculated
+  // from iframe/container/viewport size once recording begins.
+  const fullPageHeightRef     = useRef(0)
+  const recordingDistanceRef  = useRef(0)
 
   const dev             = devices[device]
   const estimatedHeight = Math.round(dev.height * pageLengths[pageLength].multiplier)
@@ -295,14 +299,29 @@ export default function PortfolioRecorderTool() {
     setPreloadProgress(100)
   }
 
-  // ── Scroll animation during recording — always distance / duration ────
+  // ── Scroll animation during recording ──────────────────────────────────
+  // Uses recordingDistanceRef, which was locked once right after preload/
+  // reveal finished — never recalculated from iframe/container/viewport
+  // size here, so a mid-recording reflow or React re-render can't shrink
+  // the distance the animation is scrolling across.
   const animateScroll = useCallback(() => {
+    // eslint-disable-next-line no-console
+    console.log('[PortfolioRecorder DEBUG] recording start position:', 0)
+    // eslint-disable-next-line no-console
+    console.log('[PortfolioRecorder DEBUG] recording end position (target):', recordingDistanceRef.current)
+
     const tick = () => {
       const t     = Math.min((performance.now() - startTimeRef.current) / (duration * 1000), 1)
       const eased = easing === 'smooth' ? easeInOut(t) : t
-      scrollIframeTo(eased * getMaxScroll())
+      const targetPx = eased * recordingDistanceRef.current
+      scrollIframeTo(targetPx)
       setElapsed(t * duration)
-      if (t < 1) rafRef.current = requestAnimationFrame(tick)
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick)
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('[PortfolioRecorder DEBUG] final scroll/transform value at 100% progress:', targetPx)
+      }
     }
     startTimeRef.current = performance.now()
     rafRef.current = requestAnimationFrame(tick)
@@ -317,6 +336,22 @@ export default function PortfolioRecorderTool() {
     setStage('preloading')
     setPreloadProgress(0)
     await preparePage()
+
+    // Lock in the recording distance right here, once, from the final
+    // detected full page height. Nothing after this point recalculates it
+    // from iframe/container/viewport size — recording always scrolls this
+    // exact distance regardless of any later reflow.
+    const fullPageHeight   = getScrollHeight()
+    const viewportHeight   = dev.height
+    const recordingDistance = fullPageHeight - viewportHeight
+    fullPageHeightRef.current    = fullPageHeight
+    recordingDistanceRef.current = recordingDistance
+    // eslint-disable-next-line no-console
+    console.log('[PortfolioRecorder DEBUG] fullPageHeight:', fullPageHeight)
+    // eslint-disable-next-line no-console
+    console.log('[PortfolioRecorder DEBUG] viewportHeight:', viewportHeight)
+    // eslint-disable-next-line no-console
+    console.log('[PortfolioRecorder DEBUG] recordingDistance:', recordingDistance)
 
     setPreloadPhaseLabel('Requesting screen capture…')
     // Make sure the device frame is scrolled fully into view before we map
@@ -436,7 +471,12 @@ export default function PortfolioRecorderTool() {
         // Always start from the exact top — never from wherever the
         // pre-load/reveal pass or countdown happened to leave things.
         scrollIframeTo(0)
+        // eslint-disable-next-line no-console
+        console.log('[PortfolioRecorder DEBUG] reset to top before recording, scroll/transform value:', 0)
         computeCrop() // re-measure in case layout shifted during countdown
+        // MediaRecorder starts first; the scroll animation only begins once
+        // it's already recording, so the very first frames captured are at
+        // the true top.
         recorder.start(100)
 
         // Crop-draw loop: at each animation frame, copy the screen capture
@@ -449,7 +489,11 @@ export default function PortfolioRecorderTool() {
 
         animateScroll()
 
-        // Auto-stop after the chosen duration
+        // Auto-stop after the chosen duration. The scroll animation reaches
+        // its end position at exactly duration * 1000ms; the extra 300ms
+        // here keeps the crop-draw loop running a little longer so the
+        // final bottom position is actually captured in the recording
+        // before the recorder stops, not just reached and immediately cut.
         setTimeout(() => {
           if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             if (cropRafRef.current) { cancelAnimationFrame(cropRafRef.current); cropRafRef.current = null }
@@ -547,11 +591,18 @@ export default function PortfolioRecorderTool() {
               title="Website preview"
               onError={() => setIframeError(true)}
               onLoad={() => scheduleHeightRechecks()}
+              // `transform` is intentionally NOT set here. Scroll position is
+              // driven entirely through the iframeRef DOM node via
+              // scrollIframeTo() (many times per second during recording).
+              // If `transform` were part of this React-managed style object,
+              // every re-render (setElapsed() fires every rAF tick while
+              // recording) would reset it back to whatever's written here,
+              // fighting the imperative updates and making the page appear
+              // to barely scroll at all.
               style={{
                 width: dev.width,
                 height: iframeCssHeight,
                 border: 'none',
-                transform: 'translateY(0px)',
                 willChange: 'transform',
               }}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
