@@ -172,6 +172,34 @@ export default function SeoStrategyMakerTool() {
     }
   }, [phase])
 
+  // Phase 15 — stage-based progress for the strategy-generation request
+  // (spec §11). The single /api/seo-strategy call does all of on-page/
+  // technical/competitor analysis, strategy generation, roadmap building,
+  // and Phase 13 validation server-side with no streaming — so this cycles
+  // through the real stage names on a timer rather than showing a fake
+  // percentage. It advances forward only (never loops) and holds on the
+  // last stage if the request runs long. The interval is cleared whenever
+  // `phase` changes away from 'generating' or the component unmounts, so
+  // it can never keep firing/updating state after the request settles.
+  useEffect(() => {
+    if (phase !== 'generating') return
+    const stages = [
+      'Analyzing On-Page SEO…',
+      'Analyzing Technical SEO…',
+      'Analyzing Competitors & Content Gaps…',
+      'Building Your Strategy…',
+      'Validating Report…',
+      'Preparing Report…',
+    ]
+    let i = 0
+    setProgressMsg(stages[0])
+    const interval = setInterval(() => {
+      i = Math.min(i + 1, stages.length - 1)
+      setProgressMsg(stages[i])
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [phase])
+
   // ---------- Validation ----------
   const canContinueStep1 = form.websiteUrl.trim() && form.businessName.trim() &&
     (!form.isLocal || form.gmbUrl.trim())
@@ -188,8 +216,8 @@ export default function SeoStrategyMakerTool() {
       setPhase('analyzing')
       setProgressMsg(
         form.crawlMode === 'full'
-          ? 'Crawling your full site (via sitemap where available) and analyzing pages…'
-          : 'Crawling your website and analyzing pages…',
+          ? 'Preparing audit — discovering pages and crawling your full site (via sitemap where available)…'
+          : 'Preparing audit — discovering pages and crawling your website…',
       )
 
       const analyzeRes = await fetch('/api/seo-strategy/analyze', {
@@ -245,9 +273,11 @@ export default function SeoStrategyMakerTool() {
         )
       }
 
-      // Phase 2: generate strategy
+      // Phase 2: generate strategy — the stage label cycles via the
+      // useEffect below (Phase 15 spec §11: stage-based progress, since no
+      // exact percentage is measurable for this single request/response
+      // call — no new streaming/job system is introduced here).
       setPhase('generating')
-      setProgressMsg('Building your custom SEO strategy with AI…')
 
       const stratRes = await fetch('/api/seo-strategy', {
         method: 'POST',
@@ -2035,8 +2065,23 @@ function QuickWinsGrid({ wins }: { wins: SeoStrategy['quickWins'] }) {
 }
 
 /** Phase 5 — sitewide crawl coverage + sitemap health, straight from SeoStrategy.technicalCrawlSummary / SiteAnalysis.sitemapAudit. Never recalculated here — this is presentation only. */
+/** Phase 15 — structured crawl-failure reasons, never a raw exception message. */
+const CRAWL_ERROR_REASON_LABEL: Record<string, string> = {
+  timeout: 'Timed out',
+  dns_error: 'Domain not found',
+  connection_error: 'Server did not respond',
+  ssl_error: 'Security certificate issue',
+  redirect_loop: 'Redirect loop',
+  redirect_limit: 'Too many redirects',
+  invalid_url: 'Invalid URL',
+  http_4xx: 'Page not found',
+  http_5xx: 'Server error',
+  unknown: 'Could not be crawled',
+}
+
 function CrawlCoverageBlock({ analysis, crawlSummary }: { analysis: SiteAnalysis; crawlSummary: SeoStrategy['technicalCrawlSummary'] }) {
   const isPartial = crawlSummary.excluded > 0
+  const coveragePct = crawlSummary.discovered > 0 ? Math.round((crawlSummary.crawled / crawlSummary.discovered) * 100) : null
   return (
     <div className="rounded-xl border bg-muted/20 p-4 space-y-3 print:break-inside-avoid">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2072,7 +2117,31 @@ function CrawlCoverageBlock({ analysis, crawlSummary }: { analysis: SiteAnalysis
           </div>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">{crawlSummary.coverageNote}</p>
+      <p className="text-xs text-muted-foreground">
+        {crawlSummary.coverageNote}
+        {coveragePct !== null && (
+          <>
+            {' '}
+            Coverage: <span className="font-medium text-foreground">{coveragePct}%</span> ({crawlSummary.crawled}/{crawlSummary.discovered} URLs).
+          </>
+        )}
+      </p>
+      {analysis.failedUrls.length > 0 && (
+        <div className="pt-1">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+            Failed URLs ({crawlSummary.failed})
+          </div>
+          <ul className="text-xs space-y-1">
+            {analysis.failedUrls.map((f, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-muted-foreground">
+                <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+                <code className="font-mono truncate" title={f.url}>{f.url}</code>
+                <span className="shrink-0">— {CRAWL_ERROR_REASON_LABEL[f.reason] ?? 'Could not be crawled'}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
