@@ -305,16 +305,21 @@ export type SeoStrategy = Omit<RawAiStrategy, 'healthScoreBreakdown'> & {
 // ---------------------------------------------------------------------------
 // Input validation
 // ---------------------------------------------------------------------------
+// Phase 16 — input hardening (spec §21). None of these fields previously
+// had a length/count bound: a direct API call (bypassing the UI's own
+// caps) could submit an oversized payload that bloats the AI prompt for
+// no legitimate reason. These limits are generous for any real business
+// input, never restrictive for normal use.
 const inputSchema = z.object({
-  websiteUrl: z.string().min(1),
-  businessName: z.string().min(1),
-  gmbUrl: z.string(),
+  websiteUrl: z.string().min(1).max(2048),
+  businessName: z.string().min(1).max(200),
+  gmbUrl: z.string().max(2048),
   isLocal: z.boolean(),
-  keywords: z.string(),
-  competitors: z.array(z.string()),
-  location: z.string(),
-  industry: z.string(),
-  notes: z.string(),
+  keywords: z.string().max(5000),
+  competitors: z.array(z.string().max(2048)).max(10),
+  location: z.string().max(200),
+  industry: z.string().max(200),
+  notes: z.string().max(2000),
   analysis: z.any(),
   /** Phase 6 — pre-crawled competitor profiles from /api/seo-strategy/competitor-analyze, one per input.competitors entry that resolved. Optional/untyped here (validated shape-wise by the crawler route itself) so an older client that hasn't crawled competitors yet still works — competitorIntelligence just comes back empty. */
   competitorProfiles: z.array(z.any()).optional(),
