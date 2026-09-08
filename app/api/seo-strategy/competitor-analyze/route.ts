@@ -11,7 +11,7 @@
 // that fails to resolve) returns status: 'not_evaluated' with zero
 // fabricated counts, rather than guessing.
 // ──────────────────────────────────────────────────────────────────────────
-import { analyzeHtml, extractInternalLinks, fetchWithTimeout, normalizeUrl } from '../analyze/route'
+import { analyzeHtml, extractInternalLinks, fetchWithTimeout, normalizeUrl, isSafeCrawlTarget } from '../analyze/route'
 import { mapWithConcurrency } from '@/lib/shared/crawl'
 import { classifyCompetitorPage, type CompetitorPageType } from '@/lib/seo-strategy/competitor-classify'
 import type { ConfidenceLevel } from '@/lib/seo-strategy/types'
@@ -81,6 +81,10 @@ export async function POST(req: Request) {
       baseUrl = new URL(normalized)
     } catch {
       return Response.json({ profile: notEvaluatedProfile(url, 'Invalid URL.') })
+    }
+
+    if (!(await isSafeCrawlTarget(baseUrl))) {
+      return Response.json({ profile: notEvaluatedProfile(url, 'That URL cannot be crawled.') })
     }
 
     const home = await fetchWithTimeout(normalized, 12000)

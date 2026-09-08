@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import { lookup as dnsLookup } from 'node:dns/promises'
 import { mapWithConcurrency } from '@/lib/shared/crawl'
 
 export const maxDuration = 60
@@ -344,6 +345,58 @@ export function normalizeUrl(input: string): string {
     url = `https://${url}`
   }
   return url
+}
+
+// ---------------------------------------------------------------------------
+// Phase 16 — SSRF hardening. This tool fetches an arbitrary user-supplied
+// URL (the target site AND every competitor URL) server-side; without a
+// check, a malicious input could make the server fetch an internal
+// service, a cloud metadata endpoint, or another host on the same private
+// network. Checked ONCE per distinct origin (the site/competitor homepage)
+// before any request is made — every subsequent page fetched during that
+// same crawl is already filtered to the SAME hostname by
+// extractInternalLinks' same-host rule, so re-checking per page would only
+// repeat the same DNS lookup for no added safety.
+// ---------------------------------------------------------------------------
+function isPrivateOrReservedIPv4(ip: string): boolean {
+  const parts = ip.split('.').map(Number)
+  if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return false
+  const [a, b] = parts
+  if (a === 0 || a === 10 || a === 127) return true
+  if (a === 169 && b === 254) return true // link-local + cloud metadata (169.254.169.254)
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 192 && b === 168) return true
+  if (a === 100 && b >= 64 && b <= 127) return true // CGNAT
+  return false
+}
+
+function isPrivateOrReservedIPv6(ip: string): boolean {
+  const lower = ip.toLowerCase().replace(/^\[|\]$/g, '')
+  if (lower === '::1' || lower === '::') return true
+  if (lower.startsWith('fc') || lower.startsWith('fd')) return true // fc00::/7 unique local
+  if (/^fe[89ab]/.test(lower)) return true // fe80::/10 link-local
+  if (lower.startsWith('::ffff:')) return isPrivateOrReservedIPv4(lower.slice('::ffff:'.length))
+  return false
+}
+
+const BLOCKED_HOSTNAME_RE = /(^localhost$|\.local$|\.internal$|\.localdomain$)/i
+
+/** Resolves `url`'s hostname and rejects anything pointing at a loopback/private/link-local/reserved address — including via DNS, not just a literal IP in the URL — before this server ever fetches it. Fails OPEN (returns true) only when DNS resolution itself fails, since that failure will just surface as the crawler's own normal dns_error path. */
+export async function isSafeCrawlTarget(url: URL): Promise<boolean> {
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+  const hostname = url.hostname
+  if (BLOCKED_HOSTNAME_RE.test(hostname)) return false
+  if (isPrivateOrReservedIPv4(hostname) || isPrivateOrReservedIPv6(hostname)) return false
+  try {
+    const records = await dnsLookup(hostname, { all: true, verbatim: true })
+    for (const r of records) {
+      if (r.family === 4 && isPrivateOrReservedIPv4(r.address)) return false
+      if (r.family === 6 && isPrivateOrReservedIPv6(r.address)) return false
+    }
+  } catch {
+    return true
+  }
+  return true
 }
 
 export type FetchPageOutcome =
@@ -1303,6 +1356,10 @@ export async function POST(req: Request) {
       baseUrl = new URL(normalized)
     } catch {
       return Response.json({ error: 'Invalid URL' }, { status: 400 })
+    }
+
+    if (!(await isSafeCrawlTarget(baseUrl))) {
+      return Response.json({ error: 'That URL cannot be crawled.' }, { status: 400 })
     }
 
     // Fetch homepage
