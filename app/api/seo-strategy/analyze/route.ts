@@ -227,7 +227,83 @@ export interface SiteAnalysis {
   }[]
   /** Phase 5 — sitemap health: a bounded set of sitemap URLs status-checked, plus cross-referenced against crawled pages for noindex/canonical issues. Null when no sitemap was found at all. */
   sitemapAudit: SitemapAuditResult | null
+  /**
+   * Phase 15 — structured, user-safe reasons for every URL the crawl
+   * attempted but could not fetch (never a raw exception/stack trace).
+   * Bounded to CRAWL_CONFIG.maxReportedFailures — `crawlStats.failed` is
+   * always the real total even when this list is truncated. A URL here
+   * was never analyzed and never contributes an SEO finding of any kind.
+   */
+  failedUrls: { url: string; reason: CrawlErrorReason }[]
 }
+
+/**
+ * Phase 15 — structured crawl-failure classification, derived from the
+ * caught error (never the raw message/stack) so the report and any
+ * user-facing copy can explain what happened without leaking technical
+ * internals. `unknown` is the safe fallback — never guessed as something
+ * more specific than the evidence supports.
+ */
+export type CrawlErrorReason =
+  | 'timeout'
+  | 'dns_error'
+  | 'connection_error'
+  | 'ssl_error'
+  | 'redirect_loop'
+  | 'redirect_limit'
+  | 'invalid_url'
+  | 'http_4xx'
+  | 'http_5xx'
+  | 'unknown'
+
+export function classifyFetchError(err: unknown): CrawlErrorReason {
+  if (err instanceof DOMException && err.name === 'TimeoutError') return 'timeout'
+  if (!(err instanceof Error)) return 'unknown'
+  if (err.name === 'AbortError' || err.name === 'TimeoutError') return 'timeout'
+  const cause = (err as { cause?: unknown }).cause
+  const causeCode = cause && typeof cause === 'object' && 'code' in cause ? String((cause as { code?: unknown }).code ?? '') : ''
+  const msg = err.message.toLowerCase()
+  if (causeCode === 'ENOTFOUND' || causeCode === 'EAI_AGAIN' || msg.includes('getaddrinfo') || msg.includes('dns')) return 'dns_error'
+  if (causeCode.startsWith('ERR_TLS') || causeCode.startsWith('CERT_') || msg.includes('certificate') || msg.includes('ssl') || msg.includes('tls')) return 'ssl_error'
+  if (causeCode === 'ECONNREFUSED' || causeCode === 'ECONNRESET' || causeCode === 'EPIPE' || msg.includes('econnrefused') || msg.includes('econnreset') || msg.includes('network')) {
+    return 'connection_error'
+  }
+  if (msg.includes('invalid url') || msg.includes('failed to parse url')) return 'invalid_url'
+  return 'unknown'
+}
+
+/** Whether a classified failure is worth one retry — a permanent condition (DNS/SSL/invalid URL) never is, since retrying it wastes the route's time budget for a result that cannot change. */
+export function isRetryableReason(reason: CrawlErrorReason): boolean {
+  return reason === 'timeout' || reason === 'connection_error' || reason === 'http_5xx'
+}
+
+/**
+ * Phase 15 — centralized crawl limits/timeouts (spec §1). Previously these
+ * were scattered magic numbers across this file; consolidating them here
+ * makes the crawl's actual behavior auditable in one place and easy to
+ * tune conservatively for the route's 60s serverless budget (maxDuration
+ * above) without hunting through every helper.
+ */
+export const CRAWL_CONFIG = {
+  quick: { discoverCap: 12, crawlCap: 8 },
+  full: { discoverCap: 60, crawlCap: 40 },
+  /** Main page-fetch timeout for homepage + every crawled page. */
+  requestTimeoutMs: 12000,
+  homepageTimeoutMs: 15000,
+  /** Shorter timeout for bounded auxiliary probes (images, link-status checks, redirect-hop tracing, robots/sitemap fetches) — these run many-at-once, so a slow one must fail fast. */
+  auxTimeoutMs: 5000,
+  sitemapTimeoutMs: 6000,
+  sitemapMaxUrls: 200,
+  redirectTraceLimit: 15,
+  redirectMaxHops: 5,
+  /** Bounded parallelism against the TARGET site — high enough to be far faster than serial fetching, low enough not to look like a burst/DoS against a small server. */
+  crawlConcurrency: 5,
+  auxConcurrency: 6,
+  /** One retry only, and only for a classified-transient failure (see isRetryableReason) — never for a permanent condition, and never more than once so a genuinely dead site still fails fast within the time budget. */
+  retryAttempts: 1,
+  /** How many individual failure reasons are surfaced in the report — crawlStats.failed is always the true count even when this list is truncated. */
+  maxReportedFailures: 20,
+} as const
 
 // ---------------------------------------------------------------------------
 // Phase 5 — sitemap audit + redirect tracing types
@@ -270,34 +346,90 @@ export function normalizeUrl(input: string): string {
   return url
 }
 
+export type FetchPageOutcome =
+  | { ok: true; html: string; status: number; finalUrl: string; loadTimeMs: number; byteSize: number; headers: Record<string, string> }
+  | { ok: false; reason: CrawlErrorReason }
+
+/**
+ * Phase 15 — the main page fetch. A slow/unreachable URL must never block
+ * the rest of the audit: every failure is classified (never surfaced as a
+ * raw exception) and a genuinely transient one (timeout, connection
+ * error, or a 5xx response) gets exactly one retry — a permanent
+ * condition (DNS failure, SSL failure, a 4xx response) never does, since
+ * retrying it can't change the outcome and would just burn the route's
+ * time budget.
+ */
 export async function fetchWithTimeout(
   url: string,
-  timeoutMs = 12000,
-): Promise<{ html: string; status: number; finalUrl: string; loadTimeMs: number; byteSize: number; headers: Record<string, string> } | null> {
-  try {
-    const start = Date.now()
-    const res = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml' },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(timeoutMs),
-    })
-    const html = await res.text()
-    const headers: Record<string, string> = {}
-    res.headers.forEach((value, key) => { headers[key.toLowerCase()] = value })
-    return {
-      html,
-      status: res.status,
-      finalUrl: res.url || url,
-      loadTimeMs: Date.now() - start,
-      byteSize: new Blob([html]).size,
-      headers,
+  timeoutMs: number = CRAWL_CONFIG.requestTimeoutMs,
+  retries: number = CRAWL_CONFIG.retryAttempts,
+): Promise<FetchPageOutcome> {
+  let lastReason: CrawlErrorReason = 'unknown'
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const start = Date.now()
+      const res = await fetch(url, {
+        headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      if (res.status >= 500 && res.status < 600 && attempt < retries) {
+        lastReason = 'http_5xx'
+        console.warn(`[seo-strategy] retrying ${url} after HTTP ${res.status} (attempt ${attempt + 1}/${retries})`)
+        continue
+      }
+      const html = await res.text()
+      const headers: Record<string, string> = {}
+      res.headers.forEach((value, key) => { headers[key.toLowerCase()] = value })
+      return {
+        ok: true,
+        html,
+        status: res.status,
+        finalUrl: res.url || url,
+        loadTimeMs: Date.now() - start,
+        byteSize: new Blob([html]).size,
+        headers,
+      }
+    } catch (err) {
+      const reason = classifyFetchError(err)
+      lastReason = reason
+      if (attempt < retries && isRetryableReason(reason)) {
+        console.warn(`[seo-strategy] retrying ${url} after ${reason} (attempt ${attempt + 1}/${retries})`)
+        continue
+      }
+      return { ok: false, reason }
     }
-  } catch {
-    return null
+  }
+  return { ok: false, reason: lastReason }
+}
+
+/** Maps a structured crawl failure to a concise, non-technical sentence — never a raw exception/stack trace (Phase 15 spec §12). */
+export function userSafeCrawlErrorMessage(reason: CrawlErrorReason): string {
+  switch (reason) {
+    case 'timeout':
+      return 'We could not crawl this website because the server took too long to respond.'
+    case 'dns_error':
+      return 'We could not reach this website — the domain could not be found. Please check the URL.'
+    case 'ssl_error':
+      return 'We could not crawl this website because of a security certificate (SSL) problem.'
+    case 'connection_error':
+      return 'We could not crawl this website because the server did not respond.'
+    case 'redirect_loop':
+      return 'This website redirects in a loop and could not be crawled.'
+    case 'redirect_limit':
+      return 'This website has too many redirects and could not be crawled.'
+    case 'invalid_url':
+      return 'That does not look like a valid website URL.'
+    case 'http_4xx':
+      return 'We could not crawl this website — the page could not be found.'
+    case 'http_5xx':
+      return 'We could not crawl this website because its server returned an error.'
+    default:
+      return 'We could not crawl this website. Please check the URL and try again.'
   }
 }
 
-async function fetchText(url: string, timeoutMs = 8000): Promise<string | null> {
+async function fetchText(url: string, timeoutMs: number = CRAWL_CONFIG.auxTimeoutMs): Promise<string | null> {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
@@ -416,7 +548,7 @@ interface ImageProbeResult {
 }
 
 /** Downloads at most IMAGE_PROBE_MAX_BYTES of an image (via Range, with a client-side cap even if the server ignores it) to get its real file size and — best-effort — intrinsic pixel dimensions, without downloading full-size hero images wholesale. */
-async function probeImage(url: string, timeoutMs = 5000): Promise<ImageProbeResult> {
+async function probeImage(url: string, timeoutMs: number = CRAWL_CONFIG.auxTimeoutMs): Promise<ImageProbeResult> {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT, Range: `bytes=0-${IMAGE_PROBE_MAX_BYTES - 1}` },
@@ -456,7 +588,7 @@ async function probeImage(url: string, timeoutMs = 5000): Promise<ImageProbeResu
 }
 
 /** HEAD-only status check for internal links whose targets weren't already fully crawled — bounded and short-timeout so a handful of slow/dead links can't blow the route's time budget. Falls back to GET if the server rejects HEAD (some misconfigured servers do). */
-async function checkLinkStatus(url: string, timeoutMs = 5000): Promise<number | null> {
+async function checkLinkStatus(url: string, timeoutMs: number = CRAWL_CONFIG.auxTimeoutMs): Promise<number | null> {
   try {
     const res = await fetch(url, {
       method: 'HEAD',
@@ -488,8 +620,8 @@ async function checkLinkStatus(url: string, timeoutMs = 5000): Promise<number | 
  */
 async function traceUrlStatus(
   url: string,
-  timeoutMs = 5000,
-  maxHops = 5,
+  timeoutMs: number = CRAWL_CONFIG.auxTimeoutMs,
+  maxHops: number = CRAWL_CONFIG.redirectMaxHops,
 ): Promise<{ initialStatus: number | null; finalStatus: number | null; finalUrl: string; hops: { status: number; location: string }[]; isLoop: boolean }> {
   const hops: { status: number; location: string }[] = []
   const seen = new Set<string>()
@@ -841,10 +973,42 @@ export function analyzeHtml(
   }
 }
 
+/** Common tracking query params that never change what page is actually served — stripped before dedup so `?utm_source=...` variants of the same page aren't queued as separate crawl targets (Phase 15 spec §4). Everything else is left alone, since a query param CAN represent genuinely distinct content (e.g. `?category=`) and blindly stripping every param risks merging real pages together. */
+const TRACKING_QUERY_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
+  'fbclid', 'gclid', 'msclkid', 'mc_cid', 'mc_eid', 'ref', 'ref_src', 'igshid', '_ga',
+])
+
+/** Bound on unique internal links collected from a single page's own `<a>` tags — a pathological page (link farm, infinite calendar widget) could otherwise produce thousands of "distinct" links before the crawl-mode cap ever gets a chance to trim the list (Phase 15 spec §16 resource safety). Comfortably above any real discovery cap (see CRAWL_CONFIG). */
+const MAX_LINKS_PER_PAGE = 500
+
+/** Normalizes a discovered link so the same page is never queued twice under a fragment/tracking-param/trailing-slash/http-vs-https variant (Phase 15 spec §4). Returns null for a cross-domain, non-http(s), or unparseable link. */
+export function normalizeInternalLink(href: string, baseUrl: URL): string | null {
+  try {
+    const u = new URL(href, baseUrl.href)
+    if (u.hostname !== baseUrl.hostname) return null
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+    // Normalize scheme to the site's own — the same page under http:// and
+    // https:// is the same crawl target, not two.
+    u.protocol = baseUrl.protocol
+    u.hash = ''
+    for (const key of Array.from(u.searchParams.keys())) {
+      if (TRACKING_QUERY_PARAMS.has(key.toLowerCase())) u.searchParams.delete(key)
+    }
+    // Normalize trailing slash — "/about" and "/about/" are the same page —
+    // but never touch the root path itself.
+    if (u.pathname.length > 1 && u.pathname.endsWith('/')) u.pathname = u.pathname.slice(0, -1)
+    return u.toString()
+  } catch {
+    return null
+  }
+}
+
 export function extractInternalLinks(html: string, baseUrl: URL): string[] {
   const $ = cheerio.load(html)
   const links = new Set<string>()
   $('a[href]').each((_, el) => {
+    if (links.size >= MAX_LINKS_PER_PAGE) return
     const href = $(el).attr('href') || ''
     if (
       !href ||
@@ -854,17 +1018,11 @@ export function extractInternalLinks(html: string, baseUrl: URL): string[] {
       href.startsWith('javascript:')
     )
       return
-    try {
-      const u = new URL(href, baseUrl.href)
-      if (u.hostname !== baseUrl.hostname) return
-      // Strip hash & query for dedup
-      u.hash = ''
-      // Skip common non-page assets
-      if (/\.(jpg|jpeg|png|gif|svg|webp|pdf|zip|mp4|mp3|css|js|ico)$/i.test(u.pathname)) return
-      links.add(u.toString())
-    } catch {
-      /* ignore */
-    }
+    const normalized = normalizeInternalLink(href, baseUrl)
+    if (!normalized) return
+    // Skip common non-page assets
+    if (/\.(jpg|jpeg|png|gif|svg|webp|pdf|zip|mp4|mp3|css|js|ico)$/i.test(new URL(normalized).pathname)) return
+    links.add(normalized)
   })
   return Array.from(links)
 }
@@ -912,7 +1070,6 @@ async function checkRobotsTxt(baseUrl: URL) {
 }
 
 const SITEMAP_MAX_CHILD_SITEMAPS = 5
-const SITEMAP_MAX_URLS = 200
 
 /** A sitemap's <loc> entries are attacker-influenceable content (a misconfigured or malicious sitemap), so every entry — page URL or child-sitemap URL alike — is restricted to safe http(s) URLs on the SAME host being audited before this server ever fetches it or hands it back as a crawl target. */
 function isSameSiteHttpUrl(candidate: string, siteHostname: string): boolean {
@@ -926,7 +1083,7 @@ function isSameSiteHttpUrl(candidate: string, siteHostname: string): boolean {
 
 /** Fetches one sitemap document; if it's a sitemap INDEX (not a plain urlset), recurses into a bounded number of child sitemaps so `allUrls` always ends up as actual page URLs, never sub-sitemap URLs. Every URL is filtered to `siteHostname` — see isSameSiteHttpUrl(). */
 async function fetchSitemapUrls(sitemapUrl: string, siteHostname: string, depth = 0): Promise<string[]> {
-  const content = await fetchText(sitemapUrl, 8000)
+  const content = await fetchText(sitemapUrl, CRAWL_CONFIG.sitemapTimeoutMs)
   if (!content) return []
   const locs = Array.from(content.matchAll(/<loc>([^<]+)<\/loc>/g))
     .map((m) => m[1].trim())
@@ -935,9 +1092,9 @@ async function fetchSitemapUrls(sitemapUrl: string, siteHostname: string, depth 
     if (depth >= 1) return [] // one level of recursion is enough for the sites this tool targets
     const childSitemaps = locs.slice(0, SITEMAP_MAX_CHILD_SITEMAPS)
     const childResults = await Promise.all(childSitemaps.map((u) => fetchSitemapUrls(u, siteHostname, depth + 1)))
-    return childResults.flat().slice(0, SITEMAP_MAX_URLS)
+    return childResults.flat().slice(0, CRAWL_CONFIG.sitemapMaxUrls)
   }
-  if (content.includes('<urlset')) return locs.slice(0, SITEMAP_MAX_URLS)
+  if (content.includes('<urlset')) return locs.slice(0, CRAWL_CONFIG.sitemapMaxUrls)
   return []
 }
 
@@ -971,7 +1128,7 @@ async function checkHtmlSitemap(baseUrl: URL) {
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': USER_AGENT },
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(CRAWL_CONFIG.sitemapTimeoutMs),
       })
       if (res.ok) return { found: true, url: res.url }
     } catch {
@@ -983,6 +1140,47 @@ async function checkHtmlSitemap(baseUrl: URL) {
 
 const SITEMAP_STATUS_CHECK_LIMIT = 30
 const SITEMAP_FLAGGED_URL_LIMIT = 20
+
+// ---------------------------------------------------------------------------
+// Phase 15 §3 — URL prioritization. When a crawl-mode cap means not every
+// discovered URL gets crawled, the pages actually worth auditing (service/
+// location pages, shallow nav-linked pages) should be the ones kept —
+// never a same-order-as-discovered truncation that could drop a real
+// service page in favor of a deep pagination/utility URL. A stable sort
+// (Array.prototype.sort is stable per spec) preserves the original
+// relative order within each priority tier, so results stay deterministic
+// across runs of the same crawl.
+// ---------------------------------------------------------------------------
+const UTILITY_PATH_HINTS = /\/(privacy|privacy-policy|terms|terms-of-service|cookie|cookies|sitemap|login|signin|sign-in|signup|sign-up|register|cart|checkout|my-account|account|wp-admin|wp-login|feed|rss|search|tag|tags|author|category\/page|page\/\d+)(\/|$)/i
+const SERVICE_PATH_HINTS = /\/(services?|products?|solutions?)(\/|$)/i
+const LOCATION_PATH_HINTS = /\/(location|locations|areas?-we-cover|service-area|service-areas|near-me)(\/|$)/i
+/** Common tracking/session query params that mark a URL as a lower-value duplicate-ish variant for prioritization purposes (already stripped for same-page links by normalizeInternalLink; sitemap-sourced URLs bypass that, so this is checked again here). */
+const TRACKING_OR_SESSION_QUERY_RE = /[?&](utm_|fbclid|gclid|msclkid|sessionid|phpsessid)/i
+
+export function scoreUrlPriority(url: string): number {
+  let path: string
+  try {
+    const u = new URL(url)
+    path = u.pathname.toLowerCase()
+    if (TRACKING_OR_SESSION_QUERY_RE.test(u.search)) return 1
+  } catch {
+    return 1
+  }
+  if (UTILITY_PATH_HINTS.test(path)) return 1
+  if (SERVICE_PATH_HINTS.test(path)) return 6
+  if (LOCATION_PATH_HINTS.test(path)) return 5
+  // Shallower paths are more likely to be important, nav-linked pages than deep/paginated ones.
+  const depth = path.split('/').filter(Boolean).length
+  return Math.max(2, 4 - depth)
+}
+
+/** Stable-sorts discovered URLs by priority tier (spec §3) without reordering within a tier, so the crawl-mode cap keeps the most useful pages first instead of an arbitrary discovery-order truncation. */
+export function prioritizeUrls(urls: string[]): string[] {
+  return urls
+    .map((url, index) => ({ url, index, score: scoreUrlPriority(url) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((x) => x.url)
+}
 
 function stripTrailingSlash(url: string): string {
   return url.replace(/\/$/, '')
@@ -1007,7 +1205,7 @@ async function auditSitemap(
   disallowsAll: boolean,
 ): Promise<SitemapAuditResult> {
   const toCheck = sitemapUrls.slice(0, SITEMAP_STATUS_CHECK_LIMIT)
-  const traces = await mapWithConcurrency(toCheck, 6, (u) => traceUrlStatus(u))
+  const traces = await mapWithConcurrency(toCheck, CRAWL_CONFIG.auxConcurrency, (u) => traceUrlStatus(u))
 
   let valid200 = 0
   let redirects = 0
@@ -1088,14 +1286,8 @@ async function auditSitemap(
 }
 
 // ---------------------------------------------------------------------------
-// Main analyze handler
+// Main analyze handler — all crawl limits/timeouts live in CRAWL_CONFIG above.
 // ---------------------------------------------------------------------------
-const QUICK_DISCOVER_CAP = 12
-const QUICK_CRAWL_CAP = 8
-const FULL_DISCOVER_CAP = 60
-const FULL_CRAWL_CAP = 40
-/** Bound on how many redirected pages get their full chain traced (see traceUrlStatus) — the redirect itself is already known from the main crawl fetch; this only bounds the extra diagnostic hop-tracing requests. */
-const REDIRECT_TRACE_LIMIT = 15
 
 export async function POST(req: Request) {
   try {
@@ -1114,12 +1306,12 @@ export async function POST(req: Request) {
     }
 
     // Fetch homepage
-    const home = await fetchWithTimeout(normalized, 15000)
-    if (!home) {
-      return Response.json(
-        { error: 'Could not fetch the website. Check the URL or its accessibility.' },
-        { status: 502 },
-      )
+    const crawlStartedAt = Date.now()
+    console.log(`[seo-strategy] crawl started: ${normalized} (mode=${crawlMode})`)
+    const home = await fetchWithTimeout(normalized, CRAWL_CONFIG.homepageTimeoutMs)
+    if (!home.ok) {
+      console.warn(`[seo-strategy] crawl failed at homepage: ${normalized} — ${home.reason}`)
+      return Response.json({ error: userSafeCrawlErrorMessage(home.reason) }, { status: 502 })
     }
 
     const finalUrl = home.finalUrl
@@ -1157,25 +1349,28 @@ export async function POST(req: Request) {
     if (crawlMode === 'full') {
       const sitemapPageUrls = sitemapXml.allUrls.filter((u) => u !== finalUrl)
       const source = sitemapPageUrls.length > 0 ? sitemapPageUrls : allDiscoveredLinks
-      internalLinks = source.slice(0, FULL_DISCOVER_CAP)
+      internalLinks = prioritizeUrls(source).slice(0, CRAWL_CONFIG.full.discoverCap)
     } else {
-      internalLinks = allDiscoveredLinks.slice(0, QUICK_DISCOVER_CAP)
+      internalLinks = prioritizeUrls(allDiscoveredLinks).slice(0, CRAWL_CONFIG.quick.discoverCap)
     }
 
-    // Crawl the selected internal pages in parallel, tracking success/
-    // failure/redirect per URL so crawl coverage can be reported honestly
-    // instead of silently dropping failed fetches.
-    const toCrawl = internalLinks.slice(0, crawlMode === 'full' ? FULL_CRAWL_CAP : QUICK_CRAWL_CAP)
-    const crawlResults = await Promise.all(
-      toCrawl.map(async (url) => {
-        const r = await fetchWithTimeout(url, 10000)
-        if (!r) return { url, ok: false as const }
-        const page = analyzeHtml(url, r.html, r.status, r.loadTimeMs, r.byteSize, finalBase, r.headers['x-robots-tag'] ?? null)
-        return { url, ok: true as const, page, redirected: stripTrailingSlash(r.finalUrl) !== stripTrailingSlash(url) }
-      }),
-    )
+    // Crawl the selected internal pages with BOUNDED concurrency (Phase 15
+    // spec §5) — never one-at-a-time (unnecessarily slow), never fully
+    // unbounded parallel (a request burst against the target site).
+    // Tracks success/failure/redirect + a classified failure reason per
+    // URL so crawl coverage can be reported honestly instead of silently
+    // dropping failed fetches.
+    const toCrawl = internalLinks.slice(0, crawlMode === 'full' ? CRAWL_CONFIG.full.crawlCap : CRAWL_CONFIG.quick.crawlCap)
+    const crawlResults = await mapWithConcurrency(toCrawl, CRAWL_CONFIG.crawlConcurrency, async (url) => {
+      const r = await fetchWithTimeout(url, CRAWL_CONFIG.requestTimeoutMs)
+      if (!r.ok) return { url, ok: false as const, reason: r.reason }
+      const page = analyzeHtml(url, r.html, r.status, r.loadTimeMs, r.byteSize, finalBase, r.headers['x-robots-tag'] ?? null)
+      return { url, ok: true as const, page, redirected: stripTrailingSlash(r.finalUrl) !== stripTrailingSlash(url) }
+    })
     const pageAnalyses: PageAnalysis[] = crawlResults.filter((c): c is Extract<typeof c, { ok: true }> => c.ok).map((c) => c.page)
-    const failedCrawlCount = crawlResults.filter((c) => !c.ok).length
+    const failedCrawlResults = crawlResults.filter((c): c is Extract<typeof c, { ok: false }> => !c.ok)
+    const failedCrawlCount = failedCrawlResults.length
+    const failedUrls: SiteAnalysis['failedUrls'] = failedCrawlResults.slice(0, CRAWL_CONFIG.maxReportedFailures).map((c) => ({ url: c.url, reason: c.reason }))
     const redirectedCrawlUrls = crawlResults.filter((c): c is Extract<typeof c, { ok: true }> => c.ok && c.redirected).map((c) => c.url)
 
     const allPages = [homepageAnalysis, ...pageAnalyses]
@@ -1189,8 +1384,8 @@ export async function POST(req: Request) {
     // with zero real redirects — compare with trailing slashes stripped so
     // that alone isn't counted as a redirect.
     const homeRedirected = stripTrailingSlash(home.finalUrl) !== stripTrailingSlash(normalized)
-    const urlsToTrace = [...(homeRedirected ? [normalized] : []), ...redirectedCrawlUrls].slice(0, REDIRECT_TRACE_LIMIT)
-    const redirectTraces = await mapWithConcurrency(urlsToTrace, 6, (u) => traceUrlStatus(u))
+    const urlsToTrace = [...(homeRedirected ? [normalized] : []), ...redirectedCrawlUrls].slice(0, CRAWL_CONFIG.redirectTraceLimit)
+    const redirectTraces = await mapWithConcurrency(urlsToTrace, CRAWL_CONFIG.auxConcurrency, (u) => traceUrlStatus(u))
     const redirects: SiteAnalysis['redirects'] = urlsToTrace
       .map((source, i) => ({ source, finalUrl: redirectTraces[i].finalUrl, hops: redirectTraces[i].hops, isLoop: redirectTraces[i].isLoop }))
       .filter((r) => r.hops.length > 0 || r.isLoop)
@@ -1204,7 +1399,7 @@ export async function POST(req: Request) {
     const uniqueImageUrls = Array.from(
       new Set(allPages.flatMap((p) => p.images.map((img) => img.finalUrl).filter((u): u is string => u !== null))),
     ).slice(0, 30)
-    const probeResults = await mapWithConcurrency(uniqueImageUrls, 6, (imgUrl) => probeImage(imgUrl))
+    const probeResults = await mapWithConcurrency(uniqueImageUrls, CRAWL_CONFIG.auxConcurrency, (imgUrl) => probeImage(imgUrl))
     const probeByUrl = new Map(uniqueImageUrls.map((imgUrl, i) => [imgUrl, probeResults[i]]))
     for (const page of allPages) {
       for (const img of page.images) {
@@ -1229,7 +1424,7 @@ export async function POST(req: Request) {
     const uncrawledLinkTargets = Array.from(
       new Set(allPages.flatMap((p) => p.linkDetails.map((l) => l.href)).filter((href) => !crawledUrlSet.has(href))),
     ).slice(0, 30)
-    const linkStatusResults = await mapWithConcurrency(uncrawledLinkTargets, 6, (href) => checkLinkStatus(href))
+    const linkStatusResults = await mapWithConcurrency(uncrawledLinkTargets, CRAWL_CONFIG.auxConcurrency, (href) => checkLinkStatus(href))
     const linkStatusByUrl = new Map(uncrawledLinkTargets.map((href, i) => [href, linkStatusResults[i]]))
 
     const brokenInternalLinks: SiteAnalysis['brokenInternalLinks'] = []
@@ -1335,12 +1530,18 @@ export async function POST(req: Request) {
       crawlStats,
       redirects,
       sitemapAudit,
+      failedUrls,
     }
+
+    console.log(
+      `[seo-strategy] crawl completed: ${finalBase.hostname} (mode=${crawlMode}) — ` +
+        `discovered=${crawlStats.discovered} crawled=${crawlStats.crawled} failed=${crawlStats.failed} ` +
+        `excluded=${crawlStats.excluded} in ${Date.now() - crawlStartedAt}ms`,
+    )
 
     return Response.json({ analysis })
   } catch (err) {
     console.error('[v0] Site analysis error:', err)
-    const message = err instanceof Error ? err.message : 'Analysis failed'
-    return Response.json({ error: message }, { status: 500 })
+    return Response.json({ error: 'We could not complete the site analysis. Please check the URL and try again.' }, { status: 500 })
   }
 }

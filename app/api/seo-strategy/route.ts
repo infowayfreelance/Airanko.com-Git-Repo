@@ -902,9 +902,7 @@ Hard rules — a later automated validation pass checks these and will overwrite
     return Response.json({ strategy: correctedStrategy, ...(debug ? { debug } : {}) })
   } catch (err) {
     console.error('[v0] SEO strategy generation error:', err)
-    const message =
-      err instanceof Error ? err.message : 'Failed to generate strategy'
-    return Response.json({ error: message }, { status: 500 })
+    return Response.json({ error: 'We could not finish building your SEO strategy. Please try again in a moment.' }, { status: 500 })
   }
 }
 
