@@ -84,6 +84,19 @@ export default function PortfolioRecorderTool() {
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null)
   const [canControlDom, setCanControlDom] = useState(false)
   const [iframeExpanded, setIframeExpanded] = useState(false)
+  // Loading the site through our own server (via the existing website-cloner
+  // endpoint, which fetches the HTML, rewrites relative URLs to absolute,
+  // and strips framing-blocking headers) makes the iframe genuinely
+  // same-origin with this page. That's what actually fixes full-page
+  // recording: real height detection and real scrollTo() work for almost
+  // any site, so the iframe never needs to be inflated to a guessed height
+  // at all — which is what was corrupting any site using vh-based CSS
+  // (100vh hero/full-screen sections), since inflating the iframe also
+  // inflates every vh value inside it. Falls back to the old direct
+  // cross-origin embed + estimate only if this fetch itself fails.
+  const [proxyHtml, setProxyHtml]     = useState<string | null>(null)
+  const [proxyStatus, setProxyStatus] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle')
+  const proxyRequestIdRef = useRef(0)
 
   const viewportRef        = useRef<HTMLDivElement>(null)
   const iframeRef          = useRef<HTMLIFrameElement>(null)
@@ -154,6 +167,38 @@ export default function PortfolioRecorderTool() {
     canControlDomRef.current = false
     setCanControlDom(false)
     if (iframeRef.current) iframeRef.current.style.transform = 'translateY(0px)'
+
+    setProxyHtml(null)
+    setProxyStatus('loading')
+    const requestId = ++proxyRequestIdRef.current
+    fetchProxiedHtml(valid).then((html) => {
+      if (proxyRequestIdRef.current !== requestId) return // a newer load superseded this one
+      if (html) {
+        setProxyHtml(html)
+        setProxyStatus('ready')
+      } else {
+        setProxyStatus('failed')
+      }
+    })
+  }
+
+  // Fetches the target page through the existing website-cloner endpoint —
+  // it already fetches HTML server-side, rewrites relative URLs to
+  // absolute, and strips X-Frame-Options/CSP meta tags. Returns null (never
+  // throws) on any failure so the caller can fall back to a direct embed.
+  async function fetchProxiedHtml(targetUrl: string): Promise<string | null> {
+    try {
+      const res = await fetch('/api/website-cloner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl }),
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      return typeof data.html === 'string' && data.html.length > 0 ? data.html : null
+    } catch {
+      return null
+    }
   }
 
   function backToSetup() {
@@ -167,6 +212,9 @@ export default function PortfolioRecorderTool() {
     setIframeExpanded(false)
     setElapsed(0)
     setPreloadProgress(0)
+    proxyRequestIdRef.current++ // invalidate any in-flight fetch
+    setProxyHtml(null)
+    setProxyStatus('idle')
   }
 
   function clearMeasureTimeouts() {
@@ -337,7 +385,7 @@ export default function PortfolioRecorderTool() {
   }, [duration, easing])
 
   async function beginRecording() {
-    if (!loadedUrl) return
+    if (!loadedUrl || proxyStatus === 'loading') return
     setError(null)
 
     // ── Phase 1: settle, reveal lazy content, reset to the exact top ──────
@@ -592,10 +640,23 @@ export default function PortfolioRecorderTool() {
                 different URL, a staging link, or your own deployment.
               </p>
             </div>
+          ) : proxyStatus === 'loading' ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 bg-muted px-8 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="font-heading font-semibold text-foreground">Fetching website…</p>
+            </div>
           ) : (
             <iframe
               ref={iframeRef}
-              src={loadedUrl ?? undefined}
+              // Loaded via srcDoc (proxied, rewritten HTML) whenever the
+              // fetch succeeded — this makes the iframe genuinely
+              // same-origin (allow-same-origin below), so real height
+              // detection and real scrollTo() work for almost any site.
+              // Only falls back to a direct cross-origin src when the
+              // proxy fetch itself failed.
+              {...(proxyStatus === 'ready' && proxyHtml
+                ? { srcDoc: proxyHtml }
+                : { src: loadedUrl ?? undefined })}
               title="Website preview"
               onError={() => setIframeError(true)}
               onLoad={() => scheduleHeightRechecks()}
@@ -916,11 +977,13 @@ export default function PortfolioRecorderTool() {
               {devicePreview}
 
               <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
-                {canControlDom
+                {proxyStatus === 'ready' && canControlDom
                   ? `Real page height detected (~${measuredHeight}px) — the video will scroll the actual page from top to bottom.`
-                  : measuredHeight
+                  : proxyStatus === 'failed' && measuredHeight
                     ? `This site's DOM isn't directly readable (cross-origin), but the real rendered height was measured (~${measuredHeight}px) and is used automatically.`
-                    : "This site's real height isn't readable from the browser (cross-origin) — using the \"" + pageLengths[pageLength].label + '" preset as a safe estimate.'}
+                    : proxyStatus === 'failed'
+                      ? "Couldn't load this site through our server, and its real height isn't readable from the browser either — using the \"" + pageLengths[pageLength].label + '" preset as a safe estimate.'
+                      : 'Detecting the real page height…'}
               </p>
 
               {recordedVideoCard}
@@ -944,7 +1007,7 @@ export default function PortfolioRecorderTool() {
                 ) : stage === 'done' ? null : (
                   <button
                     onClick={beginRecording}
-                    disabled={!loadedUrl || iframeError || stage === 'countdown'}
+                    disabled={!loadedUrl || iframeError || proxyStatus === 'loading' || stage === 'countdown'}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Video className="h-4 w-4" />
