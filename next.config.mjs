@@ -19,28 +19,48 @@ import { createRequire } from 'module'
 // outputFileTracingIncludes there instead includes each binary exactly
 // once.
 const require = createRequire(import.meta.url)
-// @sparticuz/chromium restricts subpath access via "exports", so its own
-// package.json can't be resolved directly (ERR_PACKAGE_PATH_NOT_EXPORTED) —
-// resolve its main entry point instead and walk up out of build/.
-const chromiumRealDir = path.dirname(path.dirname(require.resolve('@sparticuz/chromium')))
-// @ffmpeg-installer/ffmpeg picks its platform binary at runtime via
-// `path.resolve(__dirname, '..', platform)` (see its index.js) — mirror
-// that exact computation here, from the SAME real (symlink-resolved)
-// directory Node will use for `__dirname` at runtime, so this points at
-// definitely the one directory the wrapper will actually look in first.
-const ffmpegRealDir = path.join(path.dirname(require.resolve('@ffmpeg-installer/ffmpeg')), '..', 'linux-x64')
-// ffmpegRealDir above is itself one more symlink hop from pnpm's actual
-// canonical content-store copy of @ffmpeg-installer/linux-x64. Since
-// @ffmpeg-installer/ffmpeg's own package.json declares linux-x64 as an
-// optionalDependency, Next's default tracing discovers that canonical copy
-// on its own (independent of the include above), reintroducing the same
-// duplicate-binary bloat this whole file exists to avoid. Excluding it
-// here is safe: ffmpegRealDir (kept above) is a complete, self-contained
-// real file once traced — it doesn't depend on this canonical copy being
-// present too.
-const ffmpegCanonicalDupeDir = fs.realpathSync(ffmpegRealDir)
 function relGlob(absDir, sub) {
   return './' + path.join(path.relative(process.cwd(), absDir), sub).split(path.sep).join('/')
+}
+
+// pnpm only installs @ffmpeg-installer's platform sub-packages that match
+// the machine actually running `pnpm install` (they're marked with
+// os/cpu constraints in the lockfile) — @ffmpeg-installer/linux-x64 simply
+// isn't present on, say, a contributor's Mac. Since this whole
+// portfolioRecorderTracing block only matters for Vercel's own build
+// (always linux x64) and would otherwise crash `next dev`/`next build`
+// with ENOENT anywhere else, it's computed defensively and just omitted
+// when the expected packages aren't there.
+let portfolioRecorderTracing = null
+try {
+  // @sparticuz/chromium restricts subpath access via "exports", so its own
+  // package.json can't be resolved directly (ERR_PACKAGE_PATH_NOT_EXPORTED)
+  // — resolve its main entry point instead and walk up out of build/.
+  const chromiumRealDir = path.dirname(path.dirname(require.resolve('@sparticuz/chromium')))
+  // @ffmpeg-installer/ffmpeg picks its platform binary at runtime via
+  // `path.resolve(__dirname, '..', platform)` (see its index.js) — mirror
+  // that exact computation here, from the SAME real (symlink-resolved)
+  // directory Node will use for `__dirname` at runtime, so this points at
+  // definitely the one directory the wrapper will actually look in first.
+  const ffmpegRealDir = path.join(path.dirname(require.resolve('@ffmpeg-installer/ffmpeg')), '..', 'linux-x64')
+  // ffmpegRealDir above is itself one more symlink hop from pnpm's actual
+  // canonical content-store copy of @ffmpeg-installer/linux-x64. Since
+  // @ffmpeg-installer/ffmpeg's own package.json declares linux-x64 as an
+  // optionalDependency, Next's default tracing discovers that canonical
+  // copy on its own (independent of the include above), reintroducing the
+  // same duplicate-binary bloat this whole file exists to avoid. Excluding
+  // it here is safe: ffmpegRealDir (kept above) is a complete,
+  // self-contained real file once traced — it doesn't depend on this
+  // canonical copy being present too.
+  const ffmpegCanonicalDupeDir = fs.realpathSync(ffmpegRealDir)
+  portfolioRecorderTracing = {
+    includes: [relGlob(chromiumRealDir, 'bin/**'), relGlob(ffmpegRealDir, '**')],
+    excludes: [relGlob(ffmpegCanonicalDupeDir, '**')],
+  }
+} catch {
+  // Expected on a machine that doesn't have the linux-x64 ffmpeg binary
+  // installed (see comment above) — the portfolio recorder's render route
+  // wouldn't be able to launch Chromium/ffmpeg there either way.
 }
 
 // ── Security headers ────────────────────────────────────────────────────────
@@ -210,20 +230,19 @@ const nextConfig = {
   // without an explicit include the deployed function is missing that
   // directory entirely ("input directory ... does not exist") even though
   // it works locally where the full node_modules tree just sits on disk.
-  // See the comment above chromiumRealDir/ffmpegRealDir for why these are
-  // resolved paths rather than a glob through the top-level symlink.
-  outputFileTracingIncludes: {
-    '/api/portfolio-recorder/render': [
-      relGlob(chromiumRealDir, 'bin/**'),
-      relGlob(ffmpegRealDir, '**'),
-    ],
-  },
-  // Removes the redundant canonical-store copy of the ffmpeg binary that
-  // Next's default tracing pulls in on its own — see the comment on
-  // ffmpegCanonicalDupeDir above.
-  outputFileTracingExcludes: {
-    '/api/portfolio-recorder/render': [relGlob(ffmpegCanonicalDupeDir, '**')],
-  },
+  // See the portfolioRecorderTracing comment above for why these are
+  // resolved paths rather than a glob through the top-level symlink, and
+  // why the whole block can be null on a non-linux-x64 machine.
+  ...(portfolioRecorderTracing && {
+    outputFileTracingIncludes: {
+      '/api/portfolio-recorder/render': portfolioRecorderTracing.includes,
+    },
+    // Removes the redundant canonical-store copy of the ffmpeg binary that
+    // Next's default tracing pulls in on its own.
+    outputFileTracingExcludes: {
+      '/api/portfolio-recorder/render': portfolioRecorderTracing.excludes,
+    },
+  }),
   async headers() {
     return [
       {
