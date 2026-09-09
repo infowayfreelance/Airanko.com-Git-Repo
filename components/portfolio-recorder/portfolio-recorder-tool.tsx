@@ -505,7 +505,12 @@ export default function PortfolioRecorderTool() {
     // ever touches the image. Typed separately since resizeMode isn't in
     // the current lib.dom.d.ts MediaTrackConstraints.
     const videoConstraints: MediaTrackConstraints & { resizeMode?: 'none' | 'crop-and-scale' } = {
-      frameRate: 30,
+      // 60fps is the practical ceiling for tab capture — virtually all
+      // displays refresh at 60Hz, and Chrome's tab-capture pipeline caps
+      // out there regardless of a higher monitor refresh rate. `ideal`
+      // (not an exact constraint) lets the browser fall back gracefully
+      // on a slower device instead of failing the whole capture request.
+      frameRate: { ideal: 60, max: 60 },
       resizeMode: 'none',
     }
 
@@ -587,15 +592,33 @@ export default function PortfolioRecorderTool() {
 
     function drawFrame() {
       ctx.drawImage(feedVideo, sx, sy, sw, sh, 0, 0, dev.width, dev.height)
+      // Explicitly push this frame to the encoder right when it's drawn,
+      // instead of relying on captureStream's own internal timer to poll
+      // the canvas at some fixed interval — that timer runs independently
+      // of this rAF-driven draw loop and isn't guaranteed to sample every
+      // draw, which is exactly what could make motion look less smooth
+      // than the 60fps setting below implies. requestFrame() ties the
+      // encoded frame rate directly to how often we actually redraw.
+      canvasVideoTrack.requestFrame?.()
     }
 
-    const canvasStream = canvas.captureStream(30)
+    // 0 = "manual" mode: no automatic timer-based sampling — every encoded
+    // frame comes from drawFrame()'s own canvasVideoTrack.requestFrame()
+    // call above, so the recording's frame rate exactly matches how often
+    // the crop-draw loop (driven by requestAnimationFrame, typically 60Hz)
+    // actually redraws, instead of two independently-timed loops that can
+    // drift out of sync.
+    const canvasStream = canvas.captureStream(0)
+    const canvasVideoTrack = canvasStream.getVideoTracks()[0] as MediaStreamTrack & { requestFrame?: () => void }
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : 'video/webm'
 
     chunksRef.current = []
-    const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 12_000_000 })
+    // Bitrate raised alongside the frame-rate increase — twice the frames
+    // per second need meaningfully more bits to hold the same per-frame
+    // quality, or the encoder would compensate by compressing harder.
+    const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 20_000_000 })
     mediaRecorderRef.current = recorder
 
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
