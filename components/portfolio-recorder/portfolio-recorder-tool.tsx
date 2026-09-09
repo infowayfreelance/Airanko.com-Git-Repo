@@ -776,6 +776,11 @@ export default function PortfolioRecorderTool() {
         const data = await res.json().catch(() => ({}))
         throw new Error(data?.error || 'Server render failed')
       }
+      // Headers have arrived, so the render itself succeeded — only the
+      // (usually fast) body download is left. Clear the render-timeout
+      // safety net now so a large 4K response doesn't get aborted mid
+      // -download just because it happened to finish near the deadline.
+      clearTimeout(abortTimer)
       // The server reduces fps below what was requested only when the
       // combination of duration/fps/quality wouldn't fit its render time
       // budget — surface that honestly instead of silently pretending the
@@ -787,8 +792,9 @@ export default function PortfolioRecorderTool() {
           `Rendered at ${renderedFps}fps instead of the requested ${requestedFpsHeader}fps — that combination of duration, frame rate, and quality was too much to render in time. Try a shorter duration or lower quality for the full frame rate.`
         )
       }
-      setPreloadProgress(100)
       const blob = await res.blob()
+      clearInterval(progressTimer)
+      setPreloadProgress(100)
       setRecordedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
       setRecordedExt('mp4')
       setStage('done')
