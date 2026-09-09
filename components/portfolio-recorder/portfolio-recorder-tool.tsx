@@ -53,6 +53,11 @@ const pageLengths: Record<string, { label: string; multiplier: number }> = {
 type Easing = 'smooth' | 'linear'
 type View   = 'setup' | 'studio'
 type Stage  = 'idle' | 'preloading' | 'countdown' | 'recording' | 'processing' | 'done'
+// 'instant' captures the visitor's own browser tab via getDisplayMedia —
+// quality is capped by their screen/browser-capture pipeline. 'hd' instead
+// renders server-side with a headless browser at the exact device
+// resolution, independent of the visitor's device.
+type RecordingMode = 'instant' | 'hd'
 
 function easeInOut(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
@@ -73,6 +78,8 @@ export default function PortfolioRecorderTool() {
   // the end — see the comment on `pageLengths` above.
   const [pageLength, setPageLength]       = useState<keyof typeof pageLengths>('full')
   const [easing, setEasing]               = useState<Easing>('smooth')
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>('instant')
+  const [recordedExt, setRecordedExt]     = useState<'webm' | 'mp4'>('webm')
   const [stage, setStage]                 = useState<Stage>('idle')
   const [countdown, setCountdown]         = useState(3)
   const [elapsed, setElapsed]             = useState(0)
@@ -625,6 +632,7 @@ export default function PortfolioRecorderTool() {
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' })
       setRecordedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
+      setRecordedExt('webm')
       cleanupAll()
       if (cropRafRef.current) { cancelAnimationFrame(cropRafRef.current); cropRafRef.current = null }
       feedVideo.pause()
@@ -694,6 +702,42 @@ export default function PortfolioRecorderTool() {
         }, duration * 1000 + 300)
       }
     }, 1000)
+  }
+
+  // Server-side rendering path ("HD" mode): a headless browser navigates
+  // directly to the URL (a real top-level navigation, so none of the
+  // iframe/CORS/CSP workarounds above are needed) and captures frames at
+  // the exact device resolution, guaranteeing full quality regardless of
+  // the visitor's own screen size or browser capture pipeline.
+  async function beginHdRecording() {
+    if (!loadedUrl) return
+    if (recordingInProgressRef.current) return
+    recordingInProgressRef.current = true
+    setError(null)
+    setStage('preloading')
+    setPreloadPhaseLabel('Rendering on our server (this can take a bit longer)…')
+    setPreloadProgress(0)
+
+    try {
+      const res = await fetch('/api/portfolio-recorder/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: loadedUrl, device, duration, easing }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || 'Server render failed')
+      }
+      const blob = await res.blob()
+      setRecordedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
+      setRecordedExt('mp4')
+      setStage('done')
+    } catch (e: any) {
+      setError(e?.message || 'Server render failed. Please try again.')
+      setStage('idle')
+    } finally {
+      recordingInProgressRef.current = false
+    }
   }
 
   function stopEarly() {
@@ -872,11 +916,11 @@ export default function PortfolioRecorderTool() {
       <div className="mt-4 flex flex-wrap gap-2">
         <a
           href={recordedUrl}
-          download={`portfolio-${device}-${Date.now()}.webm`}
+          download={`portfolio-${device}-${Date.now()}.${recordedExt}`}
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Download className="h-4 w-4" />
-          Download .webm
+          Download .{recordedExt}
         </a>
         <button
           onClick={resetAll}
@@ -1084,6 +1128,40 @@ export default function PortfolioRecorderTool() {
                   })}
                 </div>
               </div>
+
+              {/* Recording mode */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  <Gauge className="h-4 w-4 text-primary" />
+                  Recording mode
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {([
+                    { id: 'instant' as RecordingMode, label: 'Instant' },
+                    { id: 'hd' as RecordingMode, label: 'HD (server)' },
+                  ] as const).map((opt) => {
+                    const active = recordingMode === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => setRecordingMode(opt.id)}
+                        className={`rounded-xl border px-3 py-2 text-xs font-medium transition-all ${
+                          active
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                  {recordingMode === 'hd'
+                    ? 'Renders on our server at the exact device resolution — guaranteed full quality regardless of your screen, but slower and requires no screen-share prompt.'
+                    : 'Captures your own browser tab instantly — fast, but quality depends on your screen and browser.'}
+                </p>
+              </div>
             </div>
           </div>
         ) : (
@@ -1142,19 +1220,26 @@ export default function PortfolioRecorderTool() {
                   </div>
                 ) : stage === 'done' ? null : (
                   <button
-                    onClick={beginRecording}
-                    disabled={!loadedUrl || iframeError || proxyStatus === 'loading' || stage === 'countdown'}
+                    onClick={recordingMode === 'hd' ? beginHdRecording : beginRecording}
+                    disabled={
+                      !loadedUrl ||
+                      (recordingMode === 'instant' && iframeError) ||
+                      proxyStatus === 'loading' ||
+                      stage === 'countdown'
+                    }
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Video className="h-4 w-4" />
-                    {stage === 'countdown' ? 'Starting…' : 'Start Recording'}
+                    {stage === 'countdown' ? 'Starting…' : recordingMode === 'hd' ? 'Render HD Video' : 'Start Recording'}
                   </button>
                 )}
                 {stage !== 'done' && (
                   <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
                     <Wand2 className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-                    The page pre-loads and settles automatically before recording. When your browser asks, click{' '}
-                    <strong className="font-semibold text-foreground">&quot;Share&quot;</strong> — only the website area will be captured in the video.
+                    {recordingMode === 'hd'
+                      ? 'Rendered on our server at full device resolution — no screen-share prompt needed, but it takes longer than instant recording.'
+                      : <>The page pre-loads and settles automatically before recording. When your browser asks, click{' '}
+                          <strong className="font-semibold text-foreground">&quot;Share&quot;</strong> — only the website area will be captured in the video.</>}
                   </p>
                 )}
               </div>
