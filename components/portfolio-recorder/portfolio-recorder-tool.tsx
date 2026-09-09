@@ -304,7 +304,16 @@ export default function PortfolioRecorderTool() {
   function scrollIframeTo(px: number) {
     if (canControlDomRef.current) {
       try {
-        iframeRef.current?.contentWindow?.scrollTo(0, px)
+        // `behavior: 'instant'` is required here, not the positional
+        // scrollTo(0, px) form. Many real sites set `scroll-behavior:
+        // smooth` in their own CSS, which hijacks the positional form's
+        // default ("auto", meaning "respect the page's own CSS") — every
+        // one of our per-frame calls then queues/re-targets an in-flight
+        // smooth-scroll animation instead of jumping immediately, so the
+        // actual scroll position lags far behind our own eased animation
+        // and visibly stutters. Explicit 'instant' always jumps straight
+        // to the target regardless of the page's own scroll-behavior.
+        iframeRef.current?.contentWindow?.scrollTo({ top: px, left: 0, behavior: 'instant' })
         return
       } catch {
         canControlDomRef.current = false
