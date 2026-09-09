@@ -6,18 +6,21 @@ import { createRequire } from 'module'
 
 // pnpm installs every package under a version-suffixed real directory in
 // `node_modules/.pnpm/...` and only exposes it at its plain top-level name
-// (`node_modules/@sparticuz/chromium`) via a symlink. Globbing through that
-// symlink (as a naive `./node_modules/@sparticuz/chromium/bin/**` include
-// does) makes Next's file tracer record the SAME binary content at both the
-// symlink's logical path and its resolved real path as two separate entries
-// — and for @ffmpeg-installer/ffmpeg specifically, its own package.json
-// optionalDependency on a platform sub-package caused a THIRD copy on top
-// of that. Duplicated across ~65MB (Chromium) and ~68MB (ffmpeg) binaries,
-// that pushed the deployed function to 331MB, over Vercel's 250MB limit.
-// Resolving via require.resolve() (same algorithm Node itself uses at
-// runtime) always returns the one real, symlink-free path, so pointing
-// outputFileTracingIncludes there instead includes each binary exactly
-// once.
+// via a symlink. Globbing through that symlink (as a naive
+// `./node_modules/@ffmpeg-installer/linux-x64/**` include does) makes
+// Next's file tracer record the SAME binary content at both the symlink's
+// logical path and its resolved real path as two separate entries — and
+// since @ffmpeg-installer/ffmpeg's own package.json declares linux-x64 as
+// an optionalDependency, Next's default tracing pulls in yet another copy
+// via pnpm's canonical content-store location on its own. Left unfixed,
+// that duplication — plus @sparticuz/chromium's own ~65MB binary, which
+// used to be bundled directly (see the CHROMIUM_PACK_URL comment in
+// route.ts for why it no longer is) — pushed the deployed function to
+// 331MB, over Vercel's 250MB limit, confirmed via the actual failed
+// Vercel build. Resolving via require.resolve() (same algorithm Node
+// itself uses at runtime) always returns the one real, symlink-free path,
+// so pointing outputFileTracingIncludes there instead includes the binary
+// exactly once.
 const require = createRequire(import.meta.url)
 function relGlob(absDir, sub) {
   return './' + path.join(path.relative(process.cwd(), absDir), sub).split(path.sep).join('/')
@@ -30,13 +33,9 @@ function relGlob(absDir, sub) {
 // portfolioRecorderTracing block only matters for Vercel's own build
 // (always linux x64) and would otherwise crash `next dev`/`next build`
 // with ENOENT anywhere else, it's computed defensively and just omitted
-// when the expected packages aren't there.
+// when the expected package isn't there.
 let portfolioRecorderTracing = null
 try {
-  // @sparticuz/chromium restricts subpath access via "exports", so its own
-  // package.json can't be resolved directly (ERR_PACKAGE_PATH_NOT_EXPORTED)
-  // — resolve its main entry point instead and walk up out of build/.
-  const chromiumRealDir = path.dirname(path.dirname(require.resolve('@sparticuz/chromium')))
   // @ffmpeg-installer/ffmpeg picks its platform binary at runtime via
   // `path.resolve(__dirname, '..', platform)` (see its index.js) — mirror
   // that exact computation here, from the SAME real (symlink-resolved)
@@ -54,7 +53,7 @@ try {
   // canonical copy being present too.
   const ffmpegCanonicalDupeDir = fs.realpathSync(ffmpegRealDir)
   portfolioRecorderTracing = {
-    includes: [relGlob(chromiumRealDir, 'bin/**'), relGlob(ffmpegRealDir, '**')],
+    includes: [relGlob(ffmpegRealDir, '**')],
     excludes: [relGlob(ffmpegCanonicalDupeDir, '**')],
   }
 } catch {
@@ -212,27 +211,27 @@ const nextConfig = {
     unoptimized: true,
   },
   // The Portfolio Recorder's server-render route launches headless Chromium
-  // (@sparticuz/chromium + puppeteer-core) and shells out to a bundled ffmpeg
-  // binary (@ffmpeg-installer/ffmpeg). Both ship native binaries that must be
-  // copied as-is into the serverless function bundle rather than processed by
-  // webpack, which corrupts them.
+  // (@sparticuz/chromium-min, which downloads its binary to /tmp at cold
+  // start rather than bundling it — see route.ts) and shells out to a
+  // bundled ffmpeg binary (@ffmpeg-installer/ffmpeg), which does ship its
+  // native binary directly and must be copied as-is into the serverless
+  // function bundle rather than processed by webpack, which corrupts it.
   serverExternalPackages: [
     'puppeteer-core',
-    '@sparticuz/chromium',
+    '@sparticuz/chromium-min',
     '@ffmpeg-installer/ffmpeg',
     'fluent-ffmpeg',
   ],
   // serverExternalPackages only stops webpack from bundling/corrupting
   // these packages' JS — it does NOT make Next.js's output file tracing
   // (which decides which files actually get copied into the deployed
-  // function) aware of their binary payloads. @sparticuz/chromium resolves
-  // its bin/ files via a runtime path.join() the tracer can't follow, so
-  // without an explicit include the deployed function is missing that
-  // directory entirely ("input directory ... does not exist") even though
-  // it works locally where the full node_modules tree just sits on disk.
-  // See the portfolioRecorderTracing comment above for why these are
-  // resolved paths rather than a glob through the top-level symlink, and
-  // why the whole block can be null on a non-linux-x64 machine.
+  // function) aware of ffmpeg's binary payload, resolved via a runtime
+  // path.join() the tracer can't follow. Without an explicit include the
+  // deployed function is missing the binary entirely, even though it
+  // works locally where the full node_modules tree just sits on disk. See
+  // the portfolioRecorderTracing comment above for why this is a resolved
+  // path rather than a glob through the top-level symlink, and why the
+  // whole block can be null on a non-linux-x64 machine.
   ...(portfolioRecorderTracing && {
     outputFileTracingIncludes: {
       '/api/portfolio-recorder/render': portfolioRecorderTracing.includes,
