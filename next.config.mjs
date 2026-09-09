@@ -148,6 +148,17 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // The Portfolio Recorder's server-render route launches headless Chromium
+  // (@sparticuz/chromium + puppeteer-core) and shells out to a bundled ffmpeg
+  // binary (@ffmpeg-installer/ffmpeg). Both ship native binaries that must be
+  // copied as-is into the serverless function bundle rather than processed by
+  // webpack, which corrupts them.
+  serverExternalPackages: [
+    'puppeteer-core',
+    '@sparticuz/chromium',
+    '@ffmpeg-installer/ffmpeg',
+    'fluent-ffmpeg',
+  ],
   async headers() {
     return [
       {
