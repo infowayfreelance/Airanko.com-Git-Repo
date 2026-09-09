@@ -133,22 +133,34 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Inline external scripts (up to 12 to stay within timeout) ───────────────
+    // ES modules (type="module") are inlined too, preserving that attribute
+    // — their content is still valid module syntax (import/export), just no
+    // longer a cross-origin <script src>. This matters because a browser's
+    // module loader always fetches type="module" scripts in CORS mode, even
+    // when script-src would otherwise allow it: a target site's own script
+    // is normally same-origin from its own page and never needed CORS
+    // headers, but embedding it via srcDoc turns that into a cross-origin
+    // request and the browser blocks it outright. A plain server-side
+    // fetch (below) isn't subject to CORS at all, so inlining is the fix.
+    // Any further nested `import`s inside that module still resolve as
+    // normal (possibly CORS-blocked) requests — this fixes the common case
+    // of a single bundled entry module, not deep code-splitting.
     const scriptRegex = /<script\b([^>]*?)>\s*<\/script>/gi
-    const scripts: Array<{ full: string; src: string }> = []
+    const scripts: Array<{ full: string; src: string; isModule: boolean }> = []
     while ((m = scriptRegex.exec(html)) !== null) {
       const attrs = m[1]
-      if (/\btype=["']module["']/i.test(attrs)) continue // skip ES modules
       const srcM = attrs.match(/\bsrc=["']([^"']+)["']/i)
-      if (srcM) scripts.push({ full: m[0], src: srcM[1] })
+      if (srcM) scripts.push({ full: m[0], src: srcM[1], isModule: /\btype=["']module["']/i.test(attrs) })
     }
 
     const scriptResults = await Promise.all(
-      scripts.slice(0, 12).map(async ({ full, src }) => {
+      scripts.slice(0, 12).map(async ({ full, src, isModule }) => {
         const absUrl = toAbsolute(src, pageUrl.href)
         const js = await safeFetch(absUrl, 4000)
         if (!js) return { full, replacement: full, inlined: false }
         const escaped = js.replace(/<\/script>/gi, '<\\/script>')
-        return { full, replacement: `<script>\n${escaped}\n</script>`, inlined: true }
+        const openTag = isModule ? '<script type="module">' : '<script>'
+        return { full, replacement: `${openTag}\n${escaped}\n</script>`, inlined: true }
       })
     )
 

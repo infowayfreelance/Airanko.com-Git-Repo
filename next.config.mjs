@@ -95,7 +95,14 @@ const securityHeaders = [
 // only its CSP is widened — every other page keeps the strict policy above.
 const PORTFOLIO_RECORDER_CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net blob:",
+  // Widened beyond the site-wide policy: the website-cloner fetch this page
+  // uses skips inlining <script type="module"> (very common for modern
+  // sites' main JS bundle) and leaves it as an absolute cross-origin
+  // <script src>. Under the strict site-wide script-src that gets silently
+  // blocked, so the recorded site's own JS never runs at all — no
+  // hydration, no lazy-loading, no interactivity — which is what "some
+  // websites don't load properly" actually was.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net blob: *",
   "style-src 'self' 'unsafe-inline' * data:",
   "font-src 'self' data: blob: *",
   "img-src 'self' data: blob: *",
