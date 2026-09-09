@@ -142,7 +142,18 @@ export default function PortfolioRecorderTool() {
   const iframeCssHeight     = needsExpandedIframe ? scrollHeight : dev.height
 
   const previewMaxWidth = device === 'desktop' ? 760 : device === 'tablet' ? 460 : 320
-  const scale = Math.min(1, previewMaxWidth / dev.width)
+  // getDisplayMedia() tab capture records the ACTUAL on-screen (post-CSS-
+  // transform) pixels, not the device frame's declared width/height. The
+  // frame is normally shrunk to fit the sidebar layout for preview
+  // purposes — capturing it at that shrunk size and then drawing it onto a
+  // dev.width×dev.height canvas just upscales a smaller image, producing a
+  // soft/blurry recording no matter how high videoBitsPerSecond is set. So
+  // during the actual capture window (from the moment we request screen
+  // share through the end of recording) the frame renders at its true 1:1
+  // size instead, giving the capture real full-resolution source pixels;
+  // it reverts to the compact preview size the rest of the time.
+  const isCapturing = stage === 'countdown' || stage === 'recording' || stage === 'processing'
+  const scale = isCapturing ? 1 : Math.min(1, previewMaxWidth / dev.width)
 
   function validateUrl(input: string) {
     try {
@@ -528,6 +539,13 @@ export default function PortfolioRecorderTool() {
 
     // ── Phase 3: 3-2-1 countdown, then record ───────────────────────────────
     setStage('countdown')
+    // The frame just grew from its shrunk preview size to its true native
+    // size (scale becomes 1 once stage !== 'idle'/'preloading'/'done') —
+    // re-center it now that it's larger, before the crop rect is
+    // re-measured below.
+    requestAnimationFrame(() => {
+      viewportRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior })
+    })
     setCountdown(3)
     let c = 3
     const countdownTimer = setInterval(() => {
