@@ -14,6 +14,15 @@ import puppeteer from 'puppeteer-core'
 // quality in the client-side (getDisplayMedia) recording mode.
 export const maxDuration = 290
 
+// NOTE: don't try to resolve this path yourself with createRequire()/
+// require.resolve() here — Next bundles route handlers through Turbopack
+// for both build and the production server, and calls through Turbopack's
+// own require shim return an internal numeric module id instead of a real
+// file path ("path argument must be of type string, received type
+// number"), crashing at runtime. Plain top-level imports of packages
+// listed in serverExternalPackages (like this one) are specifically
+// recognized by Turbopack and left as genuine Node requires, which is why
+// this — unlike a manual resolve — actually works.
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
 
 const UA =
