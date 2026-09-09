@@ -59,6 +59,21 @@ type Stage  = 'idle' | 'preloading' | 'countdown' | 'recording' | 'processing' |
 // resolution, independent of the visitor's device.
 type RecordingMode = 'instant' | 'hd'
 
+// Only meaningful for 'hd' mode: getDisplayMedia's real ceiling is the
+// visitor's own screen refresh rate (practically always 60Hz), so offering
+// 90-240fps there would just silently get clamped back down — dishonest.
+// The server-render pipeline has no such ceiling since ffmpeg encodes
+// whatever frame rate it's given.
+const hdFpsOptions = [60, 90, 120, 144, 240] as const
+
+// 'qhd' targets 2560x1440-equivalent detail (1.334x supersampling over the
+// device preset); '4k' targets full 3840x2160 on the desktop preset (2x).
+const qualityOptions: { id: 'hd' | 'qhd' | '4k'; label: string }[] = [
+  { id: 'hd', label: 'HD' },
+  { id: 'qhd', label: '2K' },
+  { id: '4k', label: '4K' },
+]
+
 function easeInOut(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
 }
@@ -79,7 +94,10 @@ export default function PortfolioRecorderTool() {
   const [pageLength, setPageLength]       = useState<keyof typeof pageLengths>('full')
   const [easing, setEasing]               = useState<Easing>('smooth')
   const [recordingMode, setRecordingMode] = useState<RecordingMode>('instant')
+  const [hdFps, setHdFps]                 = useState(60)
+  const [hdQuality, setHdQuality]         = useState<'hd' | 'qhd' | '4k'>('hd')
   const [recordedExt, setRecordedExt]     = useState<'webm' | 'mp4'>('webm')
+  const [renderedFpsNote, setRenderedFpsNote] = useState<string | null>(null)
   const [stage, setStage]                 = useState<Stage>('idle')
   const [countdown, setCountdown]         = useState(3)
   const [elapsed, setElapsed]             = useState(0)
@@ -244,6 +262,7 @@ export default function PortfolioRecorderTool() {
     cleanupAll()
     if (recordedUrl) URL.revokeObjectURL(recordedUrl)
     setRecordedUrl(null)
+    setRenderedFpsNote(null)
     setLoadedUrl(null)
     setStage('idle')
     setView('setup')
@@ -456,6 +475,10 @@ export default function PortfolioRecorderTool() {
     if (recordingInProgressRef.current) return
     recordingInProgressRef.current = true
     setError(null)
+    // Clears any leftover HD-mode throttling note from a previous
+    // recording — this instant recording never sets it, so it would
+    // otherwise keep describing an unrelated earlier video.
+    setRenderedFpsNote(null)
 
     // ── Phase 1: settle, reveal lazy content, reset to the exact top ──────
     setStage('preloading')
@@ -714,6 +737,7 @@ export default function PortfolioRecorderTool() {
     if (recordingInProgressRef.current) return
     recordingInProgressRef.current = true
     setError(null)
+    setRenderedFpsNote(null)
     setStage('preloading')
     setPreloadPhaseLabel('Rendering on our server (this can take a bit longer)…')
     setPreloadProgress(0)
@@ -722,11 +746,22 @@ export default function PortfolioRecorderTool() {
       const res = await fetch('/api/portfolio-recorder/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: loadedUrl, device, duration, easing }),
+        body: JSON.stringify({ url: loadedUrl, device, duration, easing, fps: hdFps, quality: hdQuality }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         throw new Error(data?.error || 'Server render failed')
+      }
+      // The server reduces fps below what was requested only when the
+      // combination of duration/fps/quality wouldn't fit its render time
+      // budget — surface that honestly instead of silently pretending the
+      // requested fps was delivered.
+      const renderedFps = res.headers.get('X-Rendered-Fps')
+      const requestedFpsHeader = res.headers.get('X-Requested-Fps')
+      if (renderedFps && requestedFpsHeader && renderedFps !== requestedFpsHeader) {
+        setRenderedFpsNote(
+          `Rendered at ${renderedFps}fps instead of the requested ${requestedFpsHeader}fps — that combination of duration, frame rate, and quality was too much to render in time. Try a shorter duration or lower quality for the full frame rate.`
+        )
       }
       const blob = await res.blob()
       setRecordedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
@@ -753,6 +788,7 @@ export default function PortfolioRecorderTool() {
     cleanupAll()
     if (recordedUrl) URL.revokeObjectURL(recordedUrl)
     setRecordedUrl(null)
+    setRenderedFpsNote(null)
     setStage('idle')
     setElapsed(0)
     setPreloadProgress(0)
@@ -913,6 +949,12 @@ export default function PortfolioRecorderTool() {
         loop
         className="w-full rounded-xl border border-border bg-black"
       />
+      {renderedFpsNote && (
+        <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-600">
+          <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+          {renderedFpsNote}
+        </p>
+      )}
       <div className="mt-4 flex flex-wrap gap-2">
         <a
           href={recordedUrl}
@@ -1161,6 +1203,53 @@ export default function PortfolioRecorderTool() {
                     ? 'Renders on our server at the exact device resolution — guaranteed full quality regardless of your screen, but slower and requires no screen-share prompt.'
                     : 'Captures your own browser tab instantly — fast, but quality depends on your screen and browser.'}
                 </p>
+
+                {recordingMode === 'hd' && (
+                  <>
+                    <p className="mt-4 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Gauge className="h-4 w-4 text-primary" />
+                      Frame rate
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {hdFpsOptions.map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => setHdFps(f)}
+                          className={`rounded-xl border px-3 py-2 text-xs font-medium transition-all ${
+                            hdFps === f
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {f}fps
+                        </button>
+                      ))}
+                    </div>
+
+                    <p className="mt-4 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <Gauge className="h-4 w-4 text-primary" />
+                      Video quality
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {qualityOptions.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setHdQuality(opt.id)}
+                          className={`rounded-xl border px-3 py-2 text-xs font-medium transition-all ${
+                            hdQuality === opt.id
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                      Very high fps + 4K on a long clip may take longer to render than the server allows — if so, the fps is automatically reduced just enough to finish, and you&apos;ll be told the actual rate used.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
