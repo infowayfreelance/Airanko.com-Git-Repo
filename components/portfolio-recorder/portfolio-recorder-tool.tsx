@@ -763,7 +763,7 @@ export default function PortfolioRecorderTool() {
     // forever — the route's own maxDuration (290s) should always return a
     // response before this fires.
     const abortController = new AbortController()
-    const abortTimer = setTimeout(() => abortController.abort(), 300_000)
+    let abortTimer = setTimeout(() => abortController.abort(), 300_000)
 
     try {
       const res = await fetch('/api/portfolio-recorder/render', {
@@ -777,10 +777,13 @@ export default function PortfolioRecorderTool() {
         throw new Error(data?.error || 'Server render failed')
       }
       // Headers have arrived, so the render itself succeeded — only the
-      // (usually fast) body download is left. Clear the render-timeout
-      // safety net now so a large 4K response doesn't get aborted mid
-      // -download just because it happened to finish near the deadline.
+      // body download is left. Re-arm with a shorter, separate download
+      // allowance instead of clearing outright: a large 4K response
+      // shouldn't get aborted mid-download just because it happened to
+      // finish near the render deadline, but a download that stalls or
+      // trickles indefinitely still shouldn't hang forever either.
       clearTimeout(abortTimer)
+      abortTimer = setTimeout(() => abortController.abort(), 60_000)
       // The server reduces fps below what was requested only when the
       // combination of duration/fps/quality wouldn't fit its render time
       // budget — surface that honestly instead of silently pretending the
