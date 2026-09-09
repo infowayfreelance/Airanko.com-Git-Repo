@@ -82,6 +82,45 @@ const securityHeaders = [
   { key: 'Content-Security-Policy', value: CSP },
 ]
 
+// ── Portfolio Recorder CSP override ─────────────────────────────────────────
+//
+// The recorder loads an arbitrary third-party site into a same-origin
+// iframe via `srcDoc` so it can measure/scroll it accurately (see
+// components/portfolio-recorder/portfolio-recorder-tool.tsx). A `srcDoc`
+// document has no HTTP response of its own, so it inherits this page's own
+// CSP — the site-wide policy above only allows images/fonts/media from
+// this site's own domains, which silently blocks every image (and most
+// fonts/media) on whatever site is being recorded. This page is the only
+// one that genuinely needs to render arbitrary third-party resources, so
+// only its CSP is widened — every other page keeps the strict policy above.
+const PORTFOLIO_RECORDER_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net blob:",
+  "style-src 'self' 'unsafe-inline' * data:",
+  "font-src 'self' data: blob: *",
+  "img-src 'self' data: blob: *",
+  "connect-src 'self' vitals.vercel-insights.com huggingface.co *.huggingface.co *.xethub.hf.co *.cdn.hf.co cdn.jsdelivr.net *",
+  "worker-src 'self' blob:",
+  "frame-src *",
+  "media-src 'self' blob: data: *",
+  "object-src 'none'",
+  // The recorded page's own <base href="..."> tag (injected by the
+  // website-cloner fetch as a fallback for any relative URL its regex
+  // rewriter doesn't catch) needs an arbitrary origin allowed here, or the
+  // browser silently refuses to apply it and those URLs resolve against
+  // this site's own origin instead.
+  "base-uri *",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join('; ')
+
+const portfolioRecorderHeaders = [
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Content-Security-Policy', value: PORTFOLIO_RECORDER_CSP },
+]
+
 // ── CORS headers for API routes ─────────────────────────────────────────────
 //
 // Only the production origin is allowed to call the API cross-origin.
@@ -113,6 +152,12 @@ const nextConfig = {
         // API routes — explicit CORS instead of implicit wildcard
         source: '/api/(.*)',
         headers: corsHeaders,
+      },
+      {
+        // Overrides the general CSP above with one that allows arbitrary
+        // third-party images/fonts/media — see PORTFOLIO_RECORDER_CSP.
+        source: '/tools/portfolio-recorder',
+        headers: portfolioRecorderHeaders,
       },
     ]
   },
