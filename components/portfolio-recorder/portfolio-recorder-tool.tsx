@@ -449,12 +449,22 @@ export default function PortfolioRecorderTool() {
     // ── Phase 2: Request screen capture ─────────────────────────────────────
     // preferCurrentTab + selfBrowserSurface make Chrome show a minimal
     // "Share this tab?" prompt (no full-screen / window / tab picker).
+    // Without an explicit resizeMode, Chrome runs the captured surface
+    // through its own internal crop-and-scale pass before we ever see a
+    // frame — an extra, uncontrolled resample stacked on top of our own
+    // canvas crop/resize below. 'none' asks for the raw captured pixels
+    // instead, so only our own resize (with imageSmoothingQuality 'high')
+    // ever touches the image. Typed separately since resizeMode isn't in
+    // the current lib.dom.d.ts MediaTrackConstraints.
+    const videoConstraints: MediaTrackConstraints & { resizeMode?: 'none' | 'crop-and-scale' } = {
+      frameRate: 30,
+      resizeMode: 'none',
+    }
+
     let stream: MediaStream
     try {
       stream = await (navigator.mediaDevices as MediaDevices).getDisplayMedia({
-        video: {
-          frameRate: 30,
-        },
+        video: videoConstraints,
         audio: false,
         // @ts-expect-error Chrome-only hints to skip the surface picker
         preferCurrentTab: true,
@@ -472,6 +482,20 @@ export default function PortfolioRecorderTool() {
     }
 
     streamRef.current = stream
+
+    // Hints the browser's internal capture pipeline to prioritize sharpness
+    // over motion smoothness. Without this, tab capture defaults to
+    // treating the stream like a video call — optimized for smooth motion
+    // at low bandwidth — which is backwards for mostly-static/slow-
+    // scrolling web content where text and UI crispness matters far more
+    // than frame rate. Guarded because contentHint support/behavior can
+    // vary across browsers; failing to set it should never break recording.
+    try {
+      const videoTrack = stream.getVideoTracks()[0]
+      if (videoTrack) videoTrack.contentHint = 'detail'
+    } catch {
+      // Non-fatal — recording continues with the browser's default hint.
+    }
 
     // Feed the captured stream into a hidden video element
     const feedVideo   = document.createElement('video')
