@@ -31,6 +31,22 @@ function easeInOut(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
 }
 
+type Quality = 'hd' | 'qhd' | '4k'
+
+// deviceScaleFactor doesn't change the CSS layout size (the page still
+// renders as a 1920x1080 desktop, say) — it tells Chromium to render and
+// screenshot at that many physical pixels per CSS pixel, the same way a
+// Retina display works. That's real supersampled detail (sharper text,
+// crisper edges), not a blown-up upscale of a smaller capture.
+const QUALITY_SCALE: Record<Quality, number> = { hd: 1, qhd: 1.334, '4k': 2 }
+
+// Each quality tier costs roughly scale^2 as many pixels per screenshot, so
+// the number of frames this function can capture within its time budget
+// shrinks accordingly. These are conservative wall-clock budgets (frame
+// count) measured against this route's own maxDuration below, leaving
+// headroom for Chromium launch, navigation, and the final ffmpeg encode.
+const FRAME_BUDGET: Record<Quality, number> = { hd: 2400, qhd: 1400, '4k': 800 }
+
 export async function POST(req: NextRequest) {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null
   let workDir: string | null = null
@@ -43,6 +59,8 @@ export async function POST(req: NextRequest) {
       : 'desktop'
     const duration = Math.min(60, Math.max(10, Number(body.duration) || 20))
     const easing: 'smooth' | 'linear' = body.easing === 'linear' ? 'linear' : 'smooth'
+    const requestedFps = Math.min(240, Math.max(60, Math.round(Number(body.fps) || 60)))
+    const quality: Quality = ['hd', 'qhd', '4k'].includes(body.quality) ? body.quality : 'hd'
 
     if (!rawUrl) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 })
@@ -59,16 +77,17 @@ export async function POST(req: NextRequest) {
     }
 
     const dev = DEVICES[deviceId]
+    const scaleFactor = QUALITY_SCALE[quality]
 
     browser = await puppeteer.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
       headless: true,
-      defaultViewport: { width: dev.width, height: dev.height, deviceScaleFactor: 1 },
+      defaultViewport: { width: dev.width, height: dev.height, deviceScaleFactor: scaleFactor },
     })
 
     const page = await browser.newPage()
-    await page.setViewport({ width: dev.width, height: dev.height, deviceScaleFactor: 1 })
+    await page.setViewport({ width: dev.width, height: dev.height, deviceScaleFactor: scaleFactor })
     await page.setUserAgent(UA)
 
     try {
@@ -87,11 +106,12 @@ export async function POST(req: NextRequest) {
 
     // The video's playback duration is fixed by (totalFrames / fps), not by
     // how long capture takes — so frames can be captured as fast as the
-    // server can produce them. Frame rate is scaled down for longer clips
-    // purely to keep the total number of page.screenshot() calls (and thus
-    // wall-clock render time) bounded within the function's time budget.
-    const MAX_TOTAL_FRAMES = 600
-    const fps = Math.max(8, Math.min(24, Math.round(MAX_TOTAL_FRAMES / duration)))
+    // server can produce them. The requested fps is honored as long as the
+    // total frame count it implies fits the time budget for this duration
+    // and quality tier; otherwise fps is reduced just enough to fit, since
+    // a slower-but-complete render beats hitting the function timeout.
+    const maxTotalFrames = FRAME_BUDGET[quality]
+    const fps = Math.max(8, Math.min(requestedFps, Math.floor(maxTotalFrames / duration)))
     const totalFrames = Math.max(1, Math.round(duration * fps))
 
     workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'portfolio-render-'))
@@ -132,6 +152,11 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'video/mp4',
         'Content-Disposition': 'attachment; filename="portfolio-recording.mp4"',
         'Content-Length': String(videoBuffer.length),
+        // Lets the client report the actual fps used when it had to be
+        // reduced below what was requested to fit the render time budget
+        // (long duration + high fps + 4K can exceed it).
+        'X-Rendered-Fps': String(fps),
+        'X-Requested-Fps': String(requestedFps),
       },
     })
   } catch (e: any) {
