@@ -42,10 +42,12 @@ const QUALITY_SCALE: Record<Quality, number> = { hd: 1, qhd: 1.334, '4k': 2 }
 
 // Each quality tier costs roughly scale^2 as many pixels per screenshot, so
 // the number of frames this function can capture within its time budget
-// shrinks accordingly. These are conservative wall-clock budgets (frame
-// count) measured against this route's own maxDuration below, leaving
-// headroom for Chromium launch, navigation, and the final ffmpeg encode.
-const FRAME_BUDGET: Record<Quality, number> = { hd: 2400, qhd: 1400, '4k': 800 }
+// shrinks accordingly. These are deliberately conservative — measured
+// against this route's own maxDuration below, but with a wide safety
+// margin, since production hardware may be slower than whatever this was
+// tuned against and a completed-but-throttled render always beats one that
+// hits the function timeout and comes back as nothing at all.
+const FRAME_BUDGET: Record<Quality, number> = { hd: 1800, qhd: 1000, '4k': 550 }
 
 export async function POST(req: NextRequest) {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null

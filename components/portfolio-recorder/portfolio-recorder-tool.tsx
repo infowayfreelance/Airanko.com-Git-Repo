@@ -742,11 +742,35 @@ export default function PortfolioRecorderTool() {
     setPreloadPhaseLabel('Rendering on our server (this can take a bit longer)…')
     setPreloadProgress(0)
 
+    // The server has no way to stream real progress back mid-render, and a
+    // fixed "0%" for a render that can take minutes (heavy fps + 4K
+    // combinations especially) looks identical to a hang — which is
+    // exactly what was reported. Fake a progress bar driven by a rough
+    // client-side estimate of the same frame-budget math the route uses,
+    // so the UI visibly moves the whole time instead of sitting frozen.
+    const frameBudget = { hd: 1800, qhd: 1000, '4k': 550 }[hdQuality]
+    const msPerFrame = { hd: 110, qhd: 170, '4k': 300 }[hdQuality]
+    const effectiveFps = Math.max(8, Math.min(hdFps, Math.floor(frameBudget / duration)))
+    const estimatedMs = duration * effectiveFps * msPerFrame + 12000 // + launch/nav/encode overhead
+    const progressStartedAt = Date.now()
+    const progressTimer = setInterval(() => {
+      const pct = Math.min(95, Math.round(((Date.now() - progressStartedAt) / estimatedMs) * 100))
+      setPreloadProgress(pct)
+    }, 500)
+
+    // Safety net: if the connection itself hangs (rather than the server
+    // cleanly erroring), don't leave the user staring at a spinner
+    // forever — the route's own maxDuration (290s) should always return a
+    // response before this fires.
+    const abortController = new AbortController()
+    const abortTimer = setTimeout(() => abortController.abort(), 300_000)
+
     try {
       const res = await fetch('/api/portfolio-recorder/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: loadedUrl, device, duration, easing, fps: hdFps, quality: hdQuality }),
+        signal: abortController.signal,
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -763,14 +787,21 @@ export default function PortfolioRecorderTool() {
           `Rendered at ${renderedFps}fps instead of the requested ${requestedFpsHeader}fps — that combination of duration, frame rate, and quality was too much to render in time. Try a shorter duration or lower quality for the full frame rate.`
         )
       }
+      setPreloadProgress(100)
       const blob = await res.blob()
       setRecordedUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
       setRecordedExt('mp4')
       setStage('done')
     } catch (e: any) {
-      setError(e?.message || 'Server render failed. Please try again.')
+      setError(
+        e?.name === 'AbortError'
+          ? 'The server render timed out. Try a shorter duration or a lower fps/quality combination.'
+          : e?.message || 'Server render failed. Please try again.'
+      )
       setStage('idle')
     } finally {
+      clearInterval(progressTimer)
+      clearTimeout(abortTimer)
       recordingInProgressRef.current = false
     }
   }
@@ -1290,6 +1321,13 @@ export default function PortfolioRecorderTool() {
               </p>
 
               {recordedVideoCard}
+
+              {error && (
+                <p className="mt-4 flex items-start gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {error}
+                </p>
+              )}
 
               {/* Record / Stop */}
               <div className="mt-5 border-t border-border pt-5">
