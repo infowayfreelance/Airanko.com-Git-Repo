@@ -134,6 +134,15 @@ export async function POST(req: NextRequest) {
         .input(path.join(workDir!, 'frame-%05d.jpg'))
         .inputOptions([`-framerate ${fps}`])
         .outputOptions([
+          // yuv420p (needed for broad player compatibility) requires even
+          // width/height. Chromium's screenshot size is CSS size *
+          // deviceScaleFactor rounded to the nearest pixel — the 'qhd'
+          // scale (1.334x) in particular can round to an odd dimension
+          // depending on the device preset, which would otherwise make
+          // libx264 reject the encode. Cropping down to the nearest even
+          // size (at most 1px off, imperceptible) makes every combination
+          // safe regardless of the exact scale factor or device preset.
+          '-vf crop=trunc(iw/2)*2:trunc(ih/2)*2',
           '-c:v libx264',
           '-pix_fmt yuv420p',
           '-movflags +faststart',

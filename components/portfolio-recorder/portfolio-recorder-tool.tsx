@@ -262,6 +262,7 @@ export default function PortfolioRecorderTool() {
     cleanupAll()
     if (recordedUrl) URL.revokeObjectURL(recordedUrl)
     setRecordedUrl(null)
+    setRenderedFpsNote(null)
     setLoadedUrl(null)
     setStage('idle')
     setView('setup')
@@ -474,6 +475,10 @@ export default function PortfolioRecorderTool() {
     if (recordingInProgressRef.current) return
     recordingInProgressRef.current = true
     setError(null)
+    // Clears any leftover HD-mode throttling note from a previous
+    // recording — this instant recording never sets it, so it would
+    // otherwise keep describing an unrelated earlier video.
+    setRenderedFpsNote(null)
 
     // ── Phase 1: settle, reveal lazy content, reset to the exact top ──────
     setStage('preloading')
