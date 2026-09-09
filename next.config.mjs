@@ -159,6 +159,21 @@ const nextConfig = {
     '@ffmpeg-installer/ffmpeg',
     'fluent-ffmpeg',
   ],
+  // serverExternalPackages only stops webpack from bundling/corrupting
+  // these packages' JS — it does NOT make Next.js's output file tracing
+  // (which decides which files actually get copied into the deployed
+  // function) aware of their binary payloads. Both packages resolve their
+  // binaries via runtime path.join()/os.platform() calls rather than a
+  // static require, which the tracer can't follow, so without this the
+  // deployed function is missing @sparticuz/chromium's bin/ directory
+  // entirely ("input directory ... does not exist") even though it works
+  // locally where the full node_modules tree is just sitting on disk.
+  outputFileTracingIncludes: {
+    '/api/portfolio-recorder/render': [
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/@ffmpeg-installer/linux-x64/**',
+    ],
+  },
   async headers() {
     return [
       {
