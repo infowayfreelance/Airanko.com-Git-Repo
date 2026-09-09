@@ -97,6 +97,18 @@ export default function PortfolioRecorderTool() {
   const [proxyHtml, setProxyHtml]     = useState<string | null>(null)
   const [proxyStatus, setProxyStatus] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle')
   const proxyRequestIdRef = useRef(0)
+  // The scale actually used while capturing — computed fresh before every
+  // recording (see computeSafeCaptureScale) instead of always assuming 1.
+  // getDisplayMedia only ever captures the tab's visible viewport: forcing
+  // full native size unconditionally would silently clip the frame on any
+  // browser window smaller than the device preset (very common — even a
+  // maximized 1080p window has less than 1080px of usable height once
+  // tabs/toolbar/address bar are subtracted), and computeCrop()'s bounds-
+  // clamping would then stretch that clipped rect back up to full canvas
+  // size — cutting off content and blurring the rest instead of improving
+  // quality. Defaults to 1 (full native size) whenever the window is
+  // actually big enough, which is the common/desired case.
+  const [captureScale, setCaptureScale] = useState(1)
 
   const viewportRef        = useRef<HTMLDivElement>(null)
   const iframeRef          = useRef<HTMLIFrameElement>(null)
@@ -153,7 +165,7 @@ export default function PortfolioRecorderTool() {
   // size instead, giving the capture real full-resolution source pixels;
   // it reverts to the compact preview size the rest of the time.
   const isCapturing = stage === 'countdown' || stage === 'recording' || stage === 'processing'
-  const scale = isCapturing ? 1 : Math.min(1, previewMaxWidth / dev.width)
+  const scale = isCapturing ? captureScale : Math.min(1, previewMaxWidth / dev.width)
 
   function validateUrl(input: string) {
     try {
@@ -297,6 +309,25 @@ export default function PortfolioRecorderTool() {
     return getScrollHeight() - dev.height
   }
 
+  // Computes the largest scale (<=1) that keeps the ENTIRE device frame
+  // within the browser's visible viewport, measured while the frame is
+  // still at its compact preview size (rect.top/left reflect the studio
+  // header/margins around it, which don't change with the frame's own
+  // size). getDisplayMedia only ever captures what's actually on screen —
+  // a frame bigger than the visible viewport would be silently clipped by
+  // computeCrop()'s bounds-clamping and then stretched back up to full
+  // canvas size, cutting off content and blurring the rest. Returns 1
+  // (full native resolution) whenever the window is actually big enough,
+  // which is the common case on typical desktop screens.
+  function computeSafeCaptureScale(): number {
+    if (!viewportRef.current) return 1
+    const rect = viewportRef.current.getBoundingClientRect()
+    const margin = 24
+    const availableWidth  = window.innerWidth  - rect.left - margin
+    const availableHeight = window.innerHeight - rect.top  - margin
+    return Math.max(0.1, Math.min(1, availableWidth / dev.width, availableHeight / dev.height))
+  }
+
   // Single choke point for moving the loaded page's scroll position: uses
   // the real, safe DOM API when the frame is same-origin, otherwise falls
   // back to sliding the whole iframe element — never anything that relies
@@ -423,6 +454,23 @@ export default function PortfolioRecorderTool() {
     setStage('preloading')
     setPreloadProgress(0)
     await preparePage()
+
+    // Align the frame to the top of the viewport (not centered) before
+    // measuring, so rect.top reflects the minimum possible offset above it
+    // — centering would waste however much extra room the window has
+    // above the frame instead of counting it as space the frame can grow
+    // into, systematically under-estimating the safe scale on larger
+    // windows.
+    viewportRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' as ScrollBehavior })
+    await new Promise((r) => setTimeout(r, 50))
+
+    // Measured now, while the frame is still at its compact preview size —
+    // the resulting scale only actually takes effect later, once `stage`
+    // switches to 'countdown' and `isCapturing` starts using it.
+    const safeScale = computeSafeCaptureScale()
+    setCaptureScale(safeScale)
+    // eslint-disable-next-line no-console
+    console.log('[PortfolioRecorder DEBUG] capture scale (1 = full native resolution):', safeScale)
 
     // Lock in the recording distance right here, once, from the final
     // detected full page height. Nothing after this point recalculates it
