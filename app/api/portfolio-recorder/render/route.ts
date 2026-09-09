@@ -4,7 +4,7 @@ import path from 'path'
 import os from 'os'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg'
-import chromium from '@sparticuz/chromium'
+import chromium from '@sparticuz/chromium-min'
 import puppeteer from 'puppeteer-core'
 
 // This route drives a real (headless) Chromium tab server-side instead of
@@ -14,6 +14,30 @@ import puppeteer from 'puppeteer-core'
 // quality in the client-side (getDisplayMedia) recording mode.
 export const maxDuration = 290
 
+// @sparticuz/chromium bundles the ~65MB Chromium binary directly in the
+// npm package. Combined with the ~68MB ffmpeg binary this route also
+// needs, pnpm's module resolution structure ended up duplicating both
+// several times over in the deployed function (see next.config.mjs),
+// pushing it well past Vercel's 250MB uncompressed function size limit —
+// confirmed via the actual failed Vercel build. @sparticuz/chromium-min
+// (the package's own README recommends this for exactly this situation)
+// ships no binary at all: it downloads this exact release asset to /tmp
+// on cold start instead, decompressing it from there. That's slower on a
+// cold start but removes Chromium's ~65MB from the deployed bundle
+// entirely, leaving only ffmpeg's binary to worry about staying in
+// budget — a much smaller, one-binary problem.
+const CHROMIUM_PACK_URL =
+  'https://github.com/Sparticuz/chromium/releases/download/v152.0.0/chromium-v152.0.0-pack.x64.tar'
+
+// NOTE: don't try to resolve this path yourself with createRequire()/
+// require.resolve() here — Next bundles route handlers through Turbopack
+// for both build and the production server, and calls through Turbopack's
+// own require shim return an internal numeric module id instead of a real
+// file path ("path argument must be of type string, received type
+// number"), crashing at runtime. Plain top-level imports of packages
+// listed in serverExternalPackages (like this one) are specifically
+// recognized by Turbopack and left as genuine Node requires, which is why
+// this — unlike a manual resolve — actually works.
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
 
 const UA =
@@ -83,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     browser = await puppeteer.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
       headless: true,
       defaultViewport: { width: dev.width, height: dev.height, deviceScaleFactor: scaleFactor },
     })
