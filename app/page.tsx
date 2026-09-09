@@ -276,6 +276,7 @@ const seoTools = [
     href: '/tools/ai-image-upscaler',
     color: 'text-cyan-600',
     bg: 'bg-cyan-50',
+    comingSoon: true,
   },
   {
     icon: Eye,
