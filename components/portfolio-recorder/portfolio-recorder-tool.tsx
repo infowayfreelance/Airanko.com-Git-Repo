@@ -30,7 +30,7 @@ const devices: Record<
   DeviceId,
   { label: string; icon: typeof Monitor; width: number; height: number }
 > = {
-  desktop: { label: 'Desktop', icon: Monitor, width: 1280, height: 720 },
+  desktop: { label: 'Desktop', icon: Monitor, width: 1920, height: 1080 },
   tablet:  { label: 'Tablet',  icon: Tablet,  width: 820,  height: 1080 },
   mobile:  { label: 'Mobile',  icon: Smartphone, width: 390, height: 780 },
 }
