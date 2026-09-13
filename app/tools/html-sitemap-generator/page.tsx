@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import HtmlSitemapGeneratorTool from '@/components/html-sitemap-generator/html-sitemap-generator-tool'
 import HtmlSitemapGeneratorSeoSections from '@/components/html-sitemap-generator-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Free HTML Sitemap Generator — Live Preview + 5 Export Formats | Ai Ranko',
@@ -116,6 +117,7 @@ export default function HtmlSitemapGeneratorPage() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

@@ -6,6 +6,7 @@ import {
   Star, Award, Sparkles,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 const POST = {
   title: 'Top 10 Free Photo Cropping Tools for Bloggers and Marketers (2026)',
@@ -819,6 +820,7 @@ export default function PhotoCroppingToolsBlogPost() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

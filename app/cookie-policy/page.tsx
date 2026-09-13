@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ChevronRight, Zap, Cookie, Info } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Cookie Policy | Ai Ranko',
@@ -126,7 +127,7 @@ export default function CookiePolicyPage() {
 
             <Section n={1} id="what-are-cookies" title="What Are Cookies?">
               <p>
-                Cookies are small text files that a website stores on your device when you visit. They let a site remember things between page loads and visits — like whether you&rsquo;re logged in, your theme preference, or which step of a tool you were on.
+                Cookies are small text files (and similar technologies like local storage) that a website stores on your device when you visit. They let a site remember things between page loads and visits — like whether you&rsquo;re logged in or which cookie choices you&rsquo;ve made.
               </p>
               <p>
                 Some cookies are essential for the site to work. Others help us understand how people use Ai Ranko so we can improve it. You stay in control of the non-essential ones.
@@ -147,19 +148,13 @@ export default function CookiePolicyPage() {
                   <tbody className="divide-y divide-border">
                     <tr>
                       <Td b>Essential</Td>
-                      <Td>Session management, authentication, CSRF / security tokens. Required for the site to function.</Td>
-                      <Td>Session</Td>
+                      <Td>Session management, authentication, CSRF / security tokens, and remembering your cookie consent choice. Required for the site to function.</Td>
+                      <Td>Session, or up to 12 months for your consent choice</Td>
                       <Td>No</Td>
                     </tr>
                     <tr>
                       <Td b>Analytics</Td>
-                      <Td>Vercel Analytics + similar — count page views, tool usage, and aggregate traffic sources. IP addresses are anonymised.</Td>
-                      <Td>Up to 13 months</Td>
-                      <Td>Yes</Td>
-                    </tr>
-                    <tr>
-                      <Td b>Preference</Td>
-                      <Td>Remember your settings (theme, last-used tool options, dismissed banners).</Td>
+                      <Td>Vercel Analytics — count page views, tool usage, and aggregate traffic sources. IP addresses are anonymised. Off until you accept it in the cookie banner.</Td>
                       <Td>Up to 12 months</Td>
                       <Td>Yes</Td>
                     </tr>
@@ -171,17 +166,17 @@ export default function CookiePolicyPage() {
 
             <Section n={3} id="consent-banner" title="Cookie Consent Banner">
               <p>
-                The first time you visit Ai Ranko from the EU, UK, or another region with cookie consent requirements, we show a banner asking what you&rsquo;d like to allow. Essential cookies are always on (without them the site can&rsquo;t function), but analytics and preference cookies stay off until you click <strong>Accept</strong>.
+                The first time you visit Ai Ranko, we show a banner asking what you&rsquo;d like to allow. Essential cookies are always on (without them the site can&rsquo;t function), but analytics cookies stay off until you choose <strong>Accept All</strong> or turn them on yourself in <strong>Manage Preferences</strong>. Clicking <strong>Reject Optional</strong> is just as quick as accepting.
               </p>
               <p>
-                You can change your choice any time by clearing your cookies for airanko.com or by clicking the &ldquo;Cookie settings&rdquo; link in our footer (if available in your region). We remember your decision for 12 months before asking again.
+                Your choice is stored in your browser (not sent anywhere) so we don&rsquo;t ask again on every page. You can change or withdraw it any time via the &ldquo;Cookie Settings&rdquo; link in our footer, or by clearing your browser&rsquo;s local storage for airanko.com. We remember your decision for 12 months before asking again.
               </p>
             </Section>
 
             <Section n={4} id="duration" title="How Long Cookies Last">
               <ul className="list-disc space-y-2 pl-6">
                 <li><strong>Session cookies</strong> are deleted automatically when you close your browser.</li>
-                <li><strong>Persistent cookies</strong> stay on your device until they expire (anywhere from a day to 13 months) or until you delete them manually.</li>
+                <li><strong>Persistent cookies and your stored consent choice</strong> stay on your device until they expire (up to 12 months) or until you delete them manually.</li>
               </ul>
               <p>The Duration column in the table above shows the maximum lifetime of each category.</p>
             </Section>
@@ -212,7 +207,7 @@ export default function CookiePolicyPage() {
                 ))}
               </div>
               <Callout>
-                <strong>Heads up:</strong> blocking essential cookies will break sign-in and other basic features. Blocking analytics or preference cookies is safe — the site will still work normally.
+                <strong>Heads up:</strong> blocking essential cookies will break sign-in and other basic features. Blocking analytics cookies is safe — the site will still work normally.
               </Callout>
             </Section>
 
@@ -247,6 +242,7 @@ export default function CookiePolicyPage() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

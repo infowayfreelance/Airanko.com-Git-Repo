@@ -5,6 +5,7 @@ import {
   CheckCircle2, ExternalLink, Trophy, Star, Sparkles, ArrowUpRight, Quote,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 const POST = {
   title: 'Top 10 Mobile-Friendly Websites in 2026 (Tested and Ranked)',
@@ -697,6 +698,7 @@ export default function MobileFriendlyBlogPost() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

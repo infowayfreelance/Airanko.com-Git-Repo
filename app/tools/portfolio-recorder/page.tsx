@@ -4,6 +4,7 @@ import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import PortfolioRecorderTool from '@/components/portfolio-recorder/portfolio-recorder-tool'
 import PortfolioRecorderSeoSections from '@/components/portfolio-recorder-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Free Website Portfolio Video Recorder — Turn Any URL Into a Demo Video | AI Ranko',
@@ -217,6 +218,7 @@ export default function PortfolioRecorderPage() {
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <CookieSettingsLink className="hover:text-foreground transition-colors" />
           </nav>
         </div>
       </footer>

@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
+import { CookieConsentProvider } from '@/components/cookie-consent/cookie-consent-provider'
+import { CookieConsentBanner } from '@/components/cookie-consent/cookie-consent-banner'
+import { CookiePreferencesDialog } from '@/components/cookie-consent/cookie-preferences-dialog'
+import { AnalyticsGate } from '@/components/cookie-consent/analytics-gate'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
@@ -95,8 +98,12 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <CookieConsentProvider>
+          {children}
+          <CookieConsentBanner />
+          <CookiePreferencesDialog />
+          {process.env.NODE_ENV === 'production' && <AnalyticsGate />}
+        </CookieConsentProvider>
       </body>
     </html>
   )

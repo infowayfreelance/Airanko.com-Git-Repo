@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ChevronRight, Zap, Scale, Info, AlertTriangle } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Terms and Conditions | Ai Ranko',
@@ -312,6 +313,7 @@ export default function TermsAndConditionsPage() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/sitemap" className="transition-colors hover:text-foreground">Sitemap</Link>
             <Link href="mailto:support@airanko.com" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

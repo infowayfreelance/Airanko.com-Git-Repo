@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import SeoStrategyMakerTool from '@/components/seo-strategy-maker/seo-strategy-maker-tool'
 import SeoStrategyMakerSeoSections from '@/components/seo-strategy-maker-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'AI SEO Strategy Maker — Free Custom SEO Plan Generator | Ai Ranko',
@@ -218,6 +219,7 @@ export default function SeoStrategyMakerPage() {
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <CookieSettingsLink className="hover:text-foreground transition-colors" />
           </nav>
         </div>
       </footer>
