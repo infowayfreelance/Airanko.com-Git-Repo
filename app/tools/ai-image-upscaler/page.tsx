@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import AiImageUpscalerTool from '@/components/ai-image-upscaler/ai-image-upscaler-tool'
 import AiImageUpscalerSeoSections from '@/components/ai-image-upscaler-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Free AI Image Upscaler Online — Enhance Resolution 2x/4x, No Signup',
@@ -206,6 +207,7 @@ export default function AiImageUpscalerPage() {
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <CookieSettingsLink className="hover:text-foreground transition-colors" />
           </nav>
         </div>
       </footer>

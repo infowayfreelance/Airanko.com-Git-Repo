@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import SiteAuditTool from '@/components/site-audit/site-audit-tool'
 import SiteAuditSeoSections from '@/components/site-audit-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Free AI Site Audit Tool — 90+ SEO, Performance & Security Checks | AI Ranko',
@@ -219,6 +220,7 @@ export default function SiteAuditPage() {
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <CookieSettingsLink className="hover:text-foreground transition-colors" />
           </nav>
         </div>
       </footer>

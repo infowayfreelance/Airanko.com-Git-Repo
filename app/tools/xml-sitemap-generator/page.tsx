@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import XmlSitemapGeneratorTool from '@/components/xml-sitemap-generator/xml-sitemap-generator-tool'
 import XmlSitemapGeneratorSeoSections from '@/components/xml-sitemap-generator-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Free XML Sitemap Generator — Crawl Any Site & Export sitemap.xml | Ai Ranko',
@@ -175,6 +176,7 @@ export default function XmlSitemapGeneratorPage() {
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <CookieSettingsLink className="hover:text-foreground transition-colors" />
           </nav>
         </div>
       </footer>

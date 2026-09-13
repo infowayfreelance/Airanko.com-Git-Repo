@@ -5,6 +5,7 @@ import {
   Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map, Bot, FileCode2, Ruler, ZoomIn,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'HTML Sitemap — All Tools & Pages | Ai Ranko',
@@ -236,6 +237,9 @@ export default function HtmlSitemapPage() {
           <p className="text-center text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} Ai Ranko. Free AI SEO &amp; image tools — no signup required.
           </p>
+          <nav className="flex gap-4 text-sm text-muted-foreground">
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
+          </nav>
         </div>
       </footer>
     </div>

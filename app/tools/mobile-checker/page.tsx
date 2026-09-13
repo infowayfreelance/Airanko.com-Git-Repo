@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import MobileCheckerTool from '@/components/mobile-checker/mobile-checker-tool'
 import MobileCheckerSeoSections from '@/components/mobile-checker-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
@@ -241,6 +242,7 @@ export default function MobileCheckerPage() {
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <CookieSettingsLink className="hover:text-foreground transition-colors" />
           </nav>
         </div>
       </footer>

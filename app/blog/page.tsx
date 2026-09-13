@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap, Calendar, Clock, ArrowRight, Smartphone, ImageIcon } from 'lucide-react'
 import Navbar from '@/components/navbar'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Blog — SEO, AI, and Web Performance Insights | Ai Ranko',
@@ -175,6 +176,7 @@ export default function BlogIndexPage() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

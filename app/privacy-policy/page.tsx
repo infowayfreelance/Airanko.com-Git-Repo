@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ChevronRight, Zap, ShieldCheck, Info } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy | Ai Ranko',
@@ -171,14 +172,14 @@ export default function PrivacyPolicyPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    <tr><Td b>Essential Cookies</Td><Td>Session management, authentication, security tokens. Necessary for the site to function.</Td><Td>No (required)</Td></tr>
-                    <tr><Td b>Analytics Cookies</Td><Td>Understanding page views, tool usage, traffic sources. Data is aggregated and anonymised.</Td><Td>Yes</Td></tr>
-                    <tr><Td b>Preference Cookies</Td><Td>Remembering your settings (e.g. dark mode, tool preferences).</Td><Td>Yes</Td></tr>
+                    <tr><Td b>Essential Cookies</Td><Td>Session management, authentication, security tokens, and remembering your cookie consent choice. Necessary for the site to function.</Td><Td>No (required)</Td></tr>
+                    <tr><Td b>Analytics Cookies</Td><Td>Vercel Analytics — understanding page views, tool usage, traffic sources. Data is aggregated and anonymised. Off until you accept it in our cookie banner.</Td><Td>Yes</Td></tr>
                   </tbody>
                 </table>
               </div>
               <p>
-                You can manage cookie preferences through your browser settings. Disabling analytics cookies will not affect your ability to use our tools. Where required by law (e.g. for users in the EU/UK), we will ask for your consent before placing non-essential cookies.
+                We ask for your consent before enabling analytics cookies via the cookie banner shown on your first visit, and you can change your choice any time through your browser settings or the &ldquo;Cookie Settings&rdquo; link in our footer. Disabling analytics cookies will not affect your ability to use our tools. See our{' '}
+                <Link href="/cookie-policy" className="text-primary hover:underline">Cookie Policy</Link> for full details.
               </p>
             </Section>
 
@@ -272,6 +273,7 @@ export default function PrivacyPolicyPage() {
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/sitemap" className="transition-colors hover:text-foreground">Sitemap</Link>
             <Link href="mailto:privacy@airanko.com" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

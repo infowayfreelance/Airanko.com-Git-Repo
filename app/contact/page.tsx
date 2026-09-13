@@ -4,6 +4,7 @@ import { ChevronRight, Zap, Mail, Clock } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import ContactForm from '@/components/contact/contact-form'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Contact – Ai Ranko',
@@ -117,6 +118,7 @@ export default function ContactPage() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/cookie-policy" className="transition-colors hover:text-foreground">Cookies</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

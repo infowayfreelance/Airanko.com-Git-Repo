@@ -5,6 +5,7 @@ import Navbar from '@/components/navbar'
 import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import MetaPixelCheckerTool from '@/components/meta-pixel-checker/meta-pixel-checker-tool'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Meta Title & Description Pixel Length Checker (Bulk) — Free | Ai Ranko',
@@ -133,6 +134,7 @@ export default function MetaPixelCheckerPage() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

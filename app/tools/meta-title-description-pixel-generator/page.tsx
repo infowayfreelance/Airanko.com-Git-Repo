@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import MetaTitleDescriptionGeneratorTool from '@/components/meta-title-description-generator/meta-title-description-generator-tool'
 import MetaTitleDescriptionPixelGeneratorSeoSections from '@/components/meta-title-description-pixel-generator-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'AI Meta Title & Description Generator — Google Pixel Limits (Bulk) — Free | Ai Ranko',
@@ -142,6 +143,7 @@ export default function MetaTitleDescriptionGeneratorPage() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

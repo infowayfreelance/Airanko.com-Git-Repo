@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import PlagiarismCheckerTool from '@/components/plagiarism-checker/plagiarism-checker-tool'
 import PlagiarismCheckerSeoSections from '@/components/plagiarism-checker-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Free AI Content Detector & Grammar Checker — Plagiarism + Readability | Ai Ranko',
@@ -197,6 +198,7 @@ export default function PlagiarismCheckerPage() {
             <Link href="/privacy-policy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms-and-conditions" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/contact" className="transition-colors hover:text-foreground">Contact</Link>
+            <CookieSettingsLink className="transition-colors hover:text-foreground" />
           </nav>
         </div>
       </footer>

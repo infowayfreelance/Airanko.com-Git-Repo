@@ -6,6 +6,7 @@ import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import ImageResizerTool from '@/components/image-resizer/image-resizer-tool'
 import ImageResizerSeoSections from '@/components/image-resizer-seo-sections'
+import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
   title: 'Free Image Resizer, Converter & Compressor Online | AI Ranko',
@@ -122,6 +123,7 @@ export default function ImageResizerPage() {
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms-and-conditions" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <CookieSettingsLink className="hover:text-foreground transition-colors" />
           </nav>
         </div>
       </footer>
