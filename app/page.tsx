@@ -305,7 +305,7 @@ const stats = [
   { value: '5K+', label: 'Active Users' },
   { value: '1.99M+', label: 'Images Processed' },
   { value: '99.9%', label: 'Uptime' },
-  { value: '15+', label: 'Free Tools' },
+  { value: '20+', label: 'Free Tools' },
 ]
 
 const features = [
