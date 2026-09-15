@@ -577,7 +577,7 @@ export default function HomePage() {
             Start ranking higher today
           </h2>
           <p className="mt-4 text-lg leading-relaxed opacity-85 text-pretty">
-            Join 50,000+ creators and marketers using Ai Ranko to grow their organic presence — completely free.
+            Join 60,000+ creators and marketers using Ai Ranko to grow their organic presence — completely free.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Button
