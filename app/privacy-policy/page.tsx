@@ -155,7 +155,7 @@ export default function PrivacyPolicyPage() {
 
             <Section n={4} id="browser-processing" title="Browser-Based Processing">
               <Callout tone="success">
-                <strong>Your files never leave your device.</strong> All image processing tools on Ai Ranko — including Image Resizer, Bulk Image Resizer, Background Remover, and AI Image Upscaler — run entirely in your browser using client-side JavaScript. Your images are processed locally and are never uploaded to our servers.
+                <strong>Your files never leave your device.</strong> All image processing tools on Ai Ranko — including Image Resizer and Bulk Image Resizer — run entirely in your browser using client-side JavaScript. Your images are processed locally and are never uploaded to our servers.
               </Callout>
               <p>
                 For tools that require server interaction (such as SEO analysis tools that crawl external URLs, or AI-powered text tools), only the URL or text input you provide is transmitted to our servers or to third-party AI API providers. We do not store those inputs beyond what is necessary to return results to you.

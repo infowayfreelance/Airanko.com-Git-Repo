@@ -8,7 +8,6 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 
 - [SEO Strategy Maker](https://airanko.com/tools/seo-strategy-maker): Crawls your site and generates a complete AI-powered SEO strategy with keyword research, competitor analysis, content calendar, technical checklist, and a 6-month month-by-month roadmap.
 - [Site Audit Tool](https://airanko.com/tools/site-audit): Real-crawl SEO audit. Fetches up to 15 pages of your site, runs 25+ checks across SEO, performance, accessibility, mobile, technical, and content categories. Returns per-issue fix instructions written by GPT-4o.
-- [Keyword Research Tool](https://airanko.com/tools/keyword-research): Pulls 150+ real keyword ideas from Google Autocomplete (with a-z alphabet expansion), YouTube, and Wikipedia. Then AI clusters them by intent, scores difficulty, identifies quick wins, and generates 10-15 detailed content briefs.
 - [Bulk Meta & OG Checker](https://airanko.com/tools/meta-checker): Audit meta title, meta description, Open Graph, and Twitter Card tags for one URL or many at once.
 - [Link Extractor](https://airanko.com/tools/link-extractor): Crawl any website and extract every link from all pages, including sitemap entries. Export to CSV or JSON.
 - [Mobile Friendliness Checker](https://airanko.com/tools/mobile-checker): Preview any website in real mobile (iPhone SE/14/Pro Max, Galaxy S23, Pixel 7), tablet (iPad Mini/Pro), and desktop view.
@@ -29,9 +28,6 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 
 - [Image Resizer & Converter](https://airanko.com/tools/image-resizer): Resize, crop, convert, and optimize images to WebP, PNG, JPEG. Runs fully in your browser.
 - [Bulk Image Resizer](https://airanko.com/tools/bulk-image-resizer): Process unlimited images at once with global settings or per-image tweaks. 100% in-browser, files never leave your device.
-- [AI Background Remover](https://airanko.com/tools/background-remover): Removes image backgrounds with on-device AI (no upload). Private and free.
-- [AI Image Upscaler](https://airanko.com/tools/ai-image-upscaler): Enhances image resolution 2x or 4x using on-device AI super-resolution (no upload). Before/after comparison slider, keeps or converts output format. Private and free.
-- [AI Logo Generator](https://airanko.com/tools/logo-generator): Generate logo concepts and export in multiple formats.
 
 ## Utilities
 
@@ -52,7 +48,7 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 
 ## Key facts
 
-- 22 free tools, no signup required, no watermark
+- 18 free tools, no signup required, no watermark
 - Privacy-first: image tools never upload files to a server
 - AI tools powered by GPT-4o via OpenAI API
 - Real data sources only — no fake or mocked metrics

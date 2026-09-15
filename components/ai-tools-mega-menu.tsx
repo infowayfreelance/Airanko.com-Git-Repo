@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ChevronDown,
   ImageIcon,
-  Search,
   FileText,
   Link2,
   Globe,
@@ -18,7 +17,6 @@ import {
   Languages,
   Mic,
   Video,
-  Wand2,
   ArrowRight,
   TrendingUp,
   Map,
@@ -66,20 +64,6 @@ const categories: Category[] = [
         href: '/tools/bulk-image-resizer',
         badge: 'New',
       },
-      {
-        icon: Wand2,
-        label: 'AI Image Upscaler',
-        description: 'Enhance image resolution up to 4x.',
-        href: '/tools/ai-image-upscaler',
-        badge: 'AI',
-      },
-      {
-        icon: Sparkles,
-        label: 'Background Remover',
-        description: 'Remove backgrounds with one click.',
-        href: '/tools/background-remover',
-        badge: 'New',
-      },
     ],
   },
   {
@@ -93,13 +77,6 @@ const categories: Category[] = [
         description: 'Full AI-generated SEO plan & roadmap.',
         href: '/tools/seo-strategy-maker',
         badge: 'AI',
-      },
-      {
-        icon: Search,
-        label: 'Keyword Research Tool',
-        description: 'Real Google keywords + AI clustering.',
-        href: '/tools/keyword-research',
-        badge: 'New',
       },
       {
         icon: Link2,

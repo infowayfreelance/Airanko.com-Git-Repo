@@ -29,7 +29,6 @@ const HIGH_PRIORITY_TOOLS = new Set([
   'seo-strategy-maker',
   'site-audit',
   'content-optimizer',
-  'keyword-research',
   'content-writer',
   'plagiarism-checker',
   'html-sitemap-generator',
@@ -39,7 +38,7 @@ const HIGH_PRIORITY_TOOLS = new Set([
 ])
 
 // Lower-priority utility tools.
-const LOW_PRIORITY_TOOLS = new Set(['website-cloner', 'logo-generator'])
+const LOW_PRIORITY_TOOLS = new Set(['website-cloner'])
 
 const BLOG_PRIORITY_OVERRIDES: Record<string, number> = {
   'top-10-free-photo-cropping-tools': 0.8,

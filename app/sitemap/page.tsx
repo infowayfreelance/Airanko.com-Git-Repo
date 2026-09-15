@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   ChevronRight, Zap, Search, FileText, Globe, ShieldCheck, Cpu, Smartphone,
-  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Eye, Map, Bot, FileCode2, Ruler, ZoomIn,
+  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Map, Bot, FileCode2, Ruler,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
@@ -58,7 +58,6 @@ const sections: Section[] = [
     tools: [
       { href: '/tools/seo-strategy-maker', label: 'SEO Strategy Maker',  description: 'Full AI-generated SEO plan with keywords, content calendar & 2-month roadmap.', icon: Sparkles },
       { href: '/tools/site-audit',         label: 'Site Audit Tool',     description: 'Crawl up to 15 pages, run 25+ checks, get AI step-by-step fixes for every issue.', icon: Globe },
-      { href: '/tools/keyword-research',   label: 'Keyword Research Tool', description: 'Pull 150+ real keywords from Google Autocomplete + AI clustering by intent.', icon: Search },
       { href: '/tools/meta-checker',       label: 'Bulk Meta & OG Checker', description: 'Audit meta tags, Open Graph, and Twitter Card for one URL or many.', icon: FileText },
       { href: '/tools/link-extractor',     label: 'Link Extractor',      description: 'Crawl any website and extract every link with sitemap entries — export to CSV/JSON.', icon: Link2 },
       { href: '/tools/mobile-checker',     label: 'Mobile Friendliness Checker', description: 'Preview any website in real mobile, tablet, and desktop view.', icon: Smartphone },
@@ -85,9 +84,6 @@ const sections: Section[] = [
     tools: [
       { href: '/tools/image-resizer',       label: 'Image Resizer & Converter',   description: 'Resize, crop, convert & optimize images to WebP, PNG, JPEG.', icon: ImageIcon },
       { href: '/tools/bulk-image-resizer',  label: 'Bulk Image Resizer',          description: 'Process unlimited images at once with global or per-image settings.', icon: Images },
-      { href: '/tools/background-remover',  label: 'AI Background Remover',       description: 'Instantly remove backgrounds with on-device AI — private and free.', icon: Sparkles },
-      { href: '/tools/ai-image-upscaler',   label: 'AI Image Upscaler',           description: 'Enhance image resolution 2x or 4x with on-device AI — private and free.', icon: ZoomIn },
-      { href: '/tools/logo-generator',      label: 'AI Logo Generator',           description: 'Generate logo concepts and export in multiple formats.', icon: Eye },
     ],
   },
   {

@@ -186,7 +186,6 @@ export default function CookiePolicyPage() {
               <ul className="list-disc space-y-2 pl-6">
                 <li><strong>Vercel Analytics</strong> — privacy-friendly site analytics. Does not use third-party tracking cookies; uses a first-party identifier with anonymised IPs.</li>
                 <li><strong>AI API providers</strong> (OpenAI, etc.) — when you use AI-powered tools, your text is sent to the provider&rsquo;s API. These providers may set their own cookies if you visit their domains; they do not set cookies through Ai Ranko itself.</li>
-                <li><strong>HuggingFace</strong> — the Background Remover downloads an AI model from the HuggingFace CDN on first use. No cookies are set.</li>
               </ul>
               <p>
                 Each third-party service has its own privacy and cookie policy. We encourage you to review them. Disabling analytics cookies in our banner prevents Vercel Analytics from running.
