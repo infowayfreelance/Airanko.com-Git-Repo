@@ -261,7 +261,7 @@ const stats = [
   { value: '5K+', label: 'Active Users' },
   { value: '1.99M+', label: 'Images Processed' },
   { value: '99.9%', label: 'Uptime' },
-  { value: '19+', label: 'Free Tools' },
+  { value: '22+', label: 'Free Tools' },
 ]
 
 const features = [
@@ -529,7 +529,7 @@ export default function HomePage() {
             Start ranking higher today
           </h2>
           <p className="mt-4 text-lg leading-relaxed opacity-85 text-pretty">
-            Join 60,000+ creators and marketers using Ai Ranko to grow their organic presence — completely free.
+            Join 5K+ creators and marketers using Ai Ranko to grow their organic presence — completely free.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Button
