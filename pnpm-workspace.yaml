@@ -1,5 +1,6 @@
 allowBuilds:
   '@davisvaughan/tree-sitter-r': true
+  '@ffmpeg-installer/linux-x64': true
   '@nanonets/graft': true
   onnxruntime-node: true
   protobufjs: true

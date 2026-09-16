@@ -10,6 +10,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-heading' })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://airanko.com'),
   title: 'Ai Ranko – AI-Powered SEO & Image Tools',
   description: 'Ai Ranko offers powerful AI-driven SEO tools and image utilities. Resize, crop, convert images and boost your site rankings.',
   keywords: 'AI SEO tools, image resizer, image converter, webp converter, crop image, SEO analyzer',
