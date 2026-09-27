@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ChevronRight, Zap, Calendar, Clock, ArrowRight, Smartphone, ImageIcon } from 'lucide-react'
+import { ChevronRight, Zap, Calendar, Clock, ArrowRight, Smartphone, ImageIcon, Bot } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
@@ -53,6 +53,16 @@ type Post = {
 }
 
 const posts: Post[] = [
+  {
+    slug: 'how-to-check-if-a-website-is-vibe-coded',
+    title: 'How to Check If a Website Is Vibe Coded',
+    excerpt:
+      'AI tools are changing how websites get built. Learn practical, step-by-step methods to check whether a website may have been vibe coded — from technology stack to source code, content, and SEO signals.',
+    date: 'September 27, 2026',
+    readingTime: '9 min read',
+    category: 'AI & Web Development',
+    icon: Bot,
+  },
   {
     slug: 'top-10-free-photo-cropping-tools',
     title: 'Top 10 Free Photo Cropping Tools for Bloggers and Marketers (2026)',

@@ -465,9 +465,6 @@ export default function MobileFriendlyBlogPost() {
               <Link href="/tools/site-audit" className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
                 Try the Site Audit <ArrowUpRight className="h-3 w-3" />
               </Link>
-              <Link href="/tools/keyword-research" className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
-                Try Keyword Research <ArrowUpRight className="h-3 w-3" />
-              </Link>
               <Link href="/tools/content-optimizer" className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
                 Try Content Optimizer <ArrowRight className="h-3 w-3" />
               </Link>
