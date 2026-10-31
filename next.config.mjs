@@ -1,67 +1,3 @@
-import path from 'path'
-import fs from 'fs'
-import { createRequire } from 'module'
-
-/** @type {import('next').NextConfig} */
-
-// pnpm installs every package under a version-suffixed real directory in
-// `node_modules/.pnpm/...` and only exposes it at its plain top-level name
-// via a symlink. Globbing through that symlink (as a naive
-// `./node_modules/@ffmpeg-installer/linux-x64/**` include does) makes
-// Next's file tracer record the SAME binary content at both the symlink's
-// logical path and its resolved real path as two separate entries — and
-// since @ffmpeg-installer/ffmpeg's own package.json declares linux-x64 as
-// an optionalDependency, Next's default tracing pulls in yet another copy
-// via pnpm's canonical content-store location on its own. Left unfixed,
-// that duplication — plus @sparticuz/chromium's own ~65MB binary, which
-// used to be bundled directly (see the CHROMIUM_PACK_URL comment in
-// route.ts for why it no longer is) — pushed the deployed function to
-// 331MB, over Vercel's 250MB limit, confirmed via the actual failed
-// Vercel build. Resolving via require.resolve() (same algorithm Node
-// itself uses at runtime) always returns the one real, symlink-free path,
-// so pointing outputFileTracingIncludes there instead includes the binary
-// exactly once.
-const require = createRequire(import.meta.url)
-function relGlob(absDir, sub) {
-  return './' + path.join(path.relative(process.cwd(), absDir), sub).split(path.sep).join('/')
-}
-
-// pnpm only installs @ffmpeg-installer's platform sub-packages that match
-// the machine actually running `pnpm install` (they're marked with
-// os/cpu constraints in the lockfile) — @ffmpeg-installer/linux-x64 simply
-// isn't present on, say, a contributor's Mac. Since this whole
-// portfolioRecorderTracing block only matters for Vercel's own build
-// (always linux x64) and would otherwise crash `next dev`/`next build`
-// with ENOENT anywhere else, it's computed defensively and just omitted
-// when the expected package isn't there.
-let portfolioRecorderTracing = null
-try {
-  // @ffmpeg-installer/ffmpeg picks its platform binary at runtime via
-  // `path.resolve(__dirname, '..', platform)` (see its index.js) — mirror
-  // that exact computation here, from the SAME real (symlink-resolved)
-  // directory Node will use for `__dirname` at runtime, so this points at
-  // definitely the one directory the wrapper will actually look in first.
-  const ffmpegRealDir = path.join(path.dirname(require.resolve('@ffmpeg-installer/ffmpeg')), '..', 'linux-x64')
-  // ffmpegRealDir above is itself one more symlink hop from pnpm's actual
-  // canonical content-store copy of @ffmpeg-installer/linux-x64. Since
-  // @ffmpeg-installer/ffmpeg's own package.json declares linux-x64 as an
-  // optionalDependency, Next's default tracing discovers that canonical
-  // copy on its own (independent of the include above), reintroducing the
-  // same duplicate-binary bloat this whole file exists to avoid. Excluding
-  // it here is safe: ffmpegRealDir (kept above) is a complete,
-  // self-contained real file once traced — it doesn't depend on this
-  // canonical copy being present too.
-  const ffmpegCanonicalDupeDir = fs.realpathSync(ffmpegRealDir)
-  portfolioRecorderTracing = {
-    includes: [relGlob(ffmpegRealDir, '**')],
-    excludes: [relGlob(ffmpegCanonicalDupeDir, '**')],
-  }
-} catch {
-  // Expected on a machine that doesn't have the linux-x64 ffmpeg binary
-  // installed (see comment above) — the portfolio recorder's render route
-  // wouldn't be able to launch Chromium/ffmpeg there either way.
-}
-
 // ── Security headers ────────────────────────────────────────────────────────
 //
 // Applied to every response.  Notes on the CSP choices:
@@ -110,52 +46,6 @@ const securityHeaders = [
   { key: 'Content-Security-Policy', value: CSP },
 ]
 
-// ── Portfolio Recorder CSP override ─────────────────────────────────────────
-//
-// The recorder loads an arbitrary third-party site into a same-origin
-// iframe via `srcDoc` so it can measure/scroll it accurately (see
-// components/portfolio-recorder/portfolio-recorder-tool.tsx). A `srcDoc`
-// document has no HTTP response of its own, so it inherits this page's own
-// CSP — the site-wide policy above only allows images/fonts/media from
-// this site's own domains, which silently blocks every image (and most
-// fonts/media) on whatever site is being recorded. This page is the only
-// one that genuinely needs to render arbitrary third-party resources, so
-// only its CSP is widened — every other page keeps the strict policy above.
-const PORTFOLIO_RECORDER_CSP = [
-  "default-src 'self'",
-  // Widened beyond the site-wide policy: the website-cloner fetch this page
-  // uses skips inlining <script type="module"> (very common for modern
-  // sites' main JS bundle) and leaves it as an absolute cross-origin
-  // <script src>. Under the strict site-wide script-src that gets silently
-  // blocked, so the recorded site's own JS never runs at all — no
-  // hydration, no lazy-loading, no interactivity — which is what "some
-  // websites don't load properly" actually was.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net blob: *",
-  "style-src 'self' 'unsafe-inline' * data:",
-  "font-src 'self' data: blob: *",
-  "img-src 'self' data: blob: *",
-  "connect-src 'self' vitals.vercel-insights.com huggingface.co *.huggingface.co *.xethub.hf.co *.cdn.hf.co cdn.jsdelivr.net *",
-  "worker-src 'self' blob:",
-  "frame-src *",
-  "media-src 'self' blob: data: *",
-  "object-src 'none'",
-  // The recorded page's own <base href="..."> tag (injected by the
-  // website-cloner fetch as a fallback for any relative URL its regex
-  // rewriter doesn't catch) needs an arbitrary origin allowed here, or the
-  // browser silently refuses to apply it and those URLs resolve against
-  // this site's own origin instead.
-  "base-uri *",
-  "form-action 'self'",
-  "frame-ancestors 'self'",
-].join('; ')
-
-const portfolioRecorderHeaders = [
-  { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Content-Security-Policy', value: PORTFOLIO_RECORDER_CSP },
-]
-
 // ── CORS headers for API routes ─────────────────────────────────────────────
 //
 // Only the production origin is allowed to call the API cross-origin.
@@ -169,45 +59,14 @@ const corsHeaders = [
   { key: 'Access-Control-Allow-Headers', value: 'Content-Type' },
 ]
 
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,
   },
-  // The Portfolio Recorder's server-render route launches headless Chromium
-  // (@sparticuz/chromium-min, which downloads its binary to /tmp at cold
-  // start rather than bundling it — see route.ts) and shells out to a
-  // bundled ffmpeg binary (@ffmpeg-installer/ffmpeg), which does ship its
-  // native binary directly and must be copied as-is into the serverless
-  // function bundle rather than processed by webpack, which corrupts it.
-  serverExternalPackages: [
-    'puppeteer-core',
-    '@sparticuz/chromium-min',
-    '@ffmpeg-installer/ffmpeg',
-    'fluent-ffmpeg',
-  ],
-  // serverExternalPackages only stops webpack from bundling/corrupting
-  // these packages' JS — it does NOT make Next.js's output file tracing
-  // (which decides which files actually get copied into the deployed
-  // function) aware of ffmpeg's binary payload, resolved via a runtime
-  // path.join() the tracer can't follow. Without an explicit include the
-  // deployed function is missing the binary entirely, even though it
-  // works locally where the full node_modules tree just sits on disk. See
-  // the portfolioRecorderTracing comment above for why this is a resolved
-  // path rather than a glob through the top-level symlink, and why the
-  // whole block can be null on a non-linux-x64 machine.
-  ...(portfolioRecorderTracing && {
-    outputFileTracingIncludes: {
-      '/api/portfolio-recorder/render': portfolioRecorderTracing.includes,
-    },
-    // Removes the redundant canonical-store copy of the ffmpeg binary that
-    // Next's default tracing pulls in on its own.
-    outputFileTracingExcludes: {
-      '/api/portfolio-recorder/render': portfolioRecorderTracing.excludes,
-    },
-  }),
   async headers() {
     return [
       {
@@ -219,12 +78,6 @@ const nextConfig = {
         // API routes — explicit CORS instead of implicit wildcard
         source: '/api/(.*)',
         headers: corsHeaders,
-      },
-      {
-        // Overrides the general CSP above with one that allows arbitrary
-        // third-party images/fonts/media — see PORTFOLIO_RECORDER_CSP.
-        source: '/tools/portfolio-recorder',
-        headers: portfolioRecorderHeaders,
       },
     ]
   },

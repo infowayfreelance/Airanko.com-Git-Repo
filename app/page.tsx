@@ -47,6 +47,7 @@ export const metadata: Metadata = {
   },
 }
 import {
+  type LucideIcon,
   ImageIcon,
   FileText,
   Link2,
@@ -65,7 +66,6 @@ import {
   Bot,
   FileCode2,
   Ruler,
-  Video,
   Tag,
   ShieldAlert,
 } from 'lucide-react'
@@ -74,7 +74,19 @@ import { Badge } from '@/components/ui/badge'
 import Navbar from '@/components/navbar'
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
-const seoTools = [
+interface SeoTool {
+  icon: LucideIcon
+  label: string
+  description: string
+  badge: string
+  badgeVariant: 'default' | 'secondary'
+  href: string
+  color: string
+  bg: string
+  comingSoon?: boolean
+}
+
+const seoTools: SeoTool[] = [
   {
     icon: ImageIcon,
     label: 'Image Resizer & Converter',
@@ -245,23 +257,13 @@ const seoTools = [
     color: 'text-violet-600',
     bg: 'bg-violet-50',
   },
-  {
-    icon: Video,
-    label: 'Portfolio Video Recorder',
-    description: 'Turn any URL into a smooth scrolling demo video for your portfolio, case study, or social post.',
-    badge: 'New',
-    badgeVariant: 'default' as const,
-    href: '/tools/portfolio-recorder',
-    color: 'text-sky-600',
-    bg: 'bg-sky-50',
-  },
 ]
 
 const stats = [
   { value: '5K+', label: 'Active Users' },
   { value: '1.99M+', label: 'Images Processed' },
   { value: '99.9%', label: 'Uptime' },
-  { value: '22+', label: 'Free Tools' },
+  { value: String(seoTools.length), label: 'Free Tools' },
 ]
 
 const features = [
@@ -299,7 +301,7 @@ const itemListJsonLd = {
   '@type': 'ItemList',
   name: 'Free SEO & AI Tools by Ai Ranko',
   description: 'Complete list of free, AI-powered SEO and image tools available on Ai Ranko.',
-  numberOfItems: 18,
+  numberOfItems: 17,
   itemListElement: [
     { '@type': 'ListItem', position: 1,  name: 'SEO Strategy Maker',                     url: 'https://airanko.com/tools/seo-strategy-maker' },
     { '@type': 'ListItem', position: 2,  name: 'Site Audit Tool',                        url: 'https://airanko.com/tools/site-audit' },
@@ -311,14 +313,13 @@ const itemListJsonLd = {
     { '@type': 'ListItem', position: 8,  name: 'Mobile Friendliness Checker',            url: 'https://airanko.com/tools/mobile-checker' },
     { '@type': 'ListItem', position: 9,  name: 'Image Resizer & Converter',              url: 'https://airanko.com/tools/image-resizer' },
     { '@type': 'ListItem', position: 10, name: 'Bulk Image Resizer',                     url: 'https://airanko.com/tools/bulk-image-resizer' },
-    { '@type': 'ListItem', position: 11, name: 'Portfolio Video Recorder',               url: 'https://airanko.com/tools/portfolio-recorder' },
-    { '@type': 'ListItem', position: 12, name: 'HTML Sitemap Generator',                 url: 'https://airanko.com/tools/html-sitemap-generator' },
-    { '@type': 'ListItem', position: 13, name: 'Vibe Code Detector',                     url: 'https://airanko.com/tools/vibe-code-detector' },
-    { '@type': 'ListItem', position: 14, name: 'XML Sitemap Generator',                  url: 'https://airanko.com/tools/xml-sitemap-generator' },
-    { '@type': 'ListItem', position: 15, name: 'Website Cloner',                         url: 'https://airanko.com/tools/website-cloner' },
-    { '@type': 'ListItem', position: 16, name: 'Meta Pixel Checker',                     url: 'https://airanko.com/tools/meta-title-description-bulk-pixel-checker' },
-    { '@type': 'ListItem', position: 17, name: 'Meta Title & Description Generator',     url: 'https://airanko.com/tools/meta-title-description-pixel-generator' },
-    { '@type': 'ListItem', position: 18, name: 'Vibe Code Security Scanner',             url: 'https://airanko.com/tools/vibe-code-security-scanner' },
+    { '@type': 'ListItem', position: 11, name: 'HTML Sitemap Generator',                 url: 'https://airanko.com/tools/html-sitemap-generator' },
+    { '@type': 'ListItem', position: 12, name: 'Vibe Code Detector',                     url: 'https://airanko.com/tools/vibe-code-detector' },
+    { '@type': 'ListItem', position: 13, name: 'XML Sitemap Generator',                  url: 'https://airanko.com/tools/xml-sitemap-generator' },
+    { '@type': 'ListItem', position: 14, name: 'Website Cloner',                         url: 'https://airanko.com/tools/website-cloner' },
+    { '@type': 'ListItem', position: 15, name: 'Meta Pixel Checker',                     url: 'https://airanko.com/tools/meta-title-description-bulk-pixel-checker' },
+    { '@type': 'ListItem', position: 16, name: 'Meta Title & Description Generator',     url: 'https://airanko.com/tools/meta-title-description-pixel-generator' },
+    { '@type': 'ListItem', position: 17, name: 'Vibe Code Security Scanner',             url: 'https://airanko.com/tools/vibe-code-security-scanner' },
   ],
 }
 

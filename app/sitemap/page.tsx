@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   ChevronRight, Zap, Search, FileText, Globe, ShieldCheck, Cpu, Smartphone,
-  Images, Sparkles, PenLine, ImageIcon, Link2, Video, Map, Bot, FileCode2, Ruler,
+  Images, Sparkles, PenLine, ImageIcon, Link2, Map, Bot, FileCode2, Ruler,
 } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
@@ -90,7 +90,6 @@ const sections: Section[] = [
     title: 'Utilities',
     subtitle: 'Essential tools for marketers, founders, and creators.',
     tools: [
-      { href: '/tools/portfolio-recorder',  label: 'Portfolio Video Recorder',    description: 'Turn any URL into a smooth scrolling demo video for portfolio or social.', icon: Video },
       { href: '/tools/website-cloner',      label: 'Website Cloner',              description: 'Clone any web page to a self-contained HTML file — inlines CSS & JS, live preview.', icon: Globe },
     ],
   },

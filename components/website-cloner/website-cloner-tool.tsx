@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Globe,
   Download,
@@ -14,10 +14,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
 
 interface CloneResult {
   html: string
+  previewHtml: string
   stats: {
     cssInlined: number
     jsInlined: number
@@ -41,11 +41,23 @@ export default function WebsiteClonerTool() {
   const [result, setResult] = useState<CloneResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [resultUrl, setResultUrl] = useState('')
+  const inFlight = useRef<AbortController | null>(null)
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    inFlight.current?.abort()
+    if (copyTimer.current) clearTimeout(copyTimer.current)
+  }, [])
 
   const handleClone = async () => {
     const trimmed = url.trim()
-    if (!trimmed) return
+    if (!trimmed || inFlight.current) return
+    const controller = new AbortController()
+    inFlight.current = controller
+    const timeout = setTimeout(() => controller.abort(), 30000)
     setLoading(true)
+    setCopied(false)
     setError(null)
     setResult(null)
 
@@ -54,13 +66,20 @@ export default function WebsiteClonerTool() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: trimmed }),
+        signal: controller.signal,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Clone failed')
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error ?? 'The page could not be cloned. Please try again.')
+      if (!data || typeof data.html !== 'string' || typeof data.previewHtml !== 'string' || !data.stats) {
+        throw new Error('The server returned an invalid response. Please try again.')
+      }
       setResult(data)
-    } catch (e: any) {
-      setError(e.message ?? 'Something went wrong')
+      setResultUrl(trimmed)
+    } catch (e: unknown) {
+      setError(controller.signal.aborted ? 'The request timed out. Please try a smaller page.' : e instanceof Error ? e.message : 'Something went wrong')
     } finally {
+      clearTimeout(timeout)
+      inFlight.current = null
       setLoading(false)
     }
   }
@@ -69,16 +88,25 @@ export default function WebsiteClonerTool() {
     if (!result) return
     const blob = new Blob([result.html], { type: 'text/html' })
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `${domainFromUrl(url)}-clone.html`
+    const objectUrl = URL.createObjectURL(blob)
+    a.href = objectUrl
+    a.download = `${domainFromUrl(resultUrl)}-clone.html`
+    document.body.appendChild(a)
     a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
   }
 
   const handleCopy = async () => {
     if (!result) return
-    await navigator.clipboard.writeText(result.html)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(result.html)
+      setCopied(true)
+      if (copyTimer.current) clearTimeout(copyTimer.current)
+      copyTimer.current = setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setError('Clipboard access is unavailable. Please use Download HTML instead.')
+    }
   }
 
   return (
@@ -94,7 +122,7 @@ export default function WebsiteClonerTool() {
           Free Website Cloner
         </h1>
         <p className="mt-2 text-muted-foreground text-pretty">
-          Enter any URL to clone the page — CSS and JavaScript are inlined into one self-contained HTML file. Preview it live and download with one click.
+          Enter a public HTTP or HTTPS page you have permission to archive. Styles and scripts are inlined where safe and within size limits. Preview the isolated snapshot and download the HTML.
         </p>
       </div>
 
@@ -112,6 +140,8 @@ export default function WebsiteClonerTool() {
           <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={url}
+            maxLength={2048}
+            aria-label="Public page URL"
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !loading && handleClone()}
             placeholder="https://example.com/page"
@@ -200,22 +230,23 @@ export default function WebsiteClonerTool() {
                 <div className="h-3 w-3 rounded-full bg-green-400" />
               </div>
               <div className="flex-1 rounded-md border border-border bg-background px-3 py-1 text-xs text-muted-foreground font-mono truncate">
-                {url}
+                {resultUrl}
               </div>
-              <Badge variant="secondary" className="text-xs shrink-0">Live Preview</Badge>
+              <Badge variant="secondary" className="text-xs shrink-0">Isolated Preview</Badge>
             </div>
             <iframe
-              srcDoc={result.html}
+              srcDoc={result.previewHtml}
               className="w-full border-0"
               style={{ height: 600 }}
               title="Cloned page preview"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              sandbox=""
+              referrerPolicy="no-referrer"
             />
           </div>
 
           {/* Note */}
           <p className="text-xs text-muted-foreground text-center">
-            Some fonts, images, or scripts loaded from external origins may not appear in the preview due to CORS restrictions — they will still work when you open the downloaded file in your browser.
+            The preview disables scripts, forms, popups, and access to this website. External resources may be blocked or omitted. Downloaded HTML can contain third-party code; inspect it before opening and only archive trusted pages.
           </p>
         </div>
       )}

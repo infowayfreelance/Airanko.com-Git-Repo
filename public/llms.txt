@@ -31,7 +31,6 @@ All tools run either fully in the browser (image tools, privacy-first) or via a 
 
 ## Utilities
 
-- [Portfolio Video Recorder](https://airanko.com/tools/portfolio-recorder): Turn any URL into a smooth scrolling demo video for portfolio, case study, or social post. 10-60 second customizable duration with HD output.
 - [Website Cloner](https://airanko.com/tools/website-cloner): Fetches a URL server-side, inlines CSS and JavaScript into one self-contained HTML file, rewrites asset URLs to absolute, shows a live iframe preview, and offers one-click download.
 
 ## Blog

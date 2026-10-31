@@ -33,3 +33,11 @@ To learn more, take a look at the following resources:
 - [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
 
 <a href="https://v0.app/chat/api/kiro/clone/Hamzafarooq787/Airanko.com-Git-Repo" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+
+## Validation and website cloner safety
+
+- `pnpm run typecheck` checks all TypeScript; production builds also enforce type checking.
+- `pnpm run test:security` runs mocked URL/DNS/redirect/transport and cloner-route regression tests (Node.js 24+; no real outbound requests).
+- `pnpm run build` validates the production build.
+
+The cloner only fetches public HTTP(S) URLs on standard ports, pins validated DNS addresses, and limits redirects, body sizes, total transfer, request time, and concurrent work. Its preview is intentionally static and network-free: scripts, forms, navigation, external images/fonts and frames are blocked. Downloaded HTML remains third-party active content and must only be opened after review. Per-instance concurrency protection is not a distributed quota; public deployments should also configure gateway rate limits.
