@@ -7,7 +7,7 @@ export default function SynthidFrame() {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return
-      if (event.source !== document.getElementById('synthid-frame')?.contentWindow) return
+      if (event.source !== document.querySelector<HTMLIFrameElement>('#synthid-frame')?.contentWindow) return
       const data = event.data
       if (data?.type !== 'ai-ranko-synthid-height') return
       const size = Number(data.height)
