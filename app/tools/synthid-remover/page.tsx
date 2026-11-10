@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import SynthidFrame from './synthid-frame'
+import ImageAnalysisLab from '@/components/synthid-image-analysis'
 
 export const metadata: Metadata = {
   title: 'SynthID Image Lab — Experimental Image Processing | Ai Ranko',
@@ -21,6 +22,7 @@ export default function SynthidImageLabPage() {
     <main style={{ margin: 0, background: '#081126' }}>
       <h1 className="sr-only">SynthID Image Lab — Experimental image signal processing</h1>
       <SynthidFrame />
+      <ImageAnalysisLab />
       <noscript>This image processing tool requires JavaScript to work.</noscript>
     </main>
   )
