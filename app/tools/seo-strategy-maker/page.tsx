@@ -9,18 +9,18 @@ import SeoStrategyMakerSeoSections from '@/components/seo-strategy-maker-seo-sec
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
-  title: 'AI SEO Strategy Maker — Free Custom SEO Plan Generator | Ai Ranko',
+  title: 'AI SEO Strategy Creator & Plan Generator (Free) | Ai Ranko',
   description:
-    'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 2-month action plan — 100% free & AI-powered.',
+    'Free AI SEO strategy creator: enter your URL and get keyword research, competitor gaps, a content calendar, a technical checklist and a 2-month SEO roadmap.',
   keywords:
     'SEO strategy maker, SEO plan generator, AI SEO tool, free SEO strategy, keyword strategy, content calendar, SEO roadmap, competitor analysis, technical SEO checklist',
   alternates: {
     canonical: 'https://airanko.com/tools/seo-strategy-maker',
   },
   openGraph: {
-    title: 'AI SEO Strategy Maker — Free Custom SEO Plan Generator | Ai Ranko',
+    title: 'AI SEO Strategy Creator & Plan Generator (Free) | Ai Ranko',
     description:
-      'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 2-month action plan — 100% free & AI-powered.',
+      'Free AI SEO strategy creator: enter your URL and get keyword research, competitor gaps, a content calendar, a technical checklist and a 2-month SEO roadmap.',
     url: 'https://airanko.com/tools/seo-strategy-maker',
     siteName: 'AI Ranko',
     images: [
@@ -48,9 +48,9 @@ export const metadata: Metadata = {
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'AI SEO Strategy Maker — Free Custom SEO Plan Generator',
+  name: 'AI SEO Strategy Creator — Free SEO Plan Generator',
   description:
-    'Generate a complete SEO strategy in seconds. Get keyword research, competitor analysis, content calendar, technical SEO checklist & a 2-month action plan — 100% free & AI-powered.',
+    'Free AI SEO strategy creator: enter your URL and get keyword research, competitor gaps, a content calendar, a technical checklist and a 2-month SEO roadmap.',
   url: 'https://airanko.com/tools/seo-strategy-maker',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'All',
@@ -83,10 +83,10 @@ const faqJsonLd = {
   mainEntity: [
     {
       '@type': 'Question',
-      name: 'What is an AI SEO strategy maker?',
+      name: 'What is an AI SEO strategy creator?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'An AI SEO strategy maker is a tool that automatically analyzes your website and generates a complete SEO plan — including keyword research, competitor analysis, content calendar, technical checklist, and a month-by-month action roadmap.',
+        text: 'An AI SEO strategy creator (also called an SEO strategy maker or generator) is a tool that automatically analyzes your website and generates a complete SEO plan — including keyword research, competitor analysis, content calendar, technical checklist, and a month-by-month action roadmap.',
       },
     },
     {

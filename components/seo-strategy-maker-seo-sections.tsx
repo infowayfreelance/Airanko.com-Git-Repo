@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import {
   Globe,
   KeySquare,
@@ -141,8 +142,8 @@ function ComparisonCell({ value }: { value: boolean | string }) {
 
 const faqs = [
   {
-    q: 'What is an AI SEO strategy maker?',
-    a: 'An AI SEO strategy maker is a tool that automatically analyzes your website and generates a complete SEO plan — including keyword research, competitor analysis, content calendar, technical checklist, and a month-by-month action roadmap.',
+    q: 'What is an AI SEO strategy creator?',
+    a: 'An AI SEO strategy creator (also called an SEO strategy maker or generator) is a tool that automatically analyzes your website and generates a complete SEO plan — including keyword research, competitor analysis, content calendar, technical checklist, and a month-by-month action roadmap.',
   },
   {
     q: 'Is Ai Ranko\'s SEO strategy maker really free?',
@@ -355,6 +356,7 @@ export default function SeoStrategyMakerSeoSections() {
             </p>
             <p>
               Unlike Semrush or Ahrefs, there&apos;s no learning curve, no monthly fees, and no setup required. Just enter your URL and get a <strong className="text-foreground">client-ready SEO strategy</strong> you can execute from day one.
+              {' '}Want a quick check first? Run a free <Link href="/tools/site-audit">AI site audit</Link> or test your titles and descriptions with our <Link href="/tools/meta-checker">meta tag checker</Link>.
             </p>
           </div>
         </div>
