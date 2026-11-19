@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ChevronRight, Zap, Calendar, Clock, ArrowRight, Smartphone, ImageIcon, Bot } from 'lucide-react'
+import { ChevronRight, Zap, Calendar, Clock, ArrowRight, Smartphone, ImageIcon, Bot, Search } from 'lucide-react'
 import Navbar from '@/components/navbar'
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
@@ -53,6 +53,15 @@ type Post = {
 }
 
 const posts: Post[] = [
+  {
+    "slug": "how-to-run-a-free-seo-site-audit",
+    "title": "How to Run a Free SEO Site Audit in 5 Minutes (Step by Step)",
+    "excerpt": "A practical free SEO site audit: what to check in Search Console, how to crawl key pages, and how to use a free site audit tool without hype.",
+    "date": "November 20, 2026",
+    "readingTime": "10 min read",
+    "category": "SEO",
+    icon: Search,
+  },
   {
     slug: 'how-to-check-if-a-website-is-vibe-coded',
     title: 'How to Check If a Website Is Vibe Coded',
