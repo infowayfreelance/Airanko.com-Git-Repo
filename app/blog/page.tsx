@@ -54,6 +54,15 @@ type Post = {
 
 const posts: Post[] = [
   {
+    "slug": "how-to-write-meta-titles-and-descriptions",
+    "title": "How to Write Meta Titles and Descriptions That Fit in Google Search Results",
+    "excerpt": "A practical guide to writing unique title tags and meta descriptions, including why pixel width matters more than a strict character count.",
+    "readingTime": "10 min read",
+    "category": "SEO",
+    "date": "November 20, 2026",
+    icon: Search,
+  },
+  {
     "slug": "how-to-run-a-free-seo-site-audit",
     "title": "How to Run a Free SEO Site Audit in 5 Minutes (Step by Step)",
     "excerpt": "A practical free SEO site audit: what to check in Search Console, how to crawl key pages, and how to use a free site audit tool without hype.",
