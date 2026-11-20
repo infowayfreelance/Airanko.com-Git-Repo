@@ -5,13 +5,13 @@ import Navbar from '@/components/navbar'
 import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import XmlSitemapGeneratorTool from '@/components/xml-sitemap-generator/xml-sitemap-generator-tool'
-import XmlSitemapGeneratorSeoSections from '@/components/xml-sitemap-generator-seo-sections'
+import XmlSitemapGeneratorSeoSections, { xmlSitemapFaqs } from '@/components/xml-sitemap-generator-seo-sections'
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
-  title: 'Free XML Sitemap Generator — Crawl Any Site & Export sitemap.xml | Ai Ranko',
+  title: "Free XML Sitemap Generator & Crawler | Ai Ranko",
   description:
-    'Generate a valid XML sitemap from any website URL. Reads your existing sitemap.xml or crawls your site up to 500 pages. Set changefreq, priority, lastmod, image tags, exclude patterns — download instantly.',
+    "Free XML sitemap generator. We read your existing sitemap or crawl up to 500 pages, then you download a Search Console-ready sitemap.xml. No signup needed.",
   keywords: [
     'xml sitemap generator', 'sitemap generator free', 'sitemap.xml generator', 'online sitemap generator',
     'google sitemap generator', 'website sitemap creator', 'xml sitemap creator', 'sitemap builder',
@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: 'https://airanko.com/tools/xml-sitemap-generator' },
   openGraph: {
-    title: 'Free XML Sitemap Generator — Crawl Any Site & Export sitemap.xml | Ai Ranko',
-    description: 'Generate a valid XML sitemap from any website URL. Set changefreq, priority, lastmod, image tags — download sitemap.xml instantly.',
+    title: "Free XML Sitemap Generator & Crawler | Ai Ranko",
+    description: "Free XML sitemap generator. We read your existing sitemap or crawl up to 500 pages, then you download a Search Console-ready sitemap.xml. No signup needed.",
     url: 'https://airanko.com/tools/xml-sitemap-generator',
     siteName: 'Ai Ranko',
     locale: 'en_US',
@@ -36,94 +36,29 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Free XML Sitemap Generator | Ai Ranko',
-    description: 'Crawl any site and export a Google-ready sitemap.xml in seconds. Free, no login.',
+    title: "Free XML Sitemap Generator & Crawler | Ai Ranko",
+    description: "Free XML sitemap generator. We read your existing sitemap or crawl up to 500 pages, then you download a Search Console-ready sitemap.xml. No signup needed.",
     images: [
       'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
     ],
   },
 }
 
-const softwareJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'XML Sitemap Generator',
-  applicationCategory: 'WebApplication',
-  operatingSystem: 'All',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  url: 'https://airanko.com/tools/xml-sitemap-generator',
-  description:
-    'Generate a valid XML sitemap from any website. Reads existing sitemap.xml, crawls up to 500 pages, sets changefreq/priority/lastmod, includes image:image extensions, excludes URL patterns, and exports a downloadable sitemap.xml file.',
-  featureList: [
-    'Reads existing sitemap.xml automatically',
-    'Sitemap index file support',
-    'Crawls up to 500 pages',
-    '1–4 level crawl depth control',
-    'changefreq setting (always to never)',
-    'Priority setting (0.1 to 1.0)',
-    'lastmod date inclusion',
-    'image:image extension support',
-    'URL exclude pattern filtering',
-    'Download as .xml file',
-    'Copy to clipboard',
-    'Crawled pages table with status codes',
-    'Valid sitemaps.org schema',
-  ],
-}
-
 const faqJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What is an XML sitemap?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'An XML sitemap is a file that lists all the URLs on your website so search engines like Google can discover and crawl them more efficiently.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How does the XML Sitemap Generator work?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'It first checks for an existing sitemap.xml at your domain root. If found, it uses those URLs directly. If not, it crawls your site by following internal links up to your chosen depth and page limit.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is this XML sitemap generator free?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes, completely free. No account, no credit card, no watermark. Generate and download as many sitemaps as you need.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How many URLs can the sitemap include?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'This tool supports up to 500 URLs per sitemap. Google\'s sitemap specification allows up to 50,000 URLs per file. For larger sites, use a sitemap index with multiple child sitemaps.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Where do I submit the generated sitemap?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Upload sitemap.xml to your website root, add it to robots.txt as "Sitemap: https://yourdomain.com/sitemap.xml", and submit the URL in Google Search Console under Sitemaps.',
-      },
-    },
-  ],
+  mainEntity: xmlSitemapFaqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.q,
+    acceptedAnswer: { '@type': 'Answer', text: faq.a },
+  })),
 }
 
 export default function XmlSitemapGeneratorPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />      <Navbar />
-      <ToolSchema name="XML Sitemap Generator" slug="xml-sitemap-generator" description="Generate a Google-ready sitemap.xml from any website. Up to 500 URLs, changefreq, priority, lastmod, and image extensions." />
+      <ToolSchema name="Ai Ranko XML Sitemap Generator" slug="xml-sitemap-generator" category="DeveloperApplication" description="Read an existing sitemap.xml or sitemap index, or crawl HTML links at depth 1–4. Up to 500 URLs per import or crawl, with download and copy options." />
       <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'XML Sitemap Generator', href: '/tools/xml-sitemap-generator' }]} />
 
       {/* Breadcrumb */}
@@ -149,7 +84,7 @@ export default function XmlSitemapGeneratorPage() {
               Free XML Sitemap Generator
             </div>
             <h1 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-              XML Sitemap Generator
+              Free XML Sitemap Generator
             </h1>
             <p className="mt-3 max-w-2xl mx-auto text-pretty text-muted-foreground">
               Generate a Google-ready <strong>sitemap.xml</strong> from any website. Reads your existing sitemap or crawls up to 500 pages — set changefreq, priority, lastmod &amp; image tags, then download instantly.

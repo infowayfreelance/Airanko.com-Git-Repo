@@ -1,18 +1,18 @@
 import Link from 'next/link'
 import { ChevronRight, FileCode2, Search, Globe, CheckCircle2, Clock, ImageIcon, Layers, Filter, Download, ArrowRight, HelpCircle } from 'lucide-react'
 
-const faqs = [
+export const xmlSitemapFaqs = [
   {
     q: 'What is an XML sitemap?',
     a: 'An XML sitemap is a file that lists all the URLs on your website so search engines like Google and Bing can discover and crawl them more efficiently. It tells crawlers which pages exist, when they were last updated, and how often they change.',
   },
   {
     q: 'Does Google still use XML sitemaps?',
-    a: 'Yes. While Google can discover pages by following links, submitting a sitemap via Google Search Console is the most reliable way to ensure all your pages are indexed — especially new pages, deep pages, or pages with few internal links.',
+    a: 'Yes. Google uses sitemaps to discover URLs, especially new pages, deep pages or pages with few internal links. Submitting a sitemap in Search Console helps discovery but does not guarantee indexing.',
   },
   {
     q: 'How does this tool generate the sitemap?',
-    a: 'The generator first checks if your site already has a sitemap.xml. If found, it uses those URLs directly. If not, it crawls your site up to your chosen depth and max page limit, extracting all internal links automatically.',
+    a: 'The generator first checks for sitemap.xml at your domain root. If found, it imports URLs up to your selected limit. Otherwise, it follows same-origin links in the HTML from your starting URL, at depth 1–4 and up to 500 pages.',
   },
   {
     q: 'What is changefreq and priority?',
@@ -20,11 +20,11 @@ const faqs = [
   },
   {
     q: 'Should I include image:image tags?',
-    a: 'Yes, if your site relies heavily on images (portfolios, e-commerce product photos, photography). Google Image Search can index images faster when they are listed in sitemap image extensions. For content-heavy sites without key images, it is optional.',
+    a: 'Image extensions are optional. Enable them to import image locations and titles from an existing sitemap or collect image src/data-src locations and title/alt text from crawled HTML. Review the image URLs before submitting.',
   },
   {
     q: 'How many URLs should a sitemap have?',
-    a: 'A single sitemap file supports up to 50,000 URLs and must be under 50 MB. For larger sites, use multiple sitemaps and a sitemap index file — our tool automatically merges existing sitemap indexes.',
+    a: 'Google allows up to 50,000 URLs or 50 MB uncompressed per sitemap file. Ai Ranko exports up to 500 URLs, including when importing existing sitemaps. For a sitemap index, it reads up to five child entries per index within that selected URL limit. Larger sites need multiple sitemap files maintained separately.',
   },
   {
     q: 'Where do I submit the sitemap?',
@@ -33,6 +33,22 @@ const faqs = [
   {
     q: 'How often should I regenerate the sitemap?',
     a: 'Regenerate and resubmit your sitemap whenever you publish new pages, remove old pages, or significantly restructure your site. For frequently updated blogs, regenerating weekly or monthly is a good practice.',
+  },
+  {
+    q: "Why are some of my pages missing from the sitemap?",
+    a: "Common reasons are the selected page limit, depth 1–4, failed fetches, excluded URL patterns, file types the crawler skips, or links that are absent from the fetched HTML. Sitemap imports are also capped at 500 URLs and up to five child entries per index. This tool does not render JavaScript or automatically exclude robots.txt-blocked or noindex pages. Check internal links and try a higher depth if appropriate.",
+  },
+  {
+    q: "Does this replace a full site audit or Google Search Console?",
+    a: "No. The generator lists URLs. Search Console shows how Google crawls and indexes your site. A site audit checks the pages themselves for on-page and technical issues. They work best together.",
+  },
+  {
+    q: "Can I generate a sitemap with more than 500 URLs?",
+    a: "This tool exports up to 500 URLs per run, whether it reads an existing sitemap or sitemap index or crawls your site. It does not generate an index or split the output into multiple files. For larger sites, maintain multiple sitemap files under a sitemap index. Google requires separate files above 50,000 URLs or 50 MB uncompressed.",
+  },
+  {
+    q: "Is the XML sitemap generator free? Do I need to sign up?",
+    a: "Yes. It is free to use, and you do not need an account to generate, copy or download a sitemap.",
   },
 ]
 
@@ -48,7 +64,7 @@ export default function XmlSitemapGeneratorSeoSections() {
               How the XML Sitemap Generator Works
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Real crawl. Real data. Valid sitemap schema — no placeholders.
+              Read an existing sitemap or collect URLs from server-fetched HTML.
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-3">
@@ -57,19 +73,19 @@ export default function XmlSitemapGeneratorSeoSections() {
                 icon: Globe,
                 step: '1',
                 title: 'Discover URLs',
-                desc: 'Reads your existing sitemap.xml first. If not found, crawls your site from the homepage following internal links up to your selected depth.',
+                desc: 'Reads your root sitemap.xml first, up to your selected URL limit. Otherwise, follows HTML links from the URL you enter at depth 1–4.',
               },
               {
                 icon: FileCode2,
                 step: '2',
                 title: 'Build XML',
-                desc: 'Assembles a W3C-valid XML sitemap with your chosen changefreq, priority, lastmod dates, and optional image:image extensions.',
+                desc: 'Builds sitemap XML with your chosen changefreq, priority, optional lastmod dates and image:image tags. Review the URLs and dates before submission.',
               },
               {
                 icon: Download,
                 step: '3',
                 title: 'Download & Submit',
-                desc: 'Copy the XML or download sitemap.xml. Upload to your site root and submit in Google Search Console for fast indexing.',
+                desc: 'Copy the XML or download the file. Upload it to a public site URL and submit it in Search Console. Submission does not guarantee indexing.',
               },
             ].map((item) => {
               const Icon = item.icon
@@ -96,20 +112,20 @@ export default function XmlSitemapGeneratorSeoSections() {
               Full Feature Set
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Every option Google expects in a production sitemap.
+              Choose URL limits, crawl depth and optional sitemap fields.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: FileCode2, title: 'Valid XML Schema', desc: 'Generates sitemaps that validate against http://www.sitemaps.org/schemas/sitemap/0.9 — required for Google Search Console.' },
-              { icon: Search, title: 'Sitemap.xml Reader', desc: 'Automatically reads your existing sitemap.xml or sitemap index files first, so large sites are handled in seconds.' },
+              { icon: FileCode2, title: 'Valid XML Schema', desc: 'Builds XML with the sitemaps.org namespace and escaped URL values. Review the output and validate it before submission.' },
+              { icon: Search, title: 'Sitemap.xml Reader', desc: 'Reads the root sitemap.xml before crawling, with the same selected limit of up to 500 URLs.' },
               { icon: Globe, title: 'Live Web Crawler', desc: 'If no sitemap exists, crawls your site up to 4 levels deep and collects up to 500 real page URLs.' },
-              { icon: Clock, title: 'changefreq & lastmod', desc: 'Set default change frequency and enable lastmod dates — today\'s date for crawled pages or from your existing sitemap.' },
-              { icon: ImageIcon, title: 'Image Extensions', desc: 'Optionally add image:image tags for every on-page image — improves indexing in Google Image Search.' },
-              { icon: Filter, title: 'Exclude Patterns', desc: 'Skip URLs matching keywords like /admin, /cart, /private to keep your sitemap focused on public pages.' },
-              { icon: Layers, title: 'Sitemap Index Support', desc: 'Detects and merges sitemap index files automatically, combining multiple child sitemaps into one unified output.' },
-              { icon: CheckCircle2, title: 'Crawl Depth Control', desc: 'Choose 1–4 levels of link depth. Level 1 maps only the homepage links; level 4 reaches deep page hierarchies.' },
-              { icon: Download, title: '2 Export Formats', desc: 'Download as a standalone .xml file or copy the raw XML to clipboard — ready to upload to any hosting environment.' },
+              { icon: Clock, title: 'changefreq & lastmod', desc: 'Set change frequency and optional lastmod. Existing dates are preserved; missing or crawled dates use today. Verify these reflect actual content updates.' },
+              { icon: ImageIcon, title: 'Image Extensions', desc: 'Optionally import image tags from a sitemap or collect image src/data-src locations from fetched HTML.' },
+              { icon: Filter, title: 'Exclude Patterns', desc: 'During a crawl, skip URLs containing comma-separated patterns such as /admin or /cart. Exclusions are not applied to sitemap imports.' },
+              { icon: Layers, title: 'Sitemap Index Support', desc: 'Reads up to five child entries per sitemap index and merges URLs within the selected limit of up to 500.' },
+              { icon: CheckCircle2, title: 'Crawl Depth Control', desc: 'Choose depth 1–4. The starting page is depth 0; depth 1 also follows its direct same-origin HTML links, subject to the page limit.' },
+              { icon: Download, title: 'Download or Copy XML', desc: 'Download as a standalone .xml file or copy the raw XML to clipboard — ready to upload to any hosting environment.' },
             ].map((f) => {
               const Icon = f.icon
               return (
@@ -130,13 +146,13 @@ export default function XmlSitemapGeneratorSeoSections() {
         {/* SEO Tips */}
         <section className="rounded-3xl border border-border bg-muted/30 p-6 sm:p-8">
           <h2 className="font-heading text-xl font-bold text-foreground mb-6">
-            Sitemap Best Practices for 2025
+            Sitemap Best Practices
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {[
               { tip: 'Submit in Search Console', detail: 'Always submit your sitemap URL in Google Search Console and Bing Webmaster Tools — do not rely solely on the robots.txt Sitemap directive.' },
               { tip: 'Keep it under 50,000 URLs', detail: 'Google\'s limit per sitemap file is 50,000 URLs and 50 MB uncompressed. For larger sites, create a sitemap index pointing to multiple child sitemaps.' },
-              { tip: 'Use canonical URLs only', detail: 'Only include the canonical version of each page — no session IDs, UTM parameters, or pagination variants. This prevents index dilution.' },
+              { tip: 'Use canonical URLs only', detail: 'Include the preferred canonical URL for each page and remove session IDs and UTM duplicates. Review pagination URLs according to your site structure.' },
               { tip: 'Update after publishing', detail: 'Regenerate and resubmit your sitemap every time you publish new content, delete pages, or significantly restructure your navigation.' },
               { tip: 'Omit noindex pages', detail: 'Pages marked noindex should not appear in your sitemap. Including them sends mixed signals to search engines and wastes crawl budget.' },
               { tip: 'Use consistent protocol', detail: 'Stick to https:// across all sitemap URLs. Mixing http and https creates duplicate indexing issues and confuses crawlers.' },
@@ -152,6 +168,31 @@ export default function XmlSitemapGeneratorSeoSections() {
           </div>
         </section>
 
+        <section>
+          <h2 className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
+            What This XML Sitemap Generator Does, and What It Doesn&apos;t
+          </h2>
+          <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted-foreground">
+            <p>Ai Ranko first looks for sitemap.xml at your domain root, including sitemap indexes. It imports URLs up to your selected limit and reads up to five child entries per index. If no usable sitemap is found, it follows same-origin links from your starting URL at depth 1–4, up to 500 pages. You can download or copy the resulting XML.</p>
+            <p>The 500-URL cap applies to imports and crawls. The tool fetches HTML on the server without rendering JavaScript. It does not read robots.txt directives, filter noindex pages, verify canonicals or exclude every HTTP error response. Review the URLs and response statuses before submission. Exclude patterns apply only during crawling.</p>
+            <p>Missing URLs can result from your selected page or depth limit, failed fetches, excluded patterns, skipped file types or links that are absent from the fetched HTML. This is a sitemap builder and does not report Search Console coverage or backlink data. Use the <Link href="/tools/site-audit" className="font-semibold text-primary hover:underline">site audit tool</Link> for on-page and technical checks.</p>
+            <p>For a visitor-facing list, use the <Link href="/tools/html-sitemap-generator" className="font-semibold text-primary hover:underline">HTML sitemap generator</Link>. You can also <Link href="/tools/link-extractor" className="font-semibold text-primary hover:underline">extract all links on a page</Link> or review page metadata with the <Link href="/tools/meta-checker" className="font-semibold text-primary hover:underline">Meta Checker</Link>.</p>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
+            How to Submit Your Sitemap to Google
+          </h2>
+          <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-muted-foreground">
+            <li>Download the XML, name the file sitemap.xml and upload it to your site root or another public HTTPS URL.</li>
+            <li>Add <code>Sitemap: https://yourdomain.com/sitemap.xml</code> to robots.txt.</li>
+            <li>Open Sitemaps in Google Search Console and submit the sitemap URL.</li>
+            <li>Review the Sitemaps report for errors and regenerate after publishing, removing or significantly restructuring pages.</li>
+          </ol>
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">Include only canonical, indexable URLs, without session IDs, UTM duplicates or noindex pages. The generator does not verify these settings for you. Verify lastmod dates reflect actual significant changes, because crawled pages and missing dates use the generation date.</p>
+        </section>
+
         {/* FAQ */}
         <section>
           <div className="mb-8 text-center">
@@ -160,7 +201,7 @@ export default function XmlSitemapGeneratorSeoSections() {
             </h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {faqs.map((faq) => (
+            {xmlSitemapFaqs.map((faq) => (
               <div key={faq.q} className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex items-start gap-2.5 mb-2">
                   <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -183,8 +224,8 @@ export default function XmlSitemapGeneratorSeoSections() {
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               { label: 'HTML Sitemap Generator', href: '/tools/html-sitemap-generator', desc: 'Human-readable sitemap with 5 layouts' },
-              { label: 'Site Audit Tool', href: '/tools/site-audit', desc: '25+ checks with AI fix instructions' },
-              { label: 'Link Extractor', href: '/tools/link-extractor', desc: 'Extract every link from any website' },
+              { label: 'Site Audit Tool', href: '/tools/site-audit', desc: '25+ checks with fixes and an AI summary' },
+              { label: 'Link Extractor', href: '/tools/link-extractor', desc: 'Extract links from a page' },
             ].map((tool) => (
               <Link
                 key={tool.label}

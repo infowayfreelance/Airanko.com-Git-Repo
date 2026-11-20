@@ -192,7 +192,7 @@ export default function XmlSitemapGeneratorTool() {
             <FileCode2 className="h-4.5 w-4.5" />
           </div>
           <div>
-            <h2 className="font-heading text-base font-bold text-foreground">XML Sitemap Generator</h2>
+            <h2 className="font-heading text-base font-bold text-foreground">Generate a sitemap.xml from any website</h2>
             <p className="text-xs text-muted-foreground">Enter your website URL and configure options below</p>
           </div>
         </div>
