@@ -190,13 +190,13 @@ export default function SiteAuditTool() {
           <div className="mx-auto mb-8 max-w-2xl text-center">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
               <Sparkles className="h-3 w-3" />
-              Real crawl · Real metrics · AI fix suggestions · 100% Free
+              Real crawl · Real metrics · AI summary · Free audits
             </div>
             <h1 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-              Professional Site Audit Tool
+              Free AI SEO Audit Tool
             </h1>
             <p className="mt-3 leading-relaxed text-muted-foreground text-pretty">
-              We <strong>actually crawl up to 15 pages</strong> of your site, run 25+ real SEO, performance, accessibility, mobile, and technical checks, then GPT-4o writes step-by-step fixes for every issue.
+              We <strong>actually crawl up to 15 pages</strong> of your site, run 25+ real SEO, performance, accessibility, mobile, and technical checks, with predefined fixes for each issue and a GPT-4o mini summary and top recommendations when available.
             </p>
           </div>
 
@@ -204,7 +204,7 @@ export default function SiteAuditTool() {
             {[
               { icon: Search,     label: '25+ real checks' },
               { icon: Activity,   label: 'Live page metrics' },
-              { icon: Sparkles,   label: 'AI fix guides' },
+              { icon: Sparkles,   label: 'AI summary' },
               { icon: Download,   label: 'JSON export' },
             ].map((f) => (
               <div key={f.label} className="flex items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
@@ -247,7 +247,7 @@ export default function SiteAuditTool() {
             </button>
 
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              30–60 seconds · We respect robots.txt · No data stored
+              Usually 30–60 seconds · Server-side crawl · JSON export
             </p>
           </div>
         </div>

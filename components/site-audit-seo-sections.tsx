@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import {
   Globe,
   Cpu,
@@ -33,8 +34,8 @@ const steps = [
   {
     icon: Cpu,
     step: '02',
-    title: 'AI Runs 90+ Checks',
-    desc: 'Our engine crawls your site, audits technical SEO, measures Core Web Vitals, scores content quality, and validates security headers in under 60 seconds.',
+    title: 'AI Runs 25+ Checks',
+    desc: 'Our engine crawls up to 15 pages of your site and runs 25+ checks across SEO, performance, accessibility, mobile and content, usually in 30–60 seconds.',
   },
   {
     icon: ClipboardCheck,
@@ -50,32 +51,32 @@ const features = [
   {
     icon: Settings2,
     title: 'Technical SEO Audit',
-    desc: 'Audits meta tags, canonicals, hreflang, schema markup, sitemap.xml, robots.txt, HTTPS, redirects, and indexability — 26 technical checks per page.',
+    desc: 'Checks titles, meta descriptions, canonicals, JSON-LD presence, sitemap.xml, robots.txt availability and HTTPS.',
   },
   {
     icon: Gauge,
-    title: 'Core Web Vitals & Performance',
-    desc: 'Measures LCP, CLS, and INP estimates, detects render-blocking resources, oversized images, and missing caching headers.',
+    title: 'Page Fetch Performance',
+    desc: 'Records server-side HTML fetch time and response size, and flags slow or heavy HTML responses.',
   },
   {
     icon: FileText,
-    title: 'Content & E-E-A-T Scoring',
-    desc: 'Scores content depth, readability, keyword usage, heading hierarchy, alt text coverage, and author/E-E-A-T signals against Google\'s guidelines.',
+    title: 'Content & Heading Checks',
+    desc: 'Checks word count and H1 usage to flag short pages, missing main headings and multiple H1 headings.',
   },
   {
     icon: Link2,
-    title: 'Link Health Check',
-    desc: 'Finds broken internal links, audits external links, maps your internal link graph, and flags orphan pages hurting crawlability.',
+    title: 'Internal & External Link Counts',
+    desc: 'Counts internal and external links on crawled pages and flags weak internal linking across the sample.',
   },
   {
     icon: ShieldCheck,
-    title: 'Security & Accessibility',
-    desc: 'Validates HTTPS, security headers (HSTS, CSP, X-Frame-Options), mixed content, and WCAG accessibility issues like color contrast.',
+    title: 'HTTPS & Accessibility Basics',
+    desc: 'Checks HTTPS, image alt text and the HTML language attribute. These are basic checks, not a full accessibility audit.',
   },
   {
     icon: Smartphone,
-    title: 'Mobile-First Indexing Ready',
-    desc: 'Every check runs against the mobile rendering of your pages — the version Google uses for indexing and ranking decisions.',
+    title: 'Mobile Viewport Check',
+    desc: 'Checks for a viewport meta tag. The audit reads HTML and does not render pages on a mobile device.',
   },
   {
     icon: AlertCircle,
@@ -84,20 +85,20 @@ const features = [
   },
   {
     icon: Sparkles,
-    title: 'AI-Powered Fix Suggestions',
-    desc: 'Each issue includes a clear, actionable "How to fix" recommendation — written for marketers, not just developers.',
+    title: 'Fix Instructions & AI Summary',
+    desc: 'Each issue includes predefined fix instructions. GPT-4o mini adds a summary and top recommendations when available.',
   },
 ]
 
 // ─── Why Site Audits Matter ──────────────────────────────────────────────────
 
 const whyPoints = [
-  { icon: Search, text: 'Find ranking-killing technical issues before Google does' },
-  { icon: TrendingUp, text: 'Improve Core Web Vitals — a confirmed Google ranking factor' },
-  { icon: Target, text: 'Discover crawl gaps, orphan pages, and indexation problems' },
-  { icon: AlertCircle, text: 'Catch broken links, redirect chains, and 404 errors instantly' },
-  { icon: Layers, text: 'Score content quality against E-E-A-T and Helpful Content guidelines' },
-  { icon: ShieldCheck, text: 'Validate security headers and HTTPS configuration' },
+  { icon: Search, text: 'Find missing titles, descriptions and canonicals' },
+  { icon: TrendingUp, text: 'Identify slow HTML fetches and heavy responses' },
+  { icon: Target, text: 'Check sitemap and robots.txt availability' },
+  { icon: AlertCircle, text: 'Review internal and external link counts' },
+  { icon: Layers, text: 'Review word count and main heading usage' },
+  { icon: ShieldCheck, text: 'Check HTTPS and basic accessibility signals' },
   { icon: Clock, text: 'Run unlimited audits — no monthly limits or per-page charges' },
 ]
 
@@ -113,14 +114,9 @@ const comparisonRows: {
   { feature: 'Free to use', airanko: true, semrush: 'Limited', ahrefs: 'Limited', screamingfrog: 'Limited' },
   { feature: 'No signup required', airanko: true, semrush: false, ahrefs: false, screamingfrog: true },
   { feature: 'Technical SEO audit', airanko: true, semrush: true, ahrefs: true, screamingfrog: true },
-  { feature: 'Core Web Vitals scoring', airanko: true, semrush: true, ahrefs: 'Partial', screamingfrog: 'Partial' },
-  { feature: 'E-E-A-T content scoring', airanko: true, semrush: false, ahrefs: false, screamingfrog: false },
   { feature: 'AI-powered fix suggestions', airanko: true, semrush: 'Partial', ahrefs: false, screamingfrog: false },
   { feature: 'Prioritized issue list', airanko: true, semrush: true, ahrefs: true, screamingfrog: 'Partial' },
-  { feature: 'Security header audit', airanko: true, semrush: false, ahrefs: false, screamingfrog: true },
-  { feature: 'Accessibility (WCAG) checks', airanko: true, semrush: false, ahrefs: false, screamingfrog: 'Partial' },
   { feature: 'Works in browser — no install', airanko: true, semrush: true, ahrefs: true, screamingfrog: false },
-  { feature: 'No data stored', airanko: true, semrush: false, ahrefs: false, screamingfrog: true },
   { feature: 'Unlimited audits', airanko: true, semrush: 'Paid only', ahrefs: 'Paid only', screamingfrog: 'Paid only' },
 ]
 
@@ -150,47 +146,63 @@ function ComparisonCell({ value }: { value: boolean | string }) {
 
 // ─── FAQ ─────────────────────────────────────────────────────────────────────
 
-const faqs = [
+export const siteAuditFaqs = [
   {
-    q: 'What is a site audit tool?',
-    a: 'A site audit tool is software that crawls a website and analyzes it across technical SEO, performance, content quality, and security factors — surfacing issues that hurt rankings, user experience, and conversions. AI Ranko\'s tool runs 90+ checks per site and delivers a prioritized action plan.',
+    "q": "What is a site audit tool?",
+    "a": "A site audit tool reads website pages and checks their SEO, performance, accessibility, mobile and content signals. Ai Ranko runs 25+ checks and metrics across up to 15 pages and provides a prioritised list of issues with fix instructions."
   },
   {
-    q: 'Is the site audit tool really free?',
-    a: 'Yes — completely free with no credit card, no subscription, and no signup required. Unlike Semrush or Ahrefs, there are no monthly audit limits or paywalls on any feature.',
+    "q": "Is the site audit tool really free?",
+    "a": "Yes. The audit is free to use with no signup, subscription or credit card required. Each audit crawls up to 15 pages."
   },
   {
-    q: 'How long does a site audit take?',
-    a: 'Most audits finish in under 60 seconds. The tool crawls your sitemap and internal links, runs all 90+ checks in parallel, and renders your full report instantly — no waiting.',
+    "q": "How long does a site audit take?",
+    "a": "An audit usually takes 30\u201360 seconds, depending on the pages and server response times. Slow or unavailable websites can take longer."
   },
   {
-    q: 'What does the site audit actually check?',
-    a: 'The audit covers four categories: (1) Technical SEO — meta tags, schema, canonicals, sitemap, robots.txt. (2) Performance — Core Web Vitals, render-blocking resources, image weight. (3) Content & E-E-A-T — depth, readability, heading structure, author signals. (4) Links, accessibility & security — broken links, security headers, WCAG checks.',
+    "q": "What does the site audit actually check?",
+    "a": "It checks titles, meta descriptions, H1 usage, canonicals, JSON-LD and Open Graph presence, image alt text, language and viewport tags, word count, link counts, HTTPS, and robots.txt and sitemap availability. It also records HTML fetch time and response size. It does not measure Core Web Vitals, evaluate E-E-A-T or test security headers."
   },
   {
-    q: 'How is this different from Google Search Console?',
-    a: 'Google Search Console only shows issues Google\'s crawler reports after the fact. AI Ranko\'s site audit proactively tests your site in real time — including issues Search Console never reports, like content thinness, E-E-A-T gaps, or accessibility problems.',
+    "q": "How is this different from Google Search Console?",
+    "a": "Search Console shows Google search clicks, impressions and indexing reports. The audit checks the pages themselves for on-page, technical and basic performance issues. They work best together."
   },
   {
-    q: 'Does the tool follow Google\'s 2025 ranking guidelines?',
-    a: 'Yes. Every check is aligned with Google\'s latest E-E-A-T framework, Helpful Content System, Core Web Vitals thresholds, and 2024–2025 spam policies. We update the audit engine as Google publishes new guidance.',
+    "q": "Can the audit confirm whether Google has indexed my pages?",
+    "a": "No. The audit does not connect to Google Search Console or verify Google indexing. Use Search Console to investigate indexing and search performance."
   },
   {
-    q: 'Will my data be stored or shared?',
-    a: 'No. All crawling happens server-side in real time. URLs are never logged, stored, or shared with third parties. Your audit stays completely private.',
+    "q": "Will my data be stored or shared?",
+    "a": "The audit endpoint does not save reports to a database. Crawling happens on the server, and a summary of the URL and findings is sent to OpenAI for the AI summary and recommendations. Infrastructure and AI provider logging or retention may apply."
   },
   {
-    q: 'Can I audit competitor websites?',
-    a: 'Yes — you can audit any publicly accessible website, including competitors. It\'s the fastest way to benchmark your site against industry leaders and find gaps you can exploit.',
+    "q": "Can I audit competitor websites?",
+    "a": "You can enter a publicly accessible competitor URL to review the same page signals. The audit does not measure their backlinks, traffic or search rankings."
   },
   {
-    q: 'Do I need SEO experience to understand the report?',
-    a: 'No. Every issue includes a plain-language description and a step-by-step "How to fix" recommendation. The tool is designed for marketers, founders, and content creators — not just technical SEOs.',
+    "q": "Do I need SEO experience to understand the report?",
+    "a": "No. Each issue includes a plain-language description, severity, estimated impact and predefined How to fix instructions. Review the evidence before making changes."
   },
   {
-    q: 'How is AI Ranko\'s audit different from Screaming Frog?',
-    a: 'Screaming Frog is a desktop application that requires installation, eats system resources, and limits free use to 500 URLs. AI Ranko runs entirely in your browser, has no install or signup, includes AI-powered fix suggestions, and adds modern checks Screaming Frog doesn\'t cover — like E-E-A-T scoring and accessibility audits.',
+    "q": "How is Ai Ranko's audit different from Screaming Frog?",
+    "a": "Ai Ranko starts in your browser and crawls up to 15 pages on the server. It provides a limited report with predefined fixes and an AI summary. Use a full-site crawler when you need wider coverage."
   },
+  {
+    "q": "How many pages does the AI SEO audit crawl?",
+    "a": "Up to 15 pages per audit, starting from the URL you enter. The tool discovers more URLs from a sitemap, or falls back to internal links on the starting page."
+  },
+  {
+    "q": "Will running an audit affect my Google rankings?",
+    "a": "The audit reads public pages and does not edit your website or submit changes to Google. It fetches robots.txt to find sitemap references and check availability, but does not enforce its crawl directives."
+  },
+  {
+    "q": "Can I export the audit report?",
+    "a": "Yes. Use the JSON export button to download the report as a JSON file to share with your developer or keep for comparison."
+  },
+  {
+    "q": "Which AI writes the recommendations?",
+    "a": "GPT-4o mini writes the summary and top recommendations from the audit findings when available. Individual issue fixes are predefined in the audit code. If the AI request fails, the tool uses a generated summary and the predefined fixes."
+  }
 ]
 
 export default function SiteAuditSeoSections() {
@@ -241,7 +253,7 @@ export default function SiteAuditSeoSections() {
               Key Features
             </h2>
             <p className="mt-2 text-muted-foreground text-pretty">
-              90+ checks across four critical SEO dimensions — in one free, AI-powered audit.
+              25+ checks across SEO, performance, accessibility, mobile and content, in one free AI audit.
             </p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -275,7 +287,7 @@ export default function SiteAuditSeoSections() {
                 Why Site Audits Matter
               </h2>
               <p className="mt-3 text-muted-foreground leading-relaxed text-pretty">
-                Most ranking problems hide in plain sight — slow pages, broken links, thin content, missing schema, weak E-E-A-T signals. A complete audit surfaces every silent issue before it costs you traffic, conversions, and revenue.
+                Missing metadata, slow HTML responses and short pages can be easy to overlook. A limited crawl helps you find practical improvements to investigate and prioritise.
               </p>
             </div>
             <ul className="flex flex-col gap-3">
@@ -306,7 +318,7 @@ export default function SiteAuditSeoSections() {
               How We Compare
             </h2>
             <p className="mt-2 text-muted-foreground text-pretty">
-              See why AI Ranko&apos;s site audit beats the paid tools — for free.
+              Compare the supported audit features below.
             </p>
           </div>
           <div className="overflow-x-auto rounded-2xl border border-border shadow-sm">
@@ -317,7 +329,7 @@ export default function SiteAuditSeoSections() {
                     Feature
                   </th>
                   <th className="px-4 py-4 text-center font-heading font-semibold text-primary w-[18%]">
-                    AI Ranko
+                    Ai Ranko
                   </th>
                   <th className="px-4 py-4 text-center font-heading font-semibold text-muted-foreground w-[18%]">
                     Semrush
@@ -361,22 +373,37 @@ export default function SiteAuditSeoSections() {
       <section className="px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <h2 className="font-heading text-2xl font-bold text-foreground text-balance sm:text-3xl">
-            The Smartest Way to Run a Full Site Audit — Free, Fast &amp; AI-Powered
+            Run a Free AI SEO Audit from Your Browser
           </h2>
           <div className="mt-5 flex flex-col gap-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-            <p>
-              A <strong className="text-foreground">site audit tool</strong> systematically crawls a website and evaluates it against hundreds of SEO, performance, content, and security signals — surfacing the exact issues hurting your rankings. Without a regular audit, technical debt accumulates silently: meta tags rot, schema breaks, pages slow down, and links die — and Google notices long before you do.
-            </p>
-            <p>
-              AI Ranko&apos;s <strong className="text-foreground">free SEO audit</strong> runs 90+ checks across four critical dimensions — technical SEO, Core Web Vitals, content quality, and security — and delivers a prioritized action plan in under 60 seconds. Every issue includes severity, impact, and a clear &quot;how to fix&quot; recommendation written in plain English.
-            </p>
-            <p>
-              Unlike Semrush or Ahrefs, there&apos;s no monthly limit, no per-audit charge, and no learning curve. Unlike Screaming Frog, there&apos;s nothing to install and no system resources eaten. It runs entirely in your browser, stores no data, and delivers a <strong className="text-foreground">complete website health check</strong> the moment you paste a URL.
-            </p>
-            <p>
-              Whether you&apos;re auditing your own site, benchmarking a competitor, or preparing a client report, AI Ranko gives you the same depth as paid enterprise tools — without the price tag or complexity. It&apos;s the fastest, most complete <strong className="text-foreground">technical SEO audit tool</strong> available online in 2025.
-            </p>
+            <p>Ai Ranko&apos;s <strong className="text-foreground">free SEO audit</strong> runs 25+ checks on up to 15 pages and delivers a prioritised action plan, usually in 30–60 seconds. Each issue includes severity, estimated impact and predefined fix instructions. GPT-4o mini adds a summary and top recommendations when available.</p>
+            <p>There&apos;s nothing to install: you start it from your browser and our server crawls the pages. The audit endpoint does not save reports to a database. A summary of the URL and findings is sent to OpenAI for AI recommendations.</p>
+            <p>Use this initial review to identify changes to investigate on your own site or a publicly accessible competitor site. Larger websites need a wider crawl and manual checks.</p>
           </div>
+        </div>
+      </section>
+
+      <section className="px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="font-heading text-2xl font-bold text-foreground text-balance sm:text-3xl">What the AI SEO Audit Checks, and What It Doesn&apos;t</h2>
+          <p className="mt-4 leading-relaxed text-muted-foreground">Ai Ranko crawls up to 15 pages from your starting URL, using a sitemap when available or internal links as a fallback. Its 25+ checks and metrics cover SEO, HTML fetch performance, accessibility basics, mobile viewport settings and content signals. Every reported issue includes predefined fix instructions.</p>
+          <p className="mt-4 leading-relaxed text-muted-foreground">It does not access your Google Search Console data, measure backlinks, render mobile pages, measure Core Web Vitals, test security headers or score E-E-A-T. The 15-page cap also means it cannot cover every URL on a large site. It checks robots.txt availability and sitemap references but does not enforce crawl directives.</p>
+        </div>
+      </section>
+
+      <section className="px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="font-heading text-2xl font-bold text-foreground text-balance sm:text-3xl">How to Read Your Audit Report</h2>
+          <p className="mt-4 leading-relaxed text-muted-foreground">Each issue has a severity and estimated impact. Start with critical, high-impact findings such as missing titles or descriptions, then review warnings and minor notes. The report includes affected URLs and predefined How to fix instructions. Review the AI summary and top recommendations alongside that evidence.</p>
+          <p className="mt-4 leading-relaxed text-muted-foreground">Export the full report as JSON to share it with your developer or keep a record before and after changes. For a walkthrough, read <Link href="/blog/how-to-run-a-free-seo-site-audit" className="font-semibold text-primary hover:underline">how to run a free SEO site audit</Link>.</p>
+        </div>
+      </section>
+
+      <section className="px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="font-heading text-2xl font-bold text-foreground text-balance sm:text-3xl">When to Run a Website Audit</h2>
+          <p className="mt-4 leading-relaxed text-muted-foreground">Run an audit before and after a redesign or migration, after publishing new pages, when traffic drops without an obvious reason, and as a monthly or quarterly review. You can also review a publicly accessible competitor site to compare the same page signals.</p>
+          <p className="mt-4 leading-relaxed text-muted-foreground">Use the <Link href="/tools/meta-checker" className="font-semibold text-primary hover:underline">Meta Checker to check meta tags and Open Graph</Link>, create an <Link href="/tools/xml-sitemap-generator" className="font-semibold text-primary hover:underline">XML sitemap</Link> or an <Link href="/tools/html-sitemap-generator" className="font-semibold text-primary hover:underline">HTML sitemap</Link>, and <Link href="/tools/link-extractor" className="font-semibold text-primary hover:underline">extract all links on a page</Link>. Follow up with the <Link href="/tools/mobile-checker" className="font-semibold text-primary hover:underline">Mobile Checker</Link> and <Link href="/tools/seo-strategy-maker" className="font-semibold text-primary hover:underline">turn the fixes into an SEO strategy</Link>.</p>
         </div>
       </section>
 
@@ -388,11 +415,11 @@ export default function SiteAuditSeoSections() {
               Frequently Asked Questions
             </h2>
             <p className="mt-2 text-muted-foreground text-pretty">
-              Everything you need to know about AI Ranko&apos;s free site audit tool.
+              Everything you need to know about Ai Ranko&apos;s free site audit tool.
             </p>
           </div>
           <div className="flex flex-col gap-3">
-            {faqs.map((faq, i) => (
+            {siteAuditFaqs.map((faq, i) => (
               <details
                 key={i}
                 className="group rounded-2xl border border-border bg-background shadow-sm"
