@@ -2,22 +2,22 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
-import ToolSchema from '@/components/ToolSchema'
+import WebsiteClonerSeoSections, { websiteClonerFaqs } from '@/components/website-cloner-seo-sections'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import WebsiteClonerTool from '@/components/website-cloner/website-cloner-tool'
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
-  title: 'Free Website Cloner — Clone Any Web Page to HTML | Ai Ranko',
+  title: "Free Website Cloner – Save a Web Page as HTML | Ai Ranko",
   description:
-    'Free online website cloner. Enter a URL to instantly clone a web page — inlines CSS and JavaScript into one self-contained HTML file. Live preview + one-click download. No sign-up.',
+    "Free website cloner. Enter a public URL to save one web page as a single HTML file with styles and scripts inlined, then preview and download it.",
   keywords:
     'website cloner, webpage cloner, clone website, download webpage html, save webpage offline, web page archiver, website copier tool, html page saver',
   alternates: { canonical: 'https://airanko.com/tools/website-cloner' },
   openGraph: {
-    title: 'Free Website Cloner — Clone Any Web Page | Ai Ranko',
+    title: "Free Website Cloner – Save a Web Page as HTML | Ai Ranko",
     description:
-      'Clone a web page to a self-contained HTML file. Inlines CSS & JS, rewrites asset URLs. Live preview and instant download.',
+      "Free website cloner. Enter a public URL to save one web page as a single HTML file with styles and scripts inlined, then preview and download it.",
     url: 'https://airanko.com/tools/website-cloner',
     siteName: 'Ai Ranko',
     locale: 'en_US',
@@ -33,24 +33,58 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Free Website Cloner — Clone Any Web Page | Ai Ranko',
+    title: "Free Website Cloner – Save a Web Page as HTML | Ai Ranko",
     description:
-      'Clone a web page to a self-contained HTML file. Inlines CSS & JS, rewrites asset URLs. Live preview and instant download.',
+      "Free website cloner. Enter a public URL to save one web page as a single HTML file with styles and scripts inlined, then preview and download it.",
     images: [
       'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
     ],
   },
 }
 
+const applicationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "@id": "https://airanko.com/tools/website-cloner#app",
+  "name": "Website Cloner",
+  "url": "https://airanko.com/tools/website-cloner",
+  "description": "Free website cloner. Enter a public URL to save one web page as a single HTML file with styles and scripts inlined, then preview and download it.",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Any",
+  "isAccessibleForFree": true,
+  "featureList": [
+    "Clone one public web page by URL",
+    "Server-side fetch",
+    "Styles and scripts inlined where safe and within size limits",
+    "Isolated static preview",
+    "Download as a single HTML file"
+  ],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "provider": {
+    "@id": "https://airanko.com/#organization"
+  }
+}
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  '@id': 'https://airanko.com/tools/website-cloner#faq',
+  mainEntity: websiteClonerFaqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.q,
+    acceptedAnswer: { '@type': 'Answer', text: faq.a },
+  })),
+}
+
 export default function WebsiteClonerPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <ToolSchema
-        name="Website Cloner"
-        slug="website-cloner"
-        description="Clone any web page to a self-contained HTML file with inlined CSS and JavaScript. Live preview and one-click download."
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(applicationJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <BreadcrumbSchema
         items={[
           { name: 'Tools', href: '/#tools' },
@@ -74,6 +108,7 @@ export default function WebsiteClonerPage() {
 
       <main>
         <WebsiteClonerTool />
+        <WebsiteClonerSeoSections />
       </main>
 
       <footer className="mt-12 border-t border-border bg-card px-4 py-8 sm:px-6 lg:px-8">
