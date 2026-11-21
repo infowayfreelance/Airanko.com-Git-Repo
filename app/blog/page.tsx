@@ -54,6 +54,15 @@ type Post = {
 
 const posts: Post[] = [
   {
+    "slug": "how-to-check-if-a-website-is-mobile-friendly",
+    "title": "How to Check if a Website Is Mobile-Friendly (Now Google's Test Is Gone)",
+    "excerpt": "Google retired its Mobile-Friendly Test in 2023. Here is a practical way to check any website on mobile: previews, Lighthouse, real phones and a fix list.",
+    "readingTime": "9 min read",
+    "category": "SEO",
+    "date": "November 21, 2026",
+    icon: Smartphone,
+  },
+  {
     "slug": "how-to-write-meta-titles-and-descriptions",
     "title": "How to Write Meta Titles and Descriptions That Fit in Google Search Results",
     "excerpt": "A practical guide to writing unique title tags and meta descriptions, including why pixel width matters more than a strict character count.",
