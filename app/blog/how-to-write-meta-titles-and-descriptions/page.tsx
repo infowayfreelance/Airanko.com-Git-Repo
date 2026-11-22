@@ -13,7 +13,7 @@ const POST = {
   slug: 'how-to-write-meta-titles-and-descriptions',
   date: '2026-11-20',
   dateDisplay: 'November 20, 2026',
-  updated: '2026-11-20',
+  updated: '2026-11-23',
   readingTime: '10 min read',
   author: 'Junaid Mazhar',
   category: 'SEO',
@@ -126,33 +126,33 @@ const breadcrumbJsonLd = {
 
 const faqs = [
   {
-    q: 'Is there an official Google character limit for title tags or meta descriptions?',
-    a: "No. Google's documentation states that there is no official length limit for the <title> element or the meta description. The title link and the snippet are truncated as needed, typically to fit the device width. Ranges such as 50–60 or 150–160 characters are rules of thumb only.",
+    "q": "Is there an official Google character limit for title tags or meta descriptions?",
+    "a": "No. Google does not set a fixed character limit for either field. Search results can shorten the title link or snippet to suit the available width. Common character ranges are useful drafting guides, not rules that guarantee full display. Use them alongside a preview and your own editorial judgement."
   },
   {
-    q: 'Why is my title cut off in search results?',
-    a: 'Because the title link is shortened to fit the available width on that device. Wide letters, a long brand suffix or a title that only becomes specific at the end are common reasons the useful words disappear. Preview pixel width, and put the important words first.',
+    "q": "Why is my title cut off in search results?",
+    "a": "The displayed title may need more room than the result allows. Wide letters and long brand names can use that space quickly. Move the page topic and essential detail earlier, then remove repetition. A pixel preview can highlight likely overflow, although the actual search result may look different."
   },
   {
-    q: 'Can Google rewrite my title or ignore my meta description?',
-    a: 'Yes. Google may build the title link from the <title>, the visible heading, og:title or other sources, and may rewrite titles that are vague, stuffed, boilerplate or a poor match for the page. Snippets are primarily taken from page content; the meta description is used only when Google finds it more accurate.',
+    "q": "Can Google rewrite my title or ignore my meta description?",
+    "a": "Yes. Google can draw its title link from headings and other sources, and it often creates snippets from page content. A changed result does not automatically mean your tags are broken. Confirm the published text, check that it describes the page and avoid chasing every variation you see."
   },
   {
-    q: 'Should the title tag and the H1 be identical?',
-    a: 'They should describe the same page, but they do not have to use the same wording. Keep one clear main heading, and avoid a visible title that contradicts the <title> tag. Agreement reduces the chance of an unexpected title link; it does not prevent every rewrite.',
+    "q": "Should the title tag and the H1 be identical?",
+    "a": "No. They can use different wording while describing the same topic. A compact search title may work alongside a fuller heading for visitors. Make sure both match what the page delivers. Changing a heading to repeat the title exactly will not guarantee that Google keeps your chosen title link."
   },
   {
-    q: 'How do I write unique descriptions for many similar pages?',
-    a: 'Reuse a short, honest pattern, then change the details that actually differ — the product, the city, the topic, a date or a key fact. Google allows programmatic descriptions when they stay human-readable and diverse. Avoid one template sentence with a single swapped noun. Prioritise your most important URLs first.',
+    "q": "How do I write unique descriptions for many similar pages?",
+    "a": "Start with the facts that distinguish each page. These might include a product material, a particular task or a different audience. Templates can help organise the writing, but the result must still read naturally. If you lack useful differences, review the pages rather than adding made-up claims."
   },
   {
-    q: 'Do meta titles and descriptions directly improve rankings?',
-    a: 'They are not a reliable ranking lever on their own. Their main job is to describe the page clearly and help the right people click. Poor or stuffed titles can also be rewritten. No preview tool can promise a ranking change.',
+    "q": "Do meta titles and descriptions directly improve rankings?",
+    "a": "A title helps explain the subject of a page. A description can help readers decide whether to visit. Neither provides a ranking guarantee, and a shorter line alone is not evidence of an improvement. Review these fields as part of useful, accurate content rather than expecting a width score to produce rankings."
   },
   {
-    q: 'How can I check pixel width before I publish?',
-    a: "Paste the draft into a pixel preview such as Ai Ranko's meta title and description pixel generator, or use the bulk pixel checker for several pages. After you publish, confirm the live tags with the meta checker. Treat the preview as an estimate, not an official limit.",
-  },
+    "q": "How can I check pixel width before I publish?",
+    "a": "Review drafts in a title and description pixel preview, comparing mobile and desktop views. Treat its thresholds as estimates. Once the page is published, fetch the live URL to confirm the tags. For a group of pages, a bulk scan can make the review easier to organise."
+  }
 ]
 const faqJsonLd = {
   '@context': 'https://schema.org',
@@ -227,27 +227,11 @@ export default function MetaTitlesAndDescriptionsBlogPost() {
               {POST.title}
             </h1>
 
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'A clear title and description will not, on their own, move a page to the top of Google. They do something more ordinary and more useful: they help a person scanning a results page decide whether to click.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'The title tag is the text you put in the HTML '}
-              <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                {'<title>'}
-              </code>
-              {
-                " element. Google uses it as one source when it builds the title link — the headline of the result. The meta description is a short summary in the page's HTML. Google sometimes uses it as the snippet under that headline, and sometimes writes the snippet from the page itself."
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "This guide is a practical writing process. It starts with what Google actually documents: there is no official character limit, and text is truncated to fit the device. The familiar ranges of about 50–60 characters for a title and 150–160 for a description are only rules of thumb. You will then draft unique titles and descriptions, preview them by pixel width with Ai Ranko's free tools, and check what is already live. The tools cannot promise better rankings, and they cannot stop Google rewriting a title."
-              }
-            </p>
+            <p className="mt-3 text-sm text-muted-foreground">Updated November 23, 2026</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"A good search result tells someone what waits behind the link. Writing it starts with the page itself. What can a visitor learn, compare or do there? Turn that answer into a clear title, then add a description with a useful reason to visit."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"This guide shows how to write a meta title and meta description, check their width and confirm the published tags. You will use a simple example throughout, so each editing choice has a purpose. The goal is accurate wording that helps readers choose."}</p>
           </header>
-          <Image
+<Image
             src="/blog/how-to-write-meta-titles-and-descriptions/how-to-write-meta-titles-and-descriptions-featured.webp"
             alt={
               'Laptop showing a generic search result with a title and snippet'
@@ -257,477 +241,71 @@ export default function MetaTitlesAndDescriptionsBlogPost() {
             priority
             className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
           />
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Short answer: what a meta title and meta description are for'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'The meta title (the '}
-              <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                {'<title>'}
-              </code>
-              {
-                ' tag) and the meta description are the two short pieces of text you control that most often influence how a page appears in a search result. The title link is usually the first thing someone reads. The snippet is the short supporting line underneath.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'They are there to describe the page accurately and to help the right person click. They are not a hidden ranking switch. A stuffed or boilerplate title can even work against you, because Google may choose different text, and because people skip results that look unhelpful.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Write a unique, descriptive title for every important page, with the most useful words first. Write a unique description that pitches the page in plain language and, where it helps, includes a fact a reader would want to know.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'What to do next: before you start counting characters, read what Google actually says about length.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'What Google actually says about length'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "Google's Search Central documentation is more precise than most blog checklists, and more modest."
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'On '}
-              <Link
-                href={
-                  'https://developers.google.com/search/docs/appearance/title-link'
-                }
-                className="font-semibold text-primary hover:underline"
-              >
-                {'title links'}
-              </Link>
-              {', Google says every page should have a '}
-              <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                {'<title>'}
-              </code>
-              {
-                ' element, and that the text should be descriptive and concise. There is no limit on how long that element can be. The title link is truncated in search results as needed, typically to fit the device width. Google also says it may build the title link from other sources — including the main visual title, heading elements, '
-              }
-              <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                {'og:title'}
-              </code>
-              {
-                ', prominent text and links — and that it may generate a different title when the '
-              }
-              <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                {'<title>'}
-              </code>
-              {' is missing, outdated, inaccurate, stuffed or repetitive.'}
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'On '}
-              <Link
-                href={
-                  'https://developers.google.com/search/docs/appearance/snippet'
-                }
-                className="font-semibold text-primary hover:underline"
-              >
-                {'meta descriptions and snippets'}
-              </Link>
-              {
-                ', Google says snippets are primarily created from the page content. The meta description is sometimes used when it would give a more accurate description than a pull from the body. There is, again, no official length limit. The snippet is truncated to fit the device width.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'That is why a single character target is only a rule of thumb. Many editors still start with roughly 50–60 characters for a title and 150–160 for a description, then check how the line actually looks. Mobile and desktop can cut at different points. A string of wide letters will overflow sooner than the same number of narrow ones.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'What to do next: draft for clarity first. Then preview the width, rather than treating a character count as a Google rule.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'How to write a clear title tag'}
-            </h2>
-            <Image
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Start with the job of each piece of text"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"People often call the HTML title element a “meta title” or “SEO title”. It names the page for browsers and provides one source for the clickable title link in Google. The H1 is the main heading visitors read on the page. It can be longer and more conversational than the title tag."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"The meta description is an HTML summary. When Google uses it, it supports the title with more detail. Google may also build the visible snippet from other text on your page. Your saved description and the search result are therefore not always the same."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Imagine a bakery page explaining how customers order celebration cakes. Its title should identify that service. Its description might explain how to choose a design and send an enquiry, if the page covers those steps. A history of the bakery belongs on a different page."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Before drafting, finish this sentence in plain English: “This page helps someone…” If you need several unrelated answers, check whether the page itself needs a clearer focus."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Write down the main task, the intended reader and one detail that makes this page different from neighbouring pages."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Understand the real limits before counting characters"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"There is no official meta title character limit that guarantees a complete Google title link. There is also no fixed meta description character limit that guarantees a complete snippet. Google's "}<Link href="https://developers.google.com/search/docs/appearance/title-link" className="font-semibold text-primary hover:underline">{"title-link guidance"}</Link>{" and "}<Link href="https://developers.google.com/search/docs/appearance/snippet" className="font-semibold text-primary hover:underline">{"snippet guidance"}</Link>{" both explain that displayed text can be shortened to fit the device width."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"You will often see suggestions of roughly 50–60 characters for titles and 150–160 for descriptions. These are editing rules of thumb. They can help you notice a draft that is getting long, but they are not requirements from Google. A useful title does not become incorrect because it falls outside either range."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Character counts also hide differences in letter width. W and M usually take more room than i and l. Punctuation, font size and the available result space affect how a line looks. Two equally long drafts can therefore end at different places in a preview."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Use length checks to find words you can cut, rather than adding filler to reach a target. Keep any essential qualification near the beginning. If the last phrase disappears, the remaining text should still give an honest picture of the page."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Draft without a strict counter, then use a preview to decide whether the wording needs shortening."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 1: Build the title around a clear promise"}</h2>
+<Image
               src="/blog/how-to-write-meta-titles-and-descriptions/title-tag-draft-checklist.webp"
               alt={'Title tag drafting checklist beside a laptop'}
               width={1200}
               height={900}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Write the title as if someone will only read the first few words — because, on a phone, they might.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Start with the unique point of the page, not a brand slogan. "How to write meta titles and descriptions" tells a reader what they will get. "Welcome | Home | Official site" does not. Google specifically advises against vague titles such as "Home" or "Profile", and against repeating the same uninformative phrase on every page.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Keep the title descriptive and concise. Put the important words first, so they still appear if the line is cut short. If you include the site name, do it once, at the beginning or the end, separated by a hyphen, colon or pipe. Google suggests concise branding of that kind, and warns that a long slogan on every page looks repetitive when several of your results appear together.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Do not stuff keywords. A few precise terms help; the same phrase repeated in several forms does not. Google\'s own example of this problem is a title that lists "Foobar, foo bar, foobars, foo bars". That kind of list can make the result look spammy to people and to Google, and it is a common reason the title link gets rewritten.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'The title tag and the H1 should agree on the topic, but they do not have to be identical. Google looks at both, along with other prominent text. If the '
-              }
-              <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                {'<title>'}
-              </code>
-              {
-                ' says one thing and the visible heading says another, or if several headings share the same visual weight, Google may choose unexpected text. Keep one clear main heading, and make sure the title and the H1 describe the same page.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Common mistakes include boilerplate titles that only change a product name, outdated years left in a reused template, and titles written as a list of keywords rather than a phrase a person would say.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'What to do next: write a title for one real page. Then draft the description to support it, rather than repeating the title word for word.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'How to write a useful meta description'}
-            </h2>
-            <Image
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Begin with the subject and the reason someone would open the page. For our example, “Celebration Cake Orders” is a better starting point than “Welcome to Our Wonderful Website”. It names the task without making a claim about quality."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Next, add a detail that is both useful and supported by the page. “Celebration Cake Orders: Designs and Enquiries” tells readers what they can find. If the business name helps identify the result, try “Celebration Cake Orders | Example Bakery”. These are sample drafts, not promises that either wording will fit every search layout."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Use the words your reader would naturally recognise. A page about replacing a bicycle chain should say that plainly. Repeating “bike chain replacement, replace bike chain, bicycle chains” uses space without clarifying the offer. Read the title aloud. It should sound like a label for a real page."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Check the SEO title vs H1 relationship next. “Celebration Cake Orders | Example Bakery” could sit above an H1 such as “Choose a Celebration Cake and Send an Enquiry”. Both describe the same service, although they serve different reading contexts. A title about ordering would be misleading if the H1 and body only describe cake storage."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Finally, inspect the brand suffix. A long slogan attached to every title can hide the useful part. Keep the name concise and use it once. Review old years, copied product names and leftover template labels before saving."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Write two title options. Choose the one that explains the page most clearly before you compare their pixel widths."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 2: Give the description information the title leaves out"}</h2>
+<Image
               src="/blog/how-to-write-meta-titles-and-descriptions/unique-meta-descriptions.webp"
               alt={'Drafting unique descriptions for individual website pages'}
               width={1200}
               height={900}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Treat the description as a short pitch, not a second title and not a list of keywords.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "Google's advice is to write unique descriptions that accurately describe the specific page. Identical or near-identical text across a site is not helpful when several pages appear in the results. If you cannot write a description for every URL, start with the home page and the pages people actually land on."
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'The description does not have to be a single formal sentence. Google notes that it is a good place to bring together facts that might otherwise be scattered: an author and date on an article, or a key product detail on a product page. Front-load the point, because the snippet may be cut off on a smaller screen. A reader should understand what the page offers even if only the first clause survives.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Avoid long strings of keywords. Google says those do not give people a clear idea of the page, and that they are less likely to be shown as the snippet. A useful test is simple: would you be comfortable reading the line out loud to a customer?'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'On large, database-driven sites, writing every description by hand may be unrealistic. Google encourages programmatic descriptions in that case, as long as they stay human-readable and diverse, and use page-specific data rather than the same sentence with one word changed.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'What to do next: take the title and description you have drafted and preview their width, instead of stopping at a character count.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Why pixel width matters more than a strict character count'}
-            </h2>
-            <Image
+<p className="mt-4 leading-relaxed text-muted-foreground">{"A title names the topic. A description can answer the next question. What will the visitor find, and what can they do with it? Use details from the page rather than praise such as “the ultimate destination” or “the best solution”."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For the bakery example, a weak draft would be “Cakes, celebration cakes, cake orders, bakery cakes and more”. It repeats the topic without explaining the next step. A more useful draft is “Explore celebration cake designs, read the ordering steps and send your enquiry to Example Bakery.” Only use this version if those designs, steps and enquiry option actually exist."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For a guide, describe what it teaches. For a product page, select a relevant feature or use. For a contact page, explain which enquiries it handles. You do not need to fit every benefit, audience and action into one sentence. Choose the information that helps someone decide whether the page meets their need."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Keep the main point early, especially when reviewing mobile previews. Avoid an opening that could apply to any business, such as “Looking for something special?” Readers should not have to reach the final words to learn what the result offers."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Check every claim against the live content. Do not add free delivery, opening hours, credentials or availability because they sound persuasive. Descriptions can become outdated when a service changes. Record who should review those details, particularly if several people edit the site."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Write one natural description, remove anything the page cannot support and make the opening useful on its own."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 3: Preview the words, then shorten with care"}</h2>
+<Image
               src="/blog/how-to-write-meta-titles-and-descriptions/meta-pixel-width-preview.webp"
               alt={'Previewing title and description width on a screen'}
               width={1200}
               height={900}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Search results are laid out in pixels, not in a fixed number of letters. A title full of wide characters such as W and M takes more horizontal space than the same number of narrow characters such as i and l. Two titles with the same character count can therefore wrap or truncate differently. That is the main reason a 60-character "limit" is only a starting point.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "A practical way to check this is to paste your draft into a pixel preview, rather than trusting a character counter alone. Ai Ranko's "
-              }
-              <Link
-                href={
-                  'https://airanko.com/tools/meta-title-description-pixel-generator'
-                }
-                className="font-semibold text-primary hover:underline"
-              >
-                {'meta title and description pixel generator'}
-              </Link>
-              {
-                ' lets you type a title and description and see an estimate of how they sit at typical desktop and mobile widths. You can use it without creating an account. If you have more than one page to review, the '
-              }
-              <Link
-                href={
-                  'https://airanko.com/tools/meta-title-description-bulk-pixel-checker'
-                }
-                className="font-semibold text-primary hover:underline"
-              >
-                {'bulk pixel checker'}
-              </Link>
-              {' is the same idea at a small scale.'}
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Treat any pixel or character target shown in a preview as an estimate, not as a Google rule. The live result can still be cut differently, and Google can still choose a different title or snippet. The preview is there to catch obvious overflow before you publish, not to certify a result.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'What to do next: once the draft looks reasonable, check the tags that are already on the live page, in case a template or CMS is publishing something else.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Check the live page, then keep titles unique'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Drafts in a document and tags on the live page are not always the same thing. A theme, a plugin or a social-sharing field can overwrite what you thought you had published.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {"Ai Ranko's "}
-              <Link
-                href={'https://airanko.com/tools/meta-checker'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'meta checker'}
-              </Link>
-              {
-                ' reads a live URL and shows the title, meta description and related tags as they are served. It is free to use without signup, and it is a useful QA step after you upload a change. It will not tell you how Google will finally write the title link, and it is not a substitute for Google Search Console.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'If the metadata is in good shape and you want a wider first pass on the site, the '
-              }
-              <Link
-                href={
-                  'https://airanko.com/blog/how-to-run-a-free-seo-site-audit'
-                }
-                className="font-semibold text-primary hover:underline"
-              >
-                {'guide to running a free SEO site audit'}
-              </Link>
-              {" walks through the next checks. Ai Ranko's "}
-              <Link
-                href={'https://airanko.com/tools/site-audit'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Site Audit'}
-              </Link>
-              {
-                ' crawls up to 15 pages and runs 25+ real SEO, performance, accessibility, mobile and technical checks. It is a starting point, not a full-site crawl.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'If the title and H1 agree but the body copy still feels thin or off-topic, you can tighten the page itself in the '
-              }
-              <Link
-                href={'https://airanko.com/tools/content-optimizer'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'content optimizer'}
-              </Link>
-              {
-                '. That is optional, and it is about the page content that should support the title, not a way to force a search snippet.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Frequently asked questions'}
-            </h2>
-            <div className="mt-6 space-y-3">
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {
-                    'Is there an official Google character limit for title tags or meta descriptions?'
-                  }
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    "No. Google's documentation states that there is no official length limit for the "
-                  }
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'<title>'}
-                  </code>
-                  {
-                    ' element or the meta description. The title link and the snippet are truncated as needed, typically to fit the device width. Ranges such as 50–60 or 150–160 characters are rules of thumb only.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Why is my title cut off in search results?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'Because the title link is shortened to fit the available width on that device. Wide letters, a long brand suffix or a title that only becomes specific at the end are common reasons the useful words disappear. Preview pixel width, and put the important words first.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Can Google rewrite my title or ignore my meta description?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {'Yes. Google may build the title link from the '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'<title>'}
-                  </code>
-                  {', the visible heading, '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'og:title'}
-                  </code>
-                  {
-                    ' or other sources, and may rewrite titles that are vague, stuffed, boilerplate or a poor match for the page. Snippets are primarily taken from page content; the meta description is used only when Google finds it more accurate.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Should the title tag and the H1 be identical?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'They should describe the same page, but they do not have to use the same wording. Keep one clear main heading, and avoid a visible title that contradicts the '
-                  }
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'<title>'}
-                  </code>
-                  {
-                    ' tag. Agreement reduces the chance of an unexpected title link; it does not prevent every rewrite.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'How do I write unique descriptions for many similar pages?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'Reuse a short, honest pattern, then change the details that actually differ — the product, the city, the topic, a date or a key fact. Google allows programmatic descriptions when they stay human-readable and diverse. Avoid one template sentence with a single swapped noun. Prioritise your most important URLs first.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Do meta titles and descriptions directly improve rankings?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'They are not a reliable ranking lever on their own. Their main job is to describe the page clearly and help the right people click. Poor or stuffed titles can also be rewritten. No preview tool can promise a ranking change.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'How can I check pixel width before I publish?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {"Paste the draft into a pixel preview such as Ai Ranko's "}
-                  <Link
-                    href={
-                      'https://airanko.com/tools/meta-title-description-pixel-generator'
-                    }
-                    className="font-semibold text-primary hover:underline"
-                  >
-                    {'meta title and description pixel generator'}
-                  </Link>
-                  {', or use the '}
-                  <Link
-                    href={
-                      'https://airanko.com/tools/meta-title-description-bulk-pixel-checker'
-                    }
-                    className="font-semibold text-primary hover:underline"
-                  >
-                    {'bulk pixel checker'}
-                  </Link>
-                  {
-                    ' for several pages. After you publish, confirm the live tags with the '
-                  }
-                  <Link
-                    href={'https://airanko.com/tools/meta-checker'}
-                    className="font-semibold text-primary hover:underline"
-                  >
-                    {'meta checker'}
-                  </Link>
-                  {'. Treat the preview as an estimate, not an official limit.'}
-                </p>
-              </details>
-            </div>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Try the free preview tools'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'You do not need a paid platform to improve how your titles and descriptions are written. Draft unique text, put the important words first, then preview the width and check the live page.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {"Ai Ranko's "}
-              <Link
-                href={
-                  'https://airanko.com/tools/meta-title-description-pixel-generator'
-                }
-                className="font-semibold text-primary hover:underline"
-              >
-                {'pixel generator'}
-              </Link>
-              {' and '}
-              <Link
-                href={'https://airanko.com/tools/meta-checker'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'meta checker'}
-              </Link>
-              {
-                ' are free to use in the browser without signup. They help you catch overflow and publishing mistakes. They cannot promise better rankings, and they cannot stop Google choosing a different title link or snippet.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'If you need a hand finding a tool or have a question about the site, use the '
-              }
-              <Link
-                href={'https://airanko.com/contact'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'contact'}
-              </Link>
-              {' page. More practical guides are on the '}
-              <Link
-                href={'https://airanko.com/blog'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Ai Ranko blog'}
-              </Link>
-              {'.'}
-            </p>
-          </section>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"A pixel preview helps you see where a draft may run out of room. It is a writing aid, not a copy of Google's final result. Search layouts, wording and device conditions can differ from the preview you see."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Open Ai Ranko's "}<Link href="/tools/meta-title-description-pixel-generator" className="font-semibold text-primary hover:underline">{"meta title and description pixel generator"}</Link>{". Use its generation options to prepare suggestions for your page, then review the editable results and pixel feedback. Check the topic and facts before accepting any suggested wording. A short line is only useful if it describes the page properly."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Compare the desktop and mobile views. If a useful phrase is likely to disappear, move it forward. Remove repeated words, shorten a long brand suffix or replace an unclear phrase with a simpler one. Do not remove a necessary detail just to make a width indicator look better."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For several published pages, use the "}<Link href="/tools/meta-title-description-bulk-pixel-checker" className="font-semibold text-primary hover:underline">{"bulk meta title and description pixel checker"}</Link>{". It accepts website sitemap scans, one URL or a pasted list. Choose a suitable scan limit and review the returned metadata before editing. It reports missing fields, but does not automatically flag duplicate titles or descriptions, so review repeated wording yourself."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Save the chosen title and description beside their page URL. Keep a note of any detail you still need to confirm before publication."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 4: Check what the live page actually serves"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Your draft may be correct while the published tags are wrong. A site template can append the brand twice. A content editor may save a description in a social field instead of the search field. An old default can remain after a page is renamed."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"After publishing your own edits, enter the URL in the "}<Link href="/tools/meta-checker" className="font-semibold text-primary hover:underline">{"meta checker"}</Link>{". Compare the fetched title and description with your saved draft. Review related social tags too, because sharing previews may use different fields. If the results disagree, inspect the page settings and template before rewriting the text again."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Keep a small review sheet with columns for URL, page purpose, title, description and review status. Sort the text columns to find repeated wording. For similar products, use real differences such as material, size or intended use. For guides, identify the distinct question each one answers. Do not invent differences simply to make descriptions unique."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"You can reuse a writing pattern across many pages, but each result still needs useful page-specific information. Start with the pages that matter most to visitors. A careful review of important pages is more helpful than filling every empty field with generic text."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Recheck the published URLs and mark each one complete only when its tags match the intended wording."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Frequently asked questions"}</h2>
+<div className="mt-6 space-y-3">{faqs.map((faq) => (<details key={faq.q} className="group rounded-2xl border border-border bg-card"><summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">{faq.q}</summary><p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{faq.a}</p></details>))}</div></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Make metadata review part of normal page editing"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Titles and descriptions need another look when a page changes its purpose, product details or main heading. Keep the review close to the content update, so outdated wording does not survive simply because it sits in a separate settings panel."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Once the metadata is clean, the "}<Link href="/blog/how-to-run-a-free-seo-site-audit" className="font-semibold text-primary hover:underline">{"free SEO site audit guide"}</Link>{" explains a wider first pass. Ai Ranko's "}<Link href="/tools/site-audit" className="font-semibold text-primary hover:underline">{"Site Audit"}</Link>{" runs 25+ checks across up to 15 pages. Use it to investigate further issues rather than expecting metadata edits to explain every search problem."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Start with the "}<Link href="/tools/meta-title-description-pixel-generator" className="font-semibold text-primary hover:underline">{"pixel generator"}</Link>{", then confirm your published tags with the "}<Link href="/tools/meta-checker" className="font-semibold text-primary hover:underline">{"meta checker"}</Link>{". Both are available without signup. Preview tools can help you catch awkward wording and overflow. They cannot guarantee rankings or prevent Google from choosing different text."}</p></section>
         </div>
       </article>
       <footer className="mt-12 border-t border-border bg-card px-4 py-8 sm:px-6 lg:px-8">
