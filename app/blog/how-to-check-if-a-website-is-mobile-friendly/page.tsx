@@ -13,7 +13,7 @@ const POST = {
   slug: 'how-to-check-if-a-website-is-mobile-friendly',
   date: '2026-11-21',
   dateDisplay: 'November 21, 2026',
-  updated: '2026-11-21',
+  updated: '2026-11-23',
   readingTime: '9 min read',
   author: 'Junaid Mazhar',
   category: 'SEO',
@@ -126,33 +126,33 @@ const breadcrumbJsonLd = {
 
 const faqs = [
   {
-    q: 'Does Google still have a Mobile-Friendly Test?',
-    a: 'No. Google retired the Mobile-Friendly Test, its API and the Search Console Mobile Usability report from 1 December 2023. Google suggested Lighthouse as an alternative for checking mobile usability.',
+    "q": "Does Google still offer its Mobile-Friendly Test?",
+    "a": "No. The test, its API and the Search Console Mobile Usability report were retired from 1 December 2023. Use current browser tools and real-device checks instead. Lighthouse can help with diagnostics, but no single report replaces checking whether people can complete tasks on your mobile pages."
   },
   {
-    q: 'Is mobile-friendliness a ranking factor?',
-    a: 'Google uses mobile-first indexing, so the mobile version of your content is what it mainly indexes and ranks. Google also describes page experience, including mobile usability, as something its systems reward, while stressing that helpful content matters most.',
+    "q": "What is the simplest way to start a mobile check?",
+    "a": "Choose a public page and preview it at a phone-sized width. Look for unreadable text, clipped content and controls that cover each other. Then open it on your own phone and try a useful task. Follow up with diagnostics for anything that loads slowly or behaves unexpectedly."
   },
   {
-    q: 'What is the quickest way to check if a site is mobile-friendly?',
-    a: 'Load it at real device sizes in a preview tool like the Ai Ranko Mobile Friendliness Checker, then open it on your own phone. Follow up with a Lighthouse audit for technical issues.',
+    "q": "Does a good performance score mean my website is mobile-friendly?",
+    "a": "No. Performance is only part of the experience. A fast page may still have confusing navigation, overlapping buttons or a broken form. Use performance reports to investigate loading and responsiveness, then check the layout and complete key journeys with touch input."
   },
   {
-    q: "Can I check a competitor's website?",
-    a: 'Yes. Preview tools and PageSpeed Insights work on any publicly accessible URL.',
+    "q": "Why can a preview look different from my actual phone?",
+    "a": "A preview uses a simulated viewport inside your desktop browser. It cannot reproduce every difference in mobile hardware, browser behaviour, keyboard handling or connection quality. Some sites also block embedded previews. Open the page directly on a real device before deciding whether the site itself is broken."
   },
   {
-    q: 'Why does my site look fine in DevTools but not on my phone?',
-    a: 'DevTools simulates a mobile viewport but cannot reproduce every detail of a real device, browser and connection. Always confirm on a real phone.',
+    "q": "Can I check a website that I do not own?",
+    "a": "You can usually inspect public pages with previews or performance tools. A site may block embedding or automated requests, so results are not guaranteed. Only test actions you are allowed to use, and avoid sending orders, enquiries or account changes as part of an informal review."
   },
   {
-    q: 'Do I need a separate mobile website?',
-    a: 'Usually not. Google recommends responsive web design as the easiest pattern to implement and maintain, with one URL and the same HTML for all devices.',
+    "q": "Do I need a separate mobile version of my website?",
+    "a": "Usually a responsive layout is the simpler starting point. It adapts the same page to different widths. A separate mobile site adds things to maintain, including content consistency and redirects. Review the existing implementation before making a structural change solely because one page has a layout problem."
   },
   {
-    q: 'How do I make my website mobile-friendly?',
-    a: 'Use a responsive design with a correct viewport tag, readable text, well-spaced buttons, compressed images and the same content on mobile as on desktop. Then test, fix and test again.',
-  },
+    "q": "How often should I repeat mobile testing?",
+    "a": "Repeat the important journeys after changes to templates, navigation, forms or third-party components. Keep a small set of representative pages so the review stays practical. Test any reported problem on the affected device where possible, then repeat the same steps after the fix."
+  }
 ]
 const faqJsonLd = {
   '@context': 'https://schema.org',
@@ -227,23 +227,11 @@ export default function MobileFriendlyBlogPost() {
               {POST.title}
             </h1>
 
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'For years, the quickest answer to "is my website mobile-friendly?" was Google\'s Mobile-Friendly Test. You pasted in a URL and got a simple pass or fail. That tool no longer exists. Google retired the Mobile-Friendly Test, the Mobile-Friendly Test API and the Mobile Usability report in Search Console from 1 December 2023.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "Mobile usability still matters, though. Google uses mobile-first indexing, which means it mainly uses the mobile version of a page's content for indexing and ranking. And most importantly, real people use your site on phones."
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'This guide gives you a practical, repeatable way to check whether a website is mobile-friendly today, using free tools and a real phone, and a short list of the most common fixes.'
-              }
-            </p>
+<p className="mt-3 text-sm text-muted-foreground">Updated November 23, 2026</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"A page can look tidy on your laptop and still be awkward on a phone. A menu may hide the booking button. A form may slide behind the keyboard. A wide image may push everything sideways. You find these problems by trying the page, not just by looking for a green score."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"This guide explains how to check if a website is mobile-friendly using free tools and everyday tasks. Start with a preview, investigate with browser diagnostics, then finish on a real phone. Keep a short fix list so the results lead to useful changes."}</p>
           </header>
-          <Image
+<Image
             src="/blog/how-to-check-if-a-website-is-mobile-friendly/how-to-check-if-a-website-is-mobile-friendly-featured.webp"
             alt={
               'Laptop and phones showing the same website at different screen sizes'
@@ -253,200 +241,26 @@ export default function MobileFriendlyBlogPost() {
             priority
             className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
           />
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Short answer: how to check mobile-friendliness today'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'Use three layers of checking, from fastest to most thorough:'}
-            </p>
-            <ol className="mt-4 list-decimal space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'Preview the page at real device sizes'}
-                </strong>
-                {' in a browser-based tool such as the '}
-                <Link
-                  href={'https://airanko.com/tools/mobile-checker'}
-                  className="font-semibold text-primary hover:underline"
-                >
-                  {'Ai Ranko Mobile Friendliness Checker'}
-                </Link>
-                {', to spot layout breaks quickly.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Run an automated audit'}
-                </strong>
-                {
-                  ' with Lighthouse, which is built into Chrome DevTools and also powers PageSpeed Insights.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Test on a real phone'}
-                </strong>
-                {
-                  ', tapping through the menu, forms and key actions like a visitor would.'
-                }
-              </li>
-            </ol>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'No single tool gives a complete answer. Previews show you what breaks, audits flag technical problems, and real-device testing catches the things that only appear in your hand.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'What "mobile-friendly" actually means'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'A mobile-friendly page is one that people can comfortably read and use on a small touchscreen without zooming, scrolling sideways or mis-tapping. In practice, that usually means:'
-              }
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'A responsive layout'}
-                </strong>
-                {
-                  ' that adapts to the screen width, set up with a viewport meta tag such as '
-                }
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {
-                    '<meta name="viewport" content="width=device-width, initial-scale=1">'
-                  }
-                </code>
-                {'.'}
-              </li>
-              <li>
-                <strong className="text-foreground">{'Readable text'}</strong>
-                {' without pinching to zoom.'}
-              </li>
-              <li>
-                <strong className="text-foreground">{'Tap targets'}</strong>
-                {' (buttons and links) that are large enough and spaced apart.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'No horizontal scrolling'}
-                </strong>
-                {', because content fits the screen.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Navigation that works'}
-                </strong>
-                {' on touch, including menus that open and close properly.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Forms that are usable'}
-                </strong>
-                {
-                  ', with fields that are easy to tap and the right keyboard for each input.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'The same important content'}
-                </strong>
-                {
-                  ' on mobile as on desktop, because Google indexes the mobile version.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Reasonable performance'}
-                </strong>
-                {' on mobile connections.'}
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "Google's own documentation on mobile-first indexing recommends that the mobile site has the same content as the desktop site, including text, images, structured data and metadata. If content is hidden or removed on mobile, Google may not see it."
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Step 1: Preview the page at real device sizes'}
-            </h2>
-            <Image
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"What replaced Google's Mobile-Friendly Test?"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Google retired its Mobile-Friendly Test, API and Search Console Mobile Usability report from 1 December 2023. Its "}<Link href="https://developers.google.com/search/blog/2023/04/page-experience-in-search" className="font-semibold text-primary hover:underline">{"announcement about page experience"}</Link>{" pointed to other resources, including Lighthouse. An old test link is therefore no longer a useful way to judge your site."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"There is no single replacement that answers every mobile question. A preview shows layout. Lighthouse helps investigate technical problems. A real phone reveals things such as touch accuracy, keyboard behaviour and browser controls getting in the way. Use the methods together."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Choose a task before opening a tool. On a bakery website, you might find opening hours and send an enquiry. On a software site, you might compare plans and start registration. A page is easier to assess when you know what a visitor needs to finish."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Pick your homepage and one important task page. Write down what success should look like on a phone."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 1: Look for layout problems at different widths"}</h2>
+<Image
               src="/blog/how-to-check-if-a-website-is-mobile-friendly/mobile-device-preview-sizes.webp"
               alt={'Browser tool previewing a web page in a phone-sized frame'}
               width={1200}
               height={900}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'The fastest first check is a visual one. Load the page at the screen sizes your visitors actually use and look for anything that breaks.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'With the '}
-              <Link
-                href={'https://airanko.com/tools/mobile-checker'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Ai Ranko Mobile Friendliness Checker'}
-              </Link>
-              {' you can:'}
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                {
-                  'enter any public URL and preview it at a range of phone, tablet and desktop sizes;'
-                }
-              </li>
-              <li>{'switch between portrait and landscape;'}</li>
-              <li>{'zoom the preview to inspect small text and buttons;'}</li>
-              <li>
-                {
-                  'run a mobile-friendliness audit from the page source, covering points such as the viewport and legibility;'
-                }
-              </li>
-              <li>{'compare two URLs and export a PDF report.'}</li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'It works in the browser with no install or sign-up.'}
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">
-                {'What to look for in the preview:'}
-              </strong>
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>{'text that is too small to read comfortably;'}</li>
-              <li>
-                {
-                  'elements that overflow the screen and cause sideways scrolling;'
-                }
-              </li>
-              <li>{'images or tables that are cut off;'}</li>
-              <li>{'buttons that sit too close together;'}</li>
-              <li>
-                {
-                  'headers, cookie banners or pop-ups that cover most of the screen;'
-                }
-              </li>
-              <li>{'menus that do not open or overlap other content.'}</li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">{'What to do next:'}</strong>
-              {
-                ' note every problem with the device size where it appeared. That list becomes your fix list.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Step 2: Run a Lighthouse audit'}
-            </h2>
-            <Image
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Open the "}<Link href="/tools/mobile-checker" className="font-semibold text-primary hover:underline">{"Ai Ranko Mobile Checker"}</Link>{" and enter the public page URL. Try the phone, tablet and desktop previews. Change between portrait and landscape, and use the available zoom settings to inspect the layout. Zoom changes the preview's display scale, so it is not a substitute for testing browser text enlargement."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Work down the page. Check whether paragraphs fit the screen, navigation stays available and images keep their shape. Look for buttons with cut-off labels, wide tables and notices covering useful content. Compare two URLs if you want to inspect a revised page beside the earlier version."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Review the accompanying audit for clues about viewport configuration, text legibility, old Flash content and mobile redirects. These are automated checks of the fetched page, not proof that every control works. The PDF option can help you keep a record for a developer or colleague."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Some sites block their pages from appearing inside another site's frame. A blank or refused preview can be an embedding restriction rather than a broken mobile layout. Open that page directly in a browser before drawing conclusions. Pages needing a login also require direct testing with an authorised account."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Save the URL, screen width and visible symptom for each problem. “Menu covers the enquiry button in portrait” is more useful than “mobile layout bad”."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 2: Use PageSpeed Insights to investigate performance"}</h2>
+<Image
               src="/blog/how-to-check-if-a-website-is-mobile-friendly/lighthouse-mobile-audit-laptop.webp"
               alt={
                 'Laptop showing a generic mobile audit report with category gauges'
@@ -455,449 +269,46 @@ export default function MobileFriendlyBlogPost() {
               height={900}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "Lighthouse is Google's open-source tool for auditing web pages. When Google retired the Mobile-Friendly Test, it pointed people to Lighthouse as an alternative. You can run it two ways:"
-              }
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'In PageSpeed Insights:'}
-                </strong>
-                {
-                  ' enter a URL and look at the mobile results. You get a Lighthouse lab report, and for pages with enough traffic, real-user field data from the Chrome User Experience Report.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'In Chrome DevTools:'}
-                </strong>
-                {
-                  ' open the page in Chrome, open DevTools, choose the Lighthouse panel, select the mobile device option and run the report.'
-                }
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Lighthouse reports scores for categories such as performance, accessibility, best practices and SEO, with specific audits you can expand. Pay particular attention to:'
-              }
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                {'whether the page has a correctly set viewport meta tag;'}
-              </li>
-              <li>
-                {
-                  'accessibility issues such as low contrast or small touch targets;'
-                }
-              </li>
-              <li>
-                {
-                  'performance problems on mobile, such as large images or render-blocking resources.'
-                }
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Treat the score as a guide, not a grade. A lab test runs under set conditions, and results can vary between runs.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">{'What to do next:'}</strong>
-              {
-                ' add the failed or flagged audits to your fix list, with the page URL.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Step 3: Use device mode in Chrome DevTools'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Chrome DevTools has a device mode (the device toolbar) that simulates mobile viewports. It is useful for developers and anyone comfortable inspecting a page.'
-              }
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                {
-                  'Toggle the device toolbar and pick a device or a custom width.'
-                }
-              </li>
-              <li>
-                {
-                  'Resize the viewport slowly and watch for the point where the layout breaks.'
-                }
-              </li>
-              <li>
-                {
-                  'Throttle the network to see how the page behaves on a slower connection.'
-                }
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "Chrome's documentation is clear that device mode is a simulation. It does not perfectly reproduce how a page behaves on a real phone, so always finish with a real-device test."
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Step 4: Test on a real phone'}
-            </h2>
-            <Image
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Run the same URL through "}<Link href="https://pagespeed.web.dev/" className="font-semibold text-primary hover:underline">{"PageSpeed Insights"}</Link>{" and review its mobile results. Use the report to find possible causes of a slow or unstable page. For example, an oversized hero image may delay useful content, while a late-loading banner may move a button just as someone taps."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Keep the two kinds of evidence separate. "}<Link href="https://developers.google.com/speed/docs/insights/v5/about" className="font-semibold text-primary hover:underline">{"Google's PageSpeed documentation"}</Link>{" explains that Lighthouse provides a controlled lab test, while available field data comes from real Chrome users. Some URLs have too little field data. The report may show origin-level information instead, or no field information at all."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Core Web Vitals cover loading, interaction response and visual stability through Largest Contentful Paint, Interaction to Next Paint and Cumulative Layout Shift. An older guide may mention First Input Delay, but INP replaced it in March 2024. These measurements help you investigate experience. They do not confirm that a menu, payment form or account screen works properly."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Read the findings before chasing the overall score. Record the tested URL and whether the evidence describes that page, the wider origin or a simulated run. Repeat a test when a result looks unusual, keeping the conditions as similar as possible."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Select one relevant performance finding and connect it to something visitors can see or feel. Keep it separate from purely visual fixes."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 3: Find the point where the layout breaks"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Open the page in Chrome, open DevTools and enable the device toolbar. Choose a device preset or use the responsive width controls. Slowly narrow and widen the page rather than checking only one phone preset."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Watch the navigation, columns and images as the width changes. A layout may work at two familiar sizes and fail between them. Test a long product name, a large heading or a page with more menu items. Real content often exposes problems that a short sample label hides."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Try landscape too. The extra width can help a table, but the reduced height may make a sticky header dominate the screen. Check whether a dialogue can scroll and whether its close button remains reachable. Use network or CPU throttling when investigating how the page behaves under constrained conditions."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><Link href="https://developer.chrome.com/docs/devtools/device-mode" className="font-semibold text-primary hover:underline">{"Chrome's device-mode documentation"}</Link>{" describes this as an approximation. A desktop simulation does not become a physical phone just because you choose a device name. Treat it as a convenient way to reproduce a layout issue and inspect its cause."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Note the smallest width that works and the width where the problem appears. Give those details to whoever maintains the page styles."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 4: Complete the task on a real phone"}</h2>
+<Image
               src="/blog/how-to-check-if-a-website-is-mobile-friendly/real-phone-tap-test.webp"
               alt={'Hand testing a website contact form on a real smartphone'}
               width={1200}
               height={900}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Real phones reveal problems that simulators miss: how a sticky header feels while scrolling, whether a form keyboard covers the submit button, or whether a tap on a small link hits the wrong item.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'On at least one iPhone and one Android phone, if you can:'}
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                {
-                  'open the homepage and two or three of the most important pages;'
-                }
-              </li>
-              <li>{'use the menu to move between pages;'}</li>
-              <li>
-                {
-                  'complete a key action, such as a contact form, a booking or a checkout up to the payment step;'
-                }
-              </li>
-              <li>{'rotate the phone to landscape;'}</li>
-              <li>{'read a full paragraph without zooming.'}</li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">{'What to do next:'}</strong>
-              {
-                ' record anything that felt awkward, even if it technically works.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Step 5: Check more than one page'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Mobile problems are often template-specific. A homepage might be fine while blog posts, product pages or forms break. Check at least one example of each page type.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'For a wider view of technical issues across several pages, run the '
-              }
-              <Link
-                href={'https://airanko.com/tools/site-audit'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Ai Ranko Site Audit'}
-              </Link>
-              {', and read our guide on '}
-              <Link
-                href={
-                  'https://airanko.com/blog/how-to-run-a-free-seo-site-audit'
-                }
-                className="font-semibold text-primary hover:underline"
-              >
-                {'how to run a free SEO site audit'}
-              </Link>
-              {' for a step-by-step process.'}
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Mobile-friendly is not the same as fast'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                "A page can fit the screen perfectly and still feel poor on a phone because it loads slowly or jumps around. Google's Core Web Vitals measure three parts of that experience:"
-              }
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'Largest Contentful Paint (LCP):'}
-                </strong>
-                {' how quickly the main content appears.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Interaction to Next Paint (INP):'}
-                </strong>
-                {
-                  ' how quickly the page responds when someone taps or types. INP replaced First Input Delay as a Core Web Vital in March 2024.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Cumulative Layout Shift (CLS):'}
-                </strong>
-                {' how much the layout moves unexpectedly while loading.'}
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'PageSpeed Insights shows these metrics for real users when there is enough data for a URL, and Lighthouse estimates related lab metrics. Search Console also has a Core Web Vitals report for sites with enough traffic.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'For mobile visitors, the usual culprits are large images, heavy fonts, too many third-party scripts and adverts or banners that load late and push content down. Reserve space for images and embeds so the layout does not shift, and load non-essential scripts later.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">{'What to do next:'}</strong>
-              {
-                ' if your layout passes but the page feels slow, treat speed as a separate fix list and re-test after each change.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Common mobile problems and how to fix them'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">
-                {'Missing or incorrect viewport tag'}
-              </strong>
-              {'\nAdd '}
-              <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                {
-                  '<meta name="viewport" content="width=device-width, initial-scale=1">'
-                }
-              </code>
-              {
-                ' to the page head. Without it, phones may show a shrunken desktop layout.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">{'Text too small'}</strong>
-              {
-                '\nUse a sensible base font size and relative units, and avoid tiny text in footers and captions.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">
-                {'Buttons and links too close together'}
-              </strong>
-              {
-                '\nIncrease padding and spacing on touch targets, especially in menus and footers.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">
-                {'Horizontal scrolling'}
-              </strong>
-              {
-                '\nLook for fixed-width elements, wide tables, large images or embedded content. Use responsive widths (for example '
-              }
-              <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                {'max-width: 100%'}
-              </code>
-              {
-                ' on images) and allow tables to scroll inside their own container.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">{'Intrusive pop-ups'}</strong>
-              {
-                '\nLarge interstitials that cover content on mobile frustrate visitors. Use smaller banners and make them easy to dismiss.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">{'Heavy images'}</strong>
-              {'\nResize and compress images before upload. The free '}
-              <Link
-                href={'https://airanko.com/tools/image-resizer'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Ai Ranko Image Resizer'}
-              </Link>
-              {' and '}
-              <Link
-                href={'https://airanko.com/tools/bulk-image-resizer'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Bulk Image Resizer'}
-              </Link>
-              {' can help.'}
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">
-                {'Different content on mobile'}
-              </strong>
-              {
-                '\nMake sure important text, links and structured data are present on the mobile version, not only on desktop.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              <strong className="text-foreground">{'What to do next:'}</strong>
-              {
-                ' fix one problem at a time, then re-test the same page at the same device sizes to confirm the change worked.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'How often should you check?'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'Check mobile-friendliness:'}
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>{'before launching a new site or redesign;'}</li>
-              <li>{'after changing a theme, page builder or template;'}</li>
-              <li>
-                {'after adding new plugins, pop-ups or third-party scripts;'}
-              </li>
-              <li>
-                {
-                  'whenever you add a new type of page, such as a landing page or product template.'
-                }
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'A short monthly spot check of your most important pages is a sensible habit for most sites.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Frequently asked questions'}
-            </h2>
-            <div className="mt-6 space-y-3">
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Does Google still have a Mobile-Friendly Test?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'No. Google retired the Mobile-Friendly Test, its API and the Search Console Mobile Usability report from 1 December 2023. Google suggested Lighthouse as an alternative for checking mobile usability.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Is mobile-friendliness a ranking factor?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'Google uses mobile-first indexing, so the mobile version of your content is what it mainly indexes and ranks. Google also describes page experience, including mobile usability, as something its systems reward, while stressing that helpful content matters most.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {
-                    'What is the quickest way to check if a site is mobile-friendly?'
-                  }
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {'Load it at real device sizes in a preview tool like the '}
-                  <Link
-                    href={'https://airanko.com/tools/mobile-checker'}
-                    className="font-semibold text-primary hover:underline"
-                  >
-                    {'Ai Ranko Mobile Friendliness Checker'}
-                  </Link>
-                  {
-                    ', then open it on your own phone. Follow up with a Lighthouse audit for technical issues.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {"Can I check a competitor's website?"}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'Yes. Preview tools and PageSpeed Insights work on any publicly accessible URL.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {
-                    'Why does my site look fine in DevTools but not on my phone?'
-                  }
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'DevTools simulates a mobile viewport but cannot reproduce every detail of a real device, browser and connection. Always confirm on a real phone.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Do I need a separate mobile website?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'Usually not. Google recommends responsive web design as the easiest pattern to implement and maintain, with one URL and the same HTML for all devices.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'How do I make my website mobile-friendly?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'Use a responsive design with a correct viewport tag, readable text, well-spaced buttons, compressed images and the same content on mobile as on desktop. Then test, fix and test again.'
-                  }
-                </p>
-              </details>
-            </div>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Check your website now'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'Start with a quick preview in the free '}
-              <Link
-                href={'https://airanko.com/tools/mobile-checker'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Ai Ranko Mobile Friendliness Checker'}
-              </Link>
-              {
-                ', then run Lighthouse and finish on a real phone. If you want a wider look at your site, try the free '
-              }
-              <Link
-                href={'https://airanko.com/tools/site-audit'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Site Audit'}
-              </Link>
-              {'. For more guides, visit the '}
-              <Link
-                href={'https://airanko.com/blog'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Ai Ranko blog'}
-              </Link>
-              {', or '}
-              <Link
-                href={'https://airanko.com/contact'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'get in touch'}
-              </Link>
-              {' if you have a question about the tools.'}
-            </p>
-          </section>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Open the live page on a phone and follow your chosen task from beginning to end. Use your fingers rather than a mouse. Start with the menu, follow an internal link, return to the previous page and check whether the navigation still makes sense."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Read a paragraph without enlarging the whole page. Try text enlargement through the browser or device settings as an additional check. Tap nearby links and see whether you can reliably choose the intended one. A row of tiny icons may look neat while being hard to use."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For forms, test labels, validation messages and the on-screen keyboard. Check whether entering an email address or number brings up a suitable keyboard and whether the next field stays visible. Do not send a real order or enquiry just to test a button. Use a safe test process agreed with the site owner."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Open cookie notices, banners and pop-ups. Close them, rotate the phone and return to the task. If possible, repeat an important journey in another mobile browser. A second device can reveal an issue that your own phone does not show."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Record the exact action that failed. Include the phone and browser, the page URL and a screenshot where it helps explain the problem."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Step 5: Check more than the homepage"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"A responsive homepage does not prove that the rest of the website works well. Pick representative templates, such as an article, a product page, a contact form and a search result. Add a page with a table or embedded media if your site uses them."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Compare the information available on mobile with the desktop version. Important explanations, links and image descriptions should not disappear simply because the screen is smaller. Google's "}<Link href="https://developers.google.com/search/docs/crawling-indexing/mobile/mobile-sites-mobile-first-indexing" className="font-semibold text-primary hover:underline">{"mobile-first indexing guidance"}</Link>{" explains why the mobile version matters for crawling and indexing, and recommends responsive design as a maintainable approach."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Prioritise paths visitors actually need. A visitor should be able to reach the next step without turning the phone sideways or hunting through a missing menu. Test any shared header or footer fix on several templates, because one change can affect many pages."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Keep a small set of representative URLs and rerun the same journeys after changes to navigation, forms or page templates."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Turn the findings into a manageable fix list"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Describe the symptom, affected URL, evidence, proposed action and owner. Put blocked tasks first. A form that cannot be submitted deserves attention before a slightly uneven image caption. Group repeated symptoms when they come from one shared component."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For sideways scrolling, inspect fixed-width containers, tables and oversized media. For unreadable text, review font sizing and spacing. For difficult taps, review the controls and the space around them. For slow images, check their displayed dimensions and file sizes before replacing them."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"The "}<Link href="/tools/image-resizer" className="font-semibold text-primary hover:underline">{"image resizer"}</Link>{" can prepare an individual image, while the "}<Link href="/tools/bulk-image-resizer" className="font-semibold text-primary hover:underline">{"bulk image resizer"}</Link>{" helps with several files. Review the resulting image quality and keep an original copy. Smaller files alone will not fix a layout container that is wider than the screen."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"After each fix, repeat the original failing action and check nearby elements. The "}<Link href="/blog/how-to-run-a-free-seo-site-audit" className="font-semibold text-primary hover:underline">{"free SEO site audit guide"}</Link>{" offers a wider review process. Ai Ranko's "}<Link href="/tools/site-audit" className="font-semibold text-primary hover:underline">{"Site Audit"}</Link>{" runs 25+ checks across up to 15 pages, which can help identify further issues without replacing hands-on mobile testing."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Resolve the highest-impact problem, verify it on a phone and record what changed before moving down the list."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Frequently asked questions"}</h2>
+<div className="mt-6 space-y-3">{faqs.map((faq) => (<details key={faq.q} className="group rounded-2xl border border-border bg-card"><summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">{faq.q}</summary><p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{faq.a}</p></details>))}</div></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Keep a repeatable mobile check"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Save your test URLs and a short record of the main tasks. Review them after a redesign, a template change or a new form integration. Include a real phone in that routine rather than relying entirely on screenshots and reports."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Start your next review with the "}<Link href="/tools/mobile-checker" className="font-semibold text-primary hover:underline">{"Mobile Checker"}</Link>{", then investigate the findings and try the important journeys yourself. More practical walkthroughs are on the "}<Link href="/blog" className="font-semibold text-primary hover:underline">{"Ai Ranko blog"}</Link>{". If you need to ask about a tool, use the "}<Link href="/contact" className="font-semibold text-primary hover:underline">{"contact page"}</Link>{". A good result is a page that people can understand and use, with evidence showing which problems you have fixed."}</p></section>
         </div>
       </article>
       <footer className="mt-12 border-t border-border bg-card px-4 py-8 sm:px-6 lg:px-8">
