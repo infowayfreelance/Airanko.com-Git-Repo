@@ -54,6 +54,15 @@ type Post = {
 
 const posts: Post[] = [
   {
+    "slug": "html-sitemap-vs-xml-sitemap",
+    "title": "HTML Sitemap vs XML Sitemap: What's the Difference and Do You Need Both?",
+    "excerpt": "XML sitemaps help search engines find your pages; HTML sitemaps help people navigate. Learn the differences, when you need each, and how to create them.",
+    "readingTime": "9 min read",
+    "category": "SEO",
+    "date": "November 22, 2026",
+    icon: Search,
+  },
+  {
     "slug": "how-to-check-if-a-website-is-mobile-friendly",
     "title": "How to Check if a Website Is Mobile-Friendly (Now Google's Test Is Gone)",
     "excerpt": "Google retired its Mobile-Friendly Test in 2023. Here is a practical way to check any website on mobile: previews, Lighthouse, real phones and a fix list.",
