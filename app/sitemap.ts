@@ -130,7 +130,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     ...blogSlugs.map((slug) => ({
       url: `${BASE_URL}/blog/${slug}`,
-      lastModified,
+      lastModified: slug === 'html-sitemap-vs-xml-sitemap' ? new Date('2026-11-23') : lastModified,
       changeFrequency: DEFAULT_BLOG_CHANGEFREQ,
       priority: BLOG_PRIORITY_OVERRIDES[slug] ?? DEFAULT_BLOG_PRIORITY,
     })),
