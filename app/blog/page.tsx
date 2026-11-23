@@ -54,6 +54,15 @@ type Post = {
 
 const posts: Post[] = [
   {
+    "slug": "how-to-bulk-resize-images",
+    "title": "How to Bulk Resize Images (Free, in Your Browser, Without Uploading Them)",
+    "excerpt": "Resize dozens of images at once for web, ecommerce or social. Pick the right size and format, keep aspect ratio and keep files on your own device.",
+    "readingTime": "9 min read",
+    "category": "Images & Web Performance",
+    "date": "November 23, 2026",
+    icon: ImageIcon,
+  },
+  {
     "slug": "html-sitemap-vs-xml-sitemap",
     "title": "HTML Sitemap vs XML Sitemap: What's the Difference and Do You Need Both?",
     "excerpt": "XML sitemaps help search engines find your pages; HTML sitemaps help people navigate. Learn the differences, when you need each, and how to create them.",
