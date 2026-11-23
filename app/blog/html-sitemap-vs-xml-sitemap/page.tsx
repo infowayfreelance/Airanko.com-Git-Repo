@@ -13,7 +13,7 @@ const POST = {
   slug: 'html-sitemap-vs-xml-sitemap',
   date: '2026-11-22',
   dateDisplay: 'November 22, 2026',
-  updated: '2026-11-22',
+  updated: '2026-11-23',
   readingTime: '9 min read',
   author: 'Ai Ranko',
   category: 'SEO',
@@ -72,7 +72,7 @@ const articleJsonLd = {
   image:
     'https://airanko.com/blog/html-sitemap-vs-xml-sitemap/html-sitemap-vs-xml-sitemap-featured.webp',
   datePublished: '2026-11-22',
-  dateModified: '2026-11-22',
+  dateModified: '2026-11-23',
   author: {
     '@type': 'Organization',
     name: 'Ai Ranko',
@@ -91,67 +91,39 @@ const articleJsonLd = {
   inLanguage: 'en-GB',
 }
 
+const faqs = [
+  {
+    "q": "What is the main difference between an HTML sitemap and an XML sitemap?",
+    "a": "An HTML sitemap is a directory people can browse. An XML sitemap is a structured file search engines can read to discover page URLs. They may share destinations, but they present those links differently and serve different readers."
+  },
+  {
+    "q": "Does every website need both sitemap formats?",
+    "a": "No. An XML sitemap can be useful even when the site has good navigation, particularly as it grows. An HTML sitemap is optional. Add it if an organised directory helps visitors, rather than assuming both formats are required for every site."
+  },
+  {
+    "q": "Can I submit an HTML sitemap in Search Console?",
+    "a": "The Sitemaps section expects a supported sitemap format, not a normal HTML directory page. Submit an XML sitemap or another supported format there. Keep your HTML sitemap available through ordinary website links so visitors can reach it."
+  },
+  {
+    "q": "Will submitting an XML sitemap get all my pages indexed?",
+    "a": "No. Submission provides information about URLs you want discovered. Search engines still decide whether to crawl and index each page. If a page is missing from search, investigate its accessibility, indexing settings and content rather than repeatedly submitting the same file."
+  },
+  {
+    "q": "How many URLs can one XML sitemap contain?",
+    "a": "One sitemap can contain at most 50,000 URLs and must be no larger than 50MB uncompressed. Both limits apply. A larger collection needs separate files, which can be referenced in a sitemap index. An online generator may impose a smaller processing limit."
+  },
+  {
+    "q": "Should lastmod change whenever I deploy my website?",
+    "a": "Only when the listed page has genuinely received a significant update. Rebuilding unchanged pages is not a content update. Use a reliable page-specific modification date, and omit the optional field if you cannot maintain accurate values."
+  },
+  {
+    "q": "Which pages should I leave out of an XML sitemap?",
+    "a": "Leave out unwanted duplicates, tracking variants, redirects, error pages and pages marked noindex. Use the preferred canonical URLs for public pages you want in search. Review private or account-only destinations separately rather than including them just because a crawler found a link."
+  }
+]
 const faqJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What is the main difference between an HTML sitemap and an XML sitemap?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'An XML sitemap is a file for search engines that lists the URLs you want discovered. An HTML sitemap is a web page for visitors that lists your important pages as clickable links.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Do I need an HTML sitemap for SEO?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Not usually. Search engines can follow links on an HTML sitemap, which can help discovery, but it does not replace an XML sitemap. Add one mainly if it helps visitors find their way around.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I submit an HTML sitemap to Google Search Console?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "No. Google's John Mueller has said an HTML sitemap cannot be processed in the same way as an XML sitemap file. Submit your XML sitemap in Search Console instead.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Where should my XML sitemap be located?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Usually at the root of your site, such as /sitemap.xml. Reference it in your robots.txt file and submit it in Google Search Console.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How many URLs can an XML sitemap contain?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Google's documentation says one sitemap file can contain up to 50,000 URLs or 50MB uncompressed. Larger sites use several sitemaps listed in a sitemap index.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Does Google use priority and changefreq in sitemaps?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Google says it ignores priority and changefreq. It may use lastmod if the dates are consistently accurate.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Should every page be in my sitemap?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Include canonical, indexable pages that you want to appear in search. Leave out redirects, error pages, noindex pages and duplicates.',
-      },
-    },
-  ],
+  '@context': 'https://schema.org', '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({ '@type': 'Question', name: faq.q, acceptedAnswer: { '@type': 'Answer', text: faq.a } })),
 }
 
 const breadcrumbJsonLd = {
@@ -242,18 +214,11 @@ export default function HtmlVsXmlSitemapBlogPost() {
               {POST.title}
             </h1>
 
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                '"Sitemap" is one of those words that means two different things. Ask a developer and they will probably think of an XML file for search engines. Ask a visitor and they will think of a page of links they can click. Both are called sitemaps, both list the pages on your site, but they do different jobs for different audiences.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'This guide explains what each one is, how they differ, whether you need both, and how to create and check them, with practical steps you can follow today.'
-              }
-            </p>
+<p className="mt-3 text-sm text-muted-foreground">Updated November 23, 2026</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"An HTML sitemap and an XML sitemap may contain some of the same links, but they solve different problems. One gives visitors another way to browse a website. The other provides search engines with a structured list of URLs."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"You do not need to choose a winner. Start by asking what is missing from your site: a reliable way to share important URLs with crawlers, a useful directory for people, or both. This guide explains the difference and shows how to create and check each format without treating either as a ranking shortcut."}</p>
           </header>
-          <Image
+<Image
             src="/blog/html-sitemap-vs-xml-sitemap/html-sitemap-vs-xml-sitemap-featured.webp"
             alt={
               'Laptop split screen showing XML sitemap code beside an HTML sitemap page'
@@ -263,41 +228,12 @@ export default function HtmlVsXmlSitemapBlogPost() {
             priority
             className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
           />
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Short answer: HTML sitemap vs XML sitemap'}
-            </h2>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                {'An '}
-                <strong className="text-foreground">{'XML sitemap'}</strong>
-                {' is a machine-readable file, usually at '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'/sitemap.xml'}
-                </code>
-                {
-                  ', that lists the URLs you want search engines to discover. Visitors rarely see it.'
-                }
-              </li>
-              <li>
-                {'An '}
-                <strong className="text-foreground">{'HTML sitemap'}</strong>
-                {
-                  ' is a normal web page with links to your main pages, organised so that people can find their way around.'
-                }
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Most websites should have an XML sitemap. An HTML sitemap is optional: it is useful for larger or more complex sites, or as a helpful extra page, but it does not replace an XML sitemap and it is not a fix for poor navigation.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'What is an XML sitemap?'}
-            </h2>
-            <Image
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Short answer: HTML sitemap vs XML sitemap"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Use an XML sitemap to list the canonical pages you want search engines to discover. Use an HTML sitemap when a browsable directory would help visitors find useful sections. Keep your normal navigation and contextual links working well whichever format you add."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For example, a small training website might have an XML file listing its courses and guides. Its HTML sitemap could group links under Courses, Learning Resources and Contact. The two lists need not look identical because their readers have different needs."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"A sitemap can support discovery, but it cannot make an unsuitable page deserve indexing or repair confusing navigation by itself. Treat it as one part of maintaining a clear, accessible website."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"What is an XML sitemap?"}</h2>
+<Image
               src="/blog/html-sitemap-vs-xml-sitemap/xml-sitemap-code-editor.webp"
               alt={
                 'Code editor showing an XML sitemap with urlset and loc tags'
@@ -306,556 +242,49 @@ export default function HtmlVsXmlSitemapBlogPost() {
               height={543}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'An XML sitemap is a structured file written in XML (Extensible Markup Language). It tells search engines which URLs exist on your site and can include extra details, such as when a page was last changed. A very simple one looks like this:'
-              }
-            </p>
-            <pre className="mt-6 overflow-x-auto rounded-2xl border border-border bg-muted p-5 text-sm">
-              <code className="language-xml">
-                {
-                  '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://example.com/</loc>\n    <lastmod>2026-11-20</lastmod>\n  </url>\n  <url>\n    <loc>https://example.com/services/</loc>\n  </url>\n</urlset>'
-                }
-              </code>
-            </pre>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'Key points about XML sitemaps:'}
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'They are for crawlers, not people.'}
-                </strong>
-                {
-                  ' Search engines read them to discover pages, especially new pages or pages that are not well linked.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'They are submitted to search engines.'}
-                </strong>
-                {
-                  ' You can submit the sitemap in Google Search Console and reference it in your '
-                }
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'robots.txt'}
-                </code>
-                {' file with a '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'Sitemap:'}
-                </code>
-                {' line.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'They have limits.'}
-                </strong>
-                {
-                  " Google's documentation says a single sitemap file can hold up to 50,000 URLs or 50MB uncompressed. Bigger sites split their URLs across several sitemaps and list them in a sitemap index file."
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Not every tag matters.'}
-                </strong>
-                {' Google says it ignores the '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'priority'}
-                </code>
-                {' and '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'changefreq'}
-                </code>
-                {' values, and uses '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'lastmod'}
-                </code>
-                {' only when it is consistently accurate.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'A sitemap is a hint, not a command.'}
-                </strong>
-                {
-                  ' Listing a URL helps discovery, but it does not guarantee the page will be crawled or indexed.'
-                }
-              </li>
-            </ul>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'What is an HTML sitemap?'}
-            </h2>
-            <Image
+<p className="mt-4 leading-relaxed text-muted-foreground">{"An XML sitemap is a machine-readable file containing page addresses in a defined structure. It may include information about when a page changed. You will often find one at /sitemap.xml, although websites can use other locations or a sitemap index pointing to several files."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><Link href="https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview" className="font-semibold text-primary hover:underline">{"Google's sitemap overview"}</Link>{" explains where these files help. They are particularly useful for large or new sites, and for content that is harder to discover through links. A small, well-linked site may already be easy to crawl. Having an XML file is useful in many cases, but it is not a universal requirement."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Here is a simple example for a fictional website. The date should describe a genuine update to the listed page."}</p><pre className="mt-6 overflow-x-auto rounded-2xl border border-border bg-muted p-4 text-sm"><code>{"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <url>\n    <loc>https://example.com/courses</loc>\n    <lastmod>2026-11-23</lastmod>\n  </url>\n</urlset>"}</code></pre><p className="mt-4 leading-relaxed text-muted-foreground">{"A valid XML file still needs a sensible URL list. If it contains old redirects or unwanted pages, correct the source list rather than assuming successful parsing means everything is ready."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"What is an HTML sitemap?"}</h2>
+<Image
               src="/blog/html-sitemap-vs-xml-sitemap/html-sitemap-footer-page.webp"
               alt={'Tablet showing an HTML sitemap page with grouped links'}
               width={724}
               height={543}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'An HTML sitemap is a page on your website, often linked from the footer, that lists your important pages as clickable links. It is usually organised by section, for example Services, Locations, Tools, Blog, so visitors can see the structure of the site at a glance.'
-              }
-            </p>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'Key points about HTML sitemaps:'}
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'They are for people first.'}
-                </strong>
-                {
-                  ' Visitors use them when they cannot find something through the main menu or search.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Search engines can follow the links.'}
-                </strong>
-                {
-                  " Google's John Mueller has explained that if a crawler finds an HTML sitemap, it can follow those links like any other links, which can help discovery."
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'They cannot be submitted as a sitemap file.'}
-                </strong>
-                {
-                  ' Mueller has also said an HTML sitemap is not a replacement for an XML sitemap, because it does not have the strict structure that sitemap processing needs.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'They do not need to list everything.'}
-                </strong>
-                {
-                  ' On a shop, for example, an HTML sitemap might list categories rather than every product.'
-                }
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {"You can see a working example on Ai Ranko's own "}
-              <Link
-                href={'https://airanko.com/sitemap'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'HTML sitemap page'}
-              </Link>
-              {
-                ', which lists the tools, blog posts and key pages in one place.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'HTML sitemap vs XML sitemap: side by side'}
-            </h2>
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr>
-                    <th
-                      scope="col"
-                      className="border-b border-border px-4 py-3"
-                    ></th>
-                    <th
-                      scope="col"
-                      className="border-b border-border px-4 py-3"
-                    >
-                      {'XML sitemap'}
-                    </th>
-                    <th
-                      scope="col"
-                      className="border-b border-border px-4 py-3"
-                    >
-                      {'HTML sitemap'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Main audience'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Search engine crawlers'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Human visitors'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Format'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'XML file'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Normal web page'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Typical location'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                        {'/sitemap.xml'}
-                      </code>
-                      {' (or a sitemap index)'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'A page such as '}
-                      <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                        {'/sitemap'}
-                      </code>
-                      {', linked from the footer'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Submitted to Google'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Yes, via Search Console or '}
-                      <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                        {'robots.txt'}
-                      </code>
-                    </td>
-                    <td className="border-b border-border px-4 py-3">{'No'}</td>
-                  </tr>
-                  <tr>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Extra data'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Optional '}
-                      <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                        {'lastmod'}
-                      </code>
-                      {', plus image, video or news extensions'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Page titles and, optionally, short descriptions'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Includes every indexable URL'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Ideally, yes'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Usually the important pages or categories'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Helps visitors navigate'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">{'No'}</td>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Yes'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border-b border-border px-4 py-3">
-                      {'Replaces good navigation'}
-                    </td>
-                    <td className="border-b border-border px-4 py-3">{'No'}</td>
-                    <td className="border-b border-border px-4 py-3">{'No'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Do you need both?'}
-            </h2>
-            <h3 className="mt-6 font-heading text-lg font-semibold text-foreground">
-              {'You almost always need an XML sitemap'}
-            </h3>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'An XML sitemap is low effort and helps search engines find your pages, especially when:'
-              }
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>{'your site is new and has few external links;'}</li>
-              <li>
-                {
-                  'your site is large, with many pages that are several clicks deep;'
-                }
-              </li>
-              <li>
-                {
-                  'you publish new content often, such as a blog or news section;'
-                }
-              </li>
-              <li>
-                {'some pages are not well linked from the rest of the site.'}
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Many content management systems and frameworks create one for you. Check that yours exists, is up to date and only includes the pages you want indexed.'
-              }
-            </p>
-            <h3 className="mt-6 font-heading text-lg font-semibold text-foreground">
-              {'An HTML sitemap is optional but often useful'}
-            </h3>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {'An HTML sitemap is worth adding when:'}
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                {
-                  'your site has many sections and the menu cannot show them all;'
-                }
-              </li>
-              <li>
-                {
-                  'you have a lot of tools, categories or locations that visitors browse;'
-                }
-              </li>
-              <li>
-                {
-                  'you want a simple, accessible page that lists everything important in one place;'
-                }
-              </li>
-              <li>
-                {
-                  'you are improving accessibility or usability and want a clear fallback for navigation.'
-                }
-              </li>
-            </ul>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'On a small site with a clear menu, an HTML sitemap adds little. Google\'s Mueller has said HTML sitemaps "should never be needed" if a site\'s navigation is good. In other words: fix navigation first, then add an HTML sitemap if it genuinely helps people.'
-              }
-            </p>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'How to create an XML sitemap'}
-            </h2>
-            <ol className="mt-4 list-decimal space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'Check whether you already have one.'}
-                </strong>
-                {' Try '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'yourdomain.com/sitemap.xml'}
-                </code>
-                {' or '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'yourdomain.com/sitemap_index.xml'}
-                </code>
-                {', and look for a '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'Sitemap:'}
-                </code>
-                {' line in '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'yourdomain.com/robots.txt'}
-                </code>
-                {'.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {"Generate one if you don't."}
-                </strong>
-                {
-                  ' Your CMS or a plugin may do it automatically. If not, a crawler-based tool such as the free '
-                }
-                <Link
-                  href={'https://airanko.com/tools/xml-sitemap-generator'}
-                  className="font-semibold text-primary hover:underline"
-                >
-                  {'Ai Ranko XML Sitemap Generator'}
-                </Link>
-                {' can crawl your site and build the file for you.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Include only the right URLs.'}
-                </strong>
-                {
-                  ' List canonical, indexable pages that return a 200 status. Leave out redirects, 404s, '
-                }
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'noindex'}
-                </code>
-                {' pages and duplicate versions of the same page.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Upload it to your site root'}
-                </strong>
-                {', so it is available at a stable URL such as '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'/sitemap.xml'}
-                </code>
-                {'.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Reference it in robots.txt'}
-                </strong>
-                {' by adding a line like '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'Sitemap: https://yourdomain.com/sitemap.xml'}
-                </code>
-                {'.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Submit it in Google Search Console'}
-                </strong>
-                {' under Sitemaps, and check the report for errors.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Keep it updated.'}
-                </strong>
-                {' Regenerate it when you add or remove pages, and keep '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'lastmod'}
-                </code>
-                {' dates accurate if you use them.'}
-              </li>
-            </ol>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'How to create an HTML sitemap'}
-            </h2>
-            <ol className="mt-4 list-decimal space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'Decide what to include.'}
-                </strong>
-                {
-                  ' List your main sections and important pages. On large sites, link to category or hub pages rather than every single URL.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Group pages logically'}
-                </strong>
-                {', for example by section or URL path, with clear headings.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Use descriptive link text.'}
-                </strong>
-                {' Use the page title rather than raw URLs.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Generate it or build it by hand.'}
-                </strong>
-                {' The free '}
-                <Link
-                  href={'https://airanko.com/tools/html-sitemap-generator'}
-                  className="font-semibold text-primary hover:underline"
-                >
-                  {'Ai Ranko HTML Sitemap Generator'}
-                </Link>
-                {
-                  ' crawls a URL, groups pages automatically and lets you export the result in formats including standalone HTML, an HTML snippet and Markdown, with a live preview.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Link it from your footer'}
-                </strong>
-                {' so visitors and crawlers can find it.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Review it when your site changes.'}
-                </strong>
-                {' An HTML sitemap full of broken links is worse than none.'}
-              </li>
-            </ol>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Common sitemap mistakes to avoid'}
-            </h2>
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'Listing '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'noindex'}
-                  </code>
-                  {' pages in the XML sitemap.'}
-                </strong>
-                {
-                  ' This sends mixed signals: the sitemap says "index this" while the page says "don\'t". Either remove the page from the sitemap or remove the '
-                }
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'noindex'}
-                </code>
-                {'.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Including redirects and broken URLs.'}
-                </strong>
-                {
-                  ' Every URL in your sitemap should return a 200 status and be the canonical version.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Using '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'lastmod'}
-                  </code>
-                  {' as a build timestamp.'}
-                </strong>
-                {
-                  ' If every URL shows the same date each time you deploy, the date is not useful. Use the real date each page last changed.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Mixing http and https, or www and non-www.'}
-                </strong>
-                {' Use the exact canonical form of each URL.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Forgetting to update after a redesign.'}
-                </strong>
-                {
-                  ' Old URLs in the sitemap after a migration can slow down discovery of the new ones.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Treating an HTML sitemap as a substitute for navigation.'}
-                </strong>
-                {
-                  ' It should be a helpful extra, not the only way to reach important pages.'
-                }
-              </li>
-            </ul>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'How to check your sitemaps'}
-            </h2>
-            <Image
+<p className="mt-4 leading-relaxed text-muted-foreground">{"An HTML sitemap is a normal web page with organised links. Visitors can read it, follow a category and jump to another part of the site. It usually works best as a clear directory, with labels that explain the destinations."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For a training business, “Courses” is a more useful heading than “Pages 1–50”. Within that group, descriptive course names help people decide where to go. A directory of unrelated URLs with vague labels is harder to use, even when every link technically works."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"You can see an example of a visitor-facing directory on the "}<Link href="/sitemap" className="font-semibold text-primary hover:underline">{"Ai Ranko sitemap page"}</Link>{". Your own version should reflect your website's structure. A short site may only need a few groups. A larger catalogue may benefit from category directories instead of one very long list."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Search engines can follow ordinary HTML links, but this page is not the XML file you submit in Search Console."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"HTML sitemap vs XML sitemap: side by side"}</h2>
+<div className="mt-6 overflow-x-auto"><table className="w-full border-collapse text-left text-sm"><thead><tr><th className="border border-border bg-muted px-4 py-3">Question</th><th className="border border-border bg-muted px-4 py-3">HTML sitemap</th><th className="border border-border bg-muted px-4 py-3">XML sitemap</th></tr></thead><tbody><tr><td className="border border-border px-4 py-3">Main reader</td><td className="border border-border px-4 py-3">Website visitors</td><td className="border border-border px-4 py-3">Search-engine crawlers</td></tr><tr><td className="border border-border px-4 py-3">Format</td><td className="border border-border px-4 py-3">A normal HTML page</td><td className="border border-border px-4 py-3">A structured XML file</td></tr><tr><td className="border border-border px-4 py-3">Organisation</td><td className="border border-border px-4 py-3">Groups and descriptive link labels</td><td className="border border-border px-4 py-3">URL entries and optional metadata</td></tr><tr><td className="border border-border px-4 py-3">Typical location</td><td className="border border-border px-4 py-3">A directory linked from the footer</td><td className="border border-border px-4 py-3">A public file such as /sitemap.xml</td></tr><tr><td className="border border-border px-4 py-3">Search Console submission</td><td className="border border-border px-4 py-3">Not a supported sitemap file</td><td className="border border-border px-4 py-3">Supported sitemap format</td></tr><tr><td className="border border-border px-4 py-3">Main review</td><td className="border border-border px-4 py-3">Useful labels and working links</td><td className="border border-border px-4 py-3">Valid syntax and appropriate URLs</td></tr></tbody></table></div><p className="mt-4 leading-relaxed text-muted-foreground">{"The overlap is the need for accurate links. Both formats become less useful when they point at removed pages or overlook important new sections. Give each one a clear maintenance process rather than adding it once and forgetting it."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Do you need both?"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"An XML sitemap is often a practical addition, especially when your content changes regularly or your site has many pages. First check whether your CMS already produces one. Maintaining two competing files by hand can create avoidable confusion about which list is current."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"An HTML sitemap is optional. Add one when it provides a useful route through your content. It may help visitors who prefer browsing categories, or who reach the footer without finding their destination. It is less useful when it merely repeats a short, clear menu."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Before creating a new directory, review the underlying navigation. Can someone reach the main categories from the homepage? Do related articles link to each other? Is the contact page easy to find? Those questions remain important even if your sitemaps are complete."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"If you maintain both, let them share a reliable source of page information where possible. They can still apply different selection rules: the XML file lists search destinations, while the HTML page groups links around what people need."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"How to create an XML sitemap"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Begin with your CMS or website framework. Find out whether it already generates a sitemap and updates it when content changes. If it does, review that output before installing another generator."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For a separate file, use the "}<Link href="/tools/xml-sitemap-generator" className="font-semibold text-primary hover:underline">{"Ai Ranko XML sitemap generator"}</Link>{" as a starting point. It can read an existing sitemap or discover pages through a bounded crawl. Check its current options and limits, then review the URLs it returns. A generator's output is not proof that each page should be indexed."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Keep the preferred public URL for each page. Remove destinations that redirect, return errors, require a login or are marked noindex. Avoid tracking variations and duplicate versions. Confirm that the remaining addresses use the intended host and protocol."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><Link href="https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap" className="font-semibold text-primary hover:underline">{"Google's build-and-submit guidance"}</Link>{" describes the file requirements. A single sitemap must stay within both the URL-count and uncompressed-size limits. Large sites can use multiple files and an index. These are protocol requirements, separate from any free tool's crawl allowance."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Upload the finished file to a public location, commonly the site root. Reference its address in robots.txt and submit it through Search Console's Sitemaps section. Read any processing errors before considering the task complete."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Open the uploaded file directly and check a sample of its URLs against the pages you meant to include."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"How to create an HTML sitemap"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Plan the directory before generating its markup. Write down the sections visitors recognise, such as Services, Products, Guides and Support. Use your actual site categories rather than forcing everything into a generic template."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"The "}<Link href="/tools/html-sitemap-generator" className="font-semibold text-primary hover:underline">{"Ai Ranko HTML sitemap generator"}</Link>{" can help prepare a starting list. Review its output and edit the groups and link labels for your audience. Do not publish the raw list simply because the tool found the URLs."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Link to useful destinations, with text that makes sense out of context. “Returns and Refunds” explains more than “Read More”. For a large catalogue, link to helpful category pages instead of making visitors scan every product in one directory."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Place the HTML sitemap where people can find it, often through a footer link. Check it on a phone as well as a desktop. Headings, spacing and keyboard access should make the list easy to browse. Avoid hiding the whole directory behind a control that is difficult to operate."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Ask someone to locate a specific page using the directory. If they cannot tell which group to choose, improve the labels before adding more links."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Common sitemap mistakes to avoid"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"Listing URLs you do not want indexed."}</strong>{" An XML sitemap should support your preferred search destinations. A noindex page sends a conflicting message. Review the page's purpose and settings rather than removing a directive just to silence a sitemap warning."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"Keeping outdated addresses."}</strong>{" When a page moves, update sitemap entries and internal links to the destination you intend people and crawlers to use. A redirect can serve a migration purpose, but it should not become a permanent excuse for stale lists."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"Giving every page today's date."}</strong>{" A deployment or file rebuild does not mean every article changed. Store a real content-modification date for each page where possible. If you cannot provide a reliable lastmod value, leaving the optional field out is better than repeatedly publishing a misleading one."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"Expecting settings to force crawling."}</strong>{" Priority and changefreq are not instructions that make Google visit a page on demand. Do not spend time adjusting those fields while the site has broken links or missing content."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"Treating an HTML directory as a repair for orphan pages."}</strong>{" A link there may help discovery, but an important page should also fit naturally into the relevant section of your site. Add useful links where readers would expect them."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"How to check your sitemaps"}</h2>
+<Image
               src="/blog/html-sitemap-vs-xml-sitemap/sitemap-checking-laptop.webp"
               alt={
                 'Laptop showing an abstract sitemap status report next to a checklist'
@@ -864,205 +293,15 @@ export default function HtmlVsXmlSitemapBlogPost() {
               height={543}
               className="mb-8 mt-6 w-full rounded-3xl border border-border object-cover"
             />
-            <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">
-                  {'Open the XML sitemap in a browser'}
-                </strong>
-                {' and confirm it loads without errors.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Check the Sitemaps report in Search Console'}
-                </strong>
-                {' for fetch errors and the number of URLs discovered.'}
-              </li>
-              <li>
-                <strong className="text-foreground">{'Spot-check URLs'}</strong>
-                {
-                  ' to make sure they return a 200 status and are not redirected or blocked.'
-                }
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Run a site audit'}
-                </strong>
-                {' to catch broken links, missing pages and '}
-                <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                  {'noindex'}
-                </code>
-                {' conflicts. The free '}
-                <Link
-                  href={'https://airanko.com/tools/site-audit'}
-                  className="font-semibold text-primary hover:underline"
-                >
-                  {'Ai Ranko Site Audit'}
-                </Link>
-                {' is a quick way to start; see our guide on '}
-                <Link
-                  href={
-                    'https://airanko.com/blog/how-to-run-a-free-seo-site-audit'
-                  }
-                  className="font-semibold text-primary hover:underline"
-                >
-                  {'how to run a free SEO site audit'}
-                </Link>
-                {' for a step-by-step walkthrough.'}
-              </li>
-              <li>
-                <strong className="text-foreground">
-                  {'Extract links from your HTML sitemap'}
-                </strong>
-                {' and test them. The '}
-                <Link
-                  href={'https://airanko.com/tools/link-extractor'}
-                  className="font-semibold text-primary hover:underline"
-                >
-                  {'Ai Ranko Link Extractor'}
-                </Link>
-                {
-                  ' can pull every link from a page so you can check them in bulk.'
-                }
-              </li>
-            </ul>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Frequently asked questions'}
-            </h2>
-            <div className="mt-6 space-y-3">
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {
-                    'What is the main difference between an HTML sitemap and an XML sitemap?'
-                  }
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'An XML sitemap is a file for search engines that lists the URLs you want discovered. An HTML sitemap is a web page for visitors that lists your important pages as clickable links.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Do I need an HTML sitemap for SEO?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'Not usually. Search engines can follow links on an HTML sitemap, which can help discovery, but it does not replace an XML sitemap. Add one mainly if it helps visitors find their way around.'
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Can I submit an HTML sitemap to Google Search Console?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    "No. Google's John Mueller has said an HTML sitemap cannot be processed in the same way as an XML sitemap file. Submit your XML sitemap in Search Console instead."
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Where should my XML sitemap be located?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {'Usually at the root of your site, such as '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'/sitemap.xml'}
-                  </code>
-                  {'. Reference it in your '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'robots.txt'}
-                  </code>
-                  {' file and submit it in Google Search Console.'}
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'How many URLs can an XML sitemap contain?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    "Google's documentation says one sitemap file can contain up to 50,000 URLs or 50MB uncompressed. Larger sites use several sitemaps listed in a sitemap index."
-                  }
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Does Google use priority and changefreq in sitemaps?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {'Google says it ignores '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'priority'}
-                  </code>
-                  {' and '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'changefreq'}
-                  </code>
-                  {'. It may use '}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'lastmod'}
-                  </code>
-                  {' if the dates are consistently accurate.'}
-                </p>
-              </details>
-              <details className="group rounded-2xl border border-border bg-card">
-                <summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">
-                  {'Should every page be in my sitemap?'}
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {
-                    'Include canonical, indexable pages that you want to appear in search. Leave out redirects, error pages, '
-                  }
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                    {'noindex'}
-                  </code>
-                  {' pages and duplicates.'}
-                </p>
-              </details>
-            </div>
-          </section>
-          <section className="mb-14">
-            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              {'Create your sitemaps now'}
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              {
-                'Start by checking that your XML sitemap exists and is clean, then decide whether an HTML sitemap would genuinely help your visitors. You can build both for free with the '
-              }
-              <Link
-                href={'https://airanko.com/tools/xml-sitemap-generator'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'XML Sitemap Generator'}
-              </Link>
-              {' and the '}
-              <Link
-                href={'https://airanko.com/tools/html-sitemap-generator'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'HTML Sitemap Generator'}
-              </Link>
-              {'. For more guides, visit the '}
-              <Link
-                href={'https://airanko.com/blog'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'Ai Ranko blog'}
-              </Link>
-              {', or '}
-              <Link
-                href={'https://airanko.com/contact'}
-                className="font-semibold text-primary hover:underline"
-              >
-                {'get in touch'}
-              </Link>
-              {' if you have a question about the tools.'}
-            </p>
-          </section>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Open the XML file in a browser and confirm that it loads. Check Search Console for processing information. Then inspect a sample of the actual destinations. Include a recently added page, a recently updated page and an older important page rather than choosing only the homepage."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"For the HTML version, follow links from each group. The "}<Link href="/tools/link-extractor" className="font-semibold text-primary hover:underline">{"link extractor"}</Link>{" can help list links on a page for review. You still need to check whether those destinations are appropriate and whether the labels describe them clearly."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Keep a small record of problems and who will fix them. After publishing the changes, repeat the same checks. For a wider review, try the "}<Link href="/tools/site-audit" className="font-semibold text-primary hover:underline">{"site audit tool"}</Link>{" or follow the "}<Link href="/blog/how-to-run-a-free-seo-site-audit" className="font-semibold text-primary hover:underline">{"free SEO audit guide"}</Link>{". Sitemap maintenance is one part of that work, rather than a replacement for checking the pages themselves."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground"><strong>{"What to do next:"}</strong>{" Repeat this review after a migration, a category restructure or a large content update, when stale URLs are more likely to appear."}</p></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Frequently asked questions"}</h2>
+<div className="mt-6 space-y-3">{faqs.map((faq) => (<details key={faq.q} className="group rounded-2xl border border-border bg-card"><summary className="cursor-pointer px-5 py-4 font-heading text-sm font-semibold text-foreground">{faq.q}</summary><p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{faq.a}</p></details>))}</div></section>
+<section className="mb-14"><h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">{"Create your sitemaps now"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Check what your website already provides, then fill the useful gap. Start with the "}<Link href="/tools/xml-sitemap-generator" className="font-semibold text-primary hover:underline">{"XML sitemap generator"}</Link>{" for a search-engine URL list, or the "}<Link href="/tools/html-sitemap-generator" className="font-semibold text-primary hover:underline">{"HTML sitemap generator"}</Link>{" for a visitor directory. Review either result before publishing it."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Keep ownership of the update process clear so new pages and removed content are handled consistently. For more practical guides, visit the "}<Link href="/blog" className="font-semibold text-primary hover:underline">{"Ai Ranko blog"}</Link>{". You can also use the "}<Link href="/contact" className="font-semibold text-primary hover:underline">{"contact page"}</Link>{" to ask about a tool. The aim is a maintained, understandable website with accurate links, not simply another file to tick off a checklist."}</p></section>
         </div>
       </article>
       <footer className="mt-12 border-t border-border bg-card px-4 py-8 sm:px-6 lg:px-8">
