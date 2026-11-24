@@ -178,13 +178,13 @@ export default function ContentOptimizerTool() {
           <div className="mx-auto mb-8 max-w-2xl text-center">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
               <Cpu className="h-3 w-3" />
-              Google Quality Rater rules · E-E-A-T scored · 100% Free
+              Based on Google's public guidance · E-E-A-T checks · Free
             </div>
             <h1 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
               AI Content Optimizer
             </h1>
             <p className="mt-3 leading-relaxed text-muted-foreground text-pretty">
-              Paste your article + target keyword. Get a real-time audit against <strong>Google's 2024 Helpful Content + E-E-A-T guidelines</strong>, with concrete fixes for every issue.
+              Paste your article and target keyword. Get an AI audit based on <strong>Google's published guidance on helpful, people-first content and E-E-A-T</strong>, with concrete fixes for each issue.
             </p>
           </div>
 
