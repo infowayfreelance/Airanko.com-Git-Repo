@@ -1,8 +1,55 @@
 import Link from 'next/link'
 import {
   ShieldCheck, Star, Search, Layers, Wand2, Lightbulb, Award, FileText,
-  Target, TrendingUp, CheckCircle2, ArrowRight, Users, BookOpen,
+  Target, TrendingUp, ArrowRight, Users,
 } from 'lucide-react'
+
+const faqs = [
+  {
+    "q": "What does this tool actually check?",
+    "a": "It reviews your text for signs of experience, expertise and trust, how people-first and useful it reads, keyword and related-term coverage, whether the content type matches the search intent, structure and readability, heading quality, on-page basics (title, meta description, URL slug, schema type, internal link ideas) and subtopics you may have missed."
+  },
+  {
+    "q": "What is E-E-A-T and why does it matter?",
+    "a": "E-E-A-T stands for Experience, Expertise, Authoritativeness and Trustworthiness. Google's search quality raters use these ideas to assess whether results are helpful, and Google's guidance encourages content that shows them. Google says trust is the most important of the four."
+  },
+  {
+    "q": "Is E-E-A-T a Google ranking factor?",
+    "a": "Not directly. Google says E-E-A-T itself isn't a specific ranking factor, but its systems use a mix of signals that can identify content with good E-E-A-T. This tool looks for signs of those qualities in your text, such as first-hand experience, clear sourcing and author information."
+  },
+  {
+    "q": "How is this different from a grammar checker?",
+    "a": "A grammar checker fixes spelling and language. This tool looks at whether the content serves the searcher: does it match the intent, cover the topic, show experience and expertise, and have a clear structure? It then suggests specific rewrites and fixes."
+  },
+  {
+    "q": "Does the tool follow Google's rules?",
+    "a": "It's built around Google's public guidance on helpful, reliable, people-first content and on-page best practice. It isn't made by Google and can't see how Google ranks a specific page; treat the report as an editor's checklist, not a prediction."
+  },
+  {
+    "q": "How accurate is the E-E-A-T score?",
+    "a": "It's an AI estimate based only on the text you paste: things like first-hand experience, original data, credentials, citations and author attribution. It can't see your site's reputation, your authors' track record, links to your site or how real users respond, which also matter."
+  },
+  {
+    "q": "What are related terms (or \"LSI keywords\")?",
+    "a": "They're words and phrases a knowledgeable writer would naturally use when covering a topic, for example \"arch support\" and \"cushioning\" in an article about running shoes. The SEO name \"LSI keywords\" is widely used, but what matters is covering the topic properly for the reader, not adding a list of terms."
+  },
+  {
+    "q": "How much content can I analyse?",
+    "a": "Between 100 and 4,000 words per analysis. For longer pieces, audit each major section separately for more focused feedback."
+  },
+  {
+    "q": "Is the tool really free?",
+    "a": "Yes. The content optimizer is free to use and you don't need to sign up."
+  },
+  {
+    "q": "Will a higher score improve my Google rankings?",
+    "a": "Not on its own. The score is a guide to making the content more useful and complete; rankings depend on many things the tool can't measure, including competition, links and how well the page meets searchers' needs. Use the fixes that genuinely improve the page for readers."
+  },
+  {
+    "q": "What should I do after seeing the results?",
+    "a": "Start with the critical issues, then apply the heading rewrites that make sense, add missing subtopics as new sections where they help the reader, and use the suggested title and meta as a starting point. Re-run the tool after editing to check what's left."
+  }
+]
 
 export default function ContentOptimizerSeoSections() {
   return (
@@ -11,13 +58,13 @@ export default function ContentOptimizerSeoSections() {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">How It Works</h2>
-            <p className="mt-3 text-muted-foreground">From paste to publish-ready in under a minute.</p>
+            <p className="mt-3 text-muted-foreground">From pasted draft to a prioritised list of fixes.</p>
           </div>
           <div className="grid gap-8 sm:grid-cols-3">
             {[
               { step: '01', title: 'Paste Content + Keyword', description: 'Paste your existing article and enter the target keyword you want to rank for. Optionally pick the content type (blog post, landing page, review, etc.).', icon: FileText },
-              { step: '02', title: 'AI Audits Against Google', description: 'GPT-4o scores your content against Google\'s 2024 Search Quality Rater Guidelines, Helpful Content System, and on-page SEO best practices. Six scores. One overall grade.', icon: ShieldCheck },
-              { step: '03', title: 'Apply Concrete Fixes', description: 'Get specific rewrites: a new title, new meta description, heading rewrites, missing LSI keywords, and a prioritized list of issues with exact fixes. Copy and paste, then re-run.', icon: Wand2 },
+              { step: '02', title: 'AI Reviews Your Content', description: 'Our AI reviews your content against Google\'s public guidance on helpful content and E-E-A-T, plus on-page SEO best practice, and gives you a set of scores and an overall grade.', icon: ShieldCheck },
+              { step: '03', title: 'Apply Concrete Fixes', description: 'Get specific rewrites: a new title, new meta description, heading rewrites, missing related terms, and a prioritised list of issues with exact fixes. Copy and paste, then re-run.', icon: Wand2 },
             ].map((s) => (
               <div key={s.step} className="flex flex-col gap-4">
                 <div className="flex items-center gap-4">
@@ -35,19 +82,19 @@ export default function ContentOptimizerSeoSections() {
       <section className="border-t border-border px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">Audits 7 Google Ranking Dimensions</h2>
-            <p className="mt-3 text-muted-foreground">Built around what Google&apos;s public guidelines actually say.</p>
+            <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">What the Audit Checks</h2>
+            <p className="mt-3 text-muted-foreground">Built around Google&apos;s public guidance for creating helpful content.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: ShieldCheck, title: 'E-E-A-T Score',         description: 'Experience, Expertise, Authoritativeness, and Trustworthiness. The framework used by Google\'s Quality Raters since 2014 — and reinforced in every 2024 update.', color: 'text-purple-600', bg: 'bg-purple-50' },
+              { icon: ShieldCheck, title: 'E-E-A-T Score',         description: 'Experience, Expertise, Authoritativeness, and Trustworthiness. The qualities Google\'s search quality raters use to assess whether content is helpful and reliable.', color: 'text-purple-600', bg: 'bg-purple-50' },
               { icon: Star,        title: 'Helpful Content Score', description: 'Detects "people-first" vs "search-engine-first" signals. Identifies generic claims, recycled summaries, and missing unique perspective.',                                color: 'text-amber-600',  bg: 'bg-amber-50' },
-              { icon: Search,      title: 'Keyword + LSI Analysis', description: 'Primary keyword usage, density, and placement. Identifies 5-10 missing semantic terms that signal topical authority to Google.',                                              color: 'text-primary',    bg: 'bg-primary/10' },
+              { icon: Search,      title: 'Keyword + Related Terms', description: 'Primary keyword usage and placement, plus related terms readers may expect the article to cover.',                                              color: 'text-primary',    bg: 'bg-primary/10' },
               { icon: Target,      title: 'Search Intent Match',   description: 'Detects whether the keyword is informational, commercial, transactional, or navigational — and whether your content type matches.',                                            color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { icon: Layers,      title: 'Structure + Readability', description: 'Paragraph length, H2/H3 hierarchy, Flesch Reading Ease, word count vs intent. Returns reading grade and structure issues.',                                                  color: 'text-blue-600',   bg: 'bg-blue-50' },
-              { icon: Wand2,       title: 'Heading Rewrites',      description: 'Picks 4-8 of your existing headings and rewrites each one for SEO + clarity, with the reason for each change.',                                                                  color: 'text-rose-600',   bg: 'bg-rose-50' },
-              { icon: FileText,    title: 'On-Page SEO',           description: 'New optimized title (50-60 chars), meta description (140-160 chars), URL slug, recommended schema type, and internal linking suggestions.',                                     color: 'text-teal-600',   bg: 'bg-teal-50' },
-              { icon: Lightbulb,   title: 'Missing Topics',        description: 'Identifies 3-6 subtopics your competitors cover that you don\'t — with a suggested H2 heading for each.',                                                                          color: 'text-indigo-600', bg: 'bg-indigo-50' },
+              { icon: Layers,      title: 'Structure + Readability', description: 'Paragraph length, H2/H3 hierarchy, AI-estimated reading ease, word count vs intent. Returns an estimated reading grade and structure issues.',                                                  color: 'text-blue-600',   bg: 'bg-blue-50' },
+              { icon: Wand2,       title: 'Heading Rewrites',      description: 'Asks the AI to rewrite 4-8 existing headings for SEO and clarity, with a reason for each change.',                                                                  color: 'text-rose-600',   bg: 'bg-rose-50' },
+              { icon: FileText,    title: 'On-Page SEO',           description: 'New optimised title (50-60 chars), meta description (140-160 chars), URL slug, recommended schema type, and internal linking suggestions.',                                     color: 'text-teal-600',   bg: 'bg-teal-50' },
+              { icon: Lightbulb,   title: 'Missing Topics',        description: 'Suggests 3-6 subtopics that articles on this topic often cover and yours doesn\'t, with a suggested H2 for each.',                                                                          color: 'text-indigo-600', bg: 'bg-indigo-50' },
             ].map((f) => (
               <div key={f.title} className="rounded-2xl border border-border bg-card p-5 transition-shadow hover:shadow-md">
                 <div className={`mb-3 inline-flex rounded-xl p-2.5 ${f.bg}`}><f.icon className={`h-5 w-5 ${f.color}`} /></div>
@@ -61,92 +108,56 @@ export default function ContentOptimizerSeoSections() {
 
       <section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div>
-              <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">
-                Why Google Rules Decide Whether You Rank
-              </h2>
-              <p className="mt-4 leading-relaxed text-muted-foreground">
-                Google&apos;s 2024 Helpful Content update and E-E-A-T framework aren&apos;t marketing buzzwords — they are the algorithms deciding which pages get traffic and which get buried. Content that fails E-E-A-T checks gets demoted across entire sites, even if individual articles are technically optimized.
-              </p>
-              <p className="mt-4 leading-relaxed text-muted-foreground">
-                This tool grades your content against the same signals Google&apos;s Search Quality Raters look for, then writes the exact fixes — heading by heading, missing topic by missing topic — so you can ship publish-ready content that respects the rules.
-              </p>
-              <ul className="mt-6 space-y-3">
-                {[
-                  'Helpful Content Updates demote entire sites with low-quality content, not just individual pages',
-                  'E-E-A-T signals are now in core ranking systems — not just Quality Rater documents',
-                  'Content matching search intent ranks 50%+ better than mismatched format',
-                  'Comprehensive topic coverage beats keyword density for modern semantic search',
-                  'First-hand experience markers ("I tested", "we measured") are the strongest E-E-A-T signal',
-                  'Generic AI-generated content without expertise is now actively penalized',
-                  'Internal linking + topical clusters compound ranking gains across the site',
-                ].map((p) => (
-                  <li key={p} className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <span className="text-sm text-muted-foreground">{p}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { metric: '2024',   label: 'Helpful Content', sub: 'system version this tool tracks' },
-                { metric: '4',      label: 'E-E-A-T pillars', sub: 'Experience, Expertise, Authority, Trust' },
-                { metric: '7',      label: 'Score dimensions', sub: 'audited per analysis' },
-                { metric: '8-15',   label: 'Issues + fixes',  sub: 'returned per content piece' },
-              ].map((s) => (
-                <div key={s.label} className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-5">
-                  <span className="font-heading text-3xl font-bold text-primary">{s.metric}</span>
-                  <span className="text-sm font-semibold text-foreground">{s.label}</span>
-                  <span className="text-xs text-muted-foreground">{s.sub}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">What Google Says About Helpful Content</h2>
+          <p className="mt-4 leading-relaxed text-muted-foreground">Google&apos;s advice is simple to state and harder to follow: create content for people first, not to attract search visits. Its guide to <Link href="https://developers.google.com/search/docs/fundamentals/creating-helpful-content" className="text-primary hover:underline">creating helpful, reliable, people-first content</Link> suggests asking <strong>Who</strong> created the content, <strong>How</strong> it was made and <strong>Why</strong> it exists.</p>
+          <p className="mt-4 leading-relaxed text-muted-foreground">A few points from Google&apos;s own documentation that this tool is built around:</p>
+          <ul className="mt-6 space-y-3 list-disc pl-6">
+          <li className="text-sm leading-relaxed text-muted-foreground"><strong>The helpful content system is now part of core ranking.</strong> It was announced in 2022, and in March 2024 it became part of Google&apos;s core ranking systems (<Link href="https://developers.google.com/search/docs/appearance/ranking-systems-guide" className="text-primary hover:underline">ranking systems guide</Link>).</li>
+          <li className="text-sm leading-relaxed text-muted-foreground"><strong>E-E-A-T isn&apos;t a single ranking factor.</strong> Google says E-E-A-T itself isn&apos;t a specific ranking factor, but its systems use a mix of signals that can identify content with good experience, expertise, authoritativeness and trust, and that of the four, trust is most important (<Link href="https://developers.google.com/search/docs/fundamentals/creating-helpful-content" className="text-primary hover:underline">helpful content guide</Link>; background: <Link href="https://developers.google.com/search/blog/2022/12/google-raters-guidelines-e-e-a-t" className="text-primary hover:underline">Google on E-E-A-T</Link>).</li>
+          <li className="text-sm leading-relaxed text-muted-foreground"><strong>There is no preferred word count.</strong> Google says so directly in the same helpful-content guide, so this tool judges depth against the topic and intent, not a target length.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground"><strong>AI-assisted content is judged like any other content.</strong> Google says it focuses on the quality of content rather than how it is produced (<Link href="https://developers.google.com/search/blog/2023/02/google-search-and-ai-content" className="text-primary hover:underline">Google Search and AI content</Link>; see also <Link href="https://developers.google.com/search/docs/fundamentals/using-gen-ai-content" className="text-primary hover:underline">guidance on generative AI content</Link>).</li>
+          </ul>
         </div>
       </section>
 
-      <section className="border-t border-border px-4 py-16 sm:px-6 lg:px-8">
+      <section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">How We Compare</h2>
-            <p className="mt-3 text-muted-foreground">Most content optimizers cost $99+/mo. This one is free and Google-rule-aware.</p>
-          </div>
-          <div className="overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="px-5 py-4 text-left font-semibold text-foreground">Feature</th>
-                  <th className="px-5 py-4 text-center font-semibold text-primary">Ai Ranko</th>
-                  <th className="px-5 py-4 text-center font-semibold text-muted-foreground">SurferSEO</th>
-                  <th className="px-5 py-4 text-center font-semibold text-muted-foreground">Frase</th>
-                  <th className="px-5 py-4 text-center font-semibold text-muted-foreground">Clearscope</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ['E-E-A-T scoring (per pillar)',     '✓', '—', 'Partial', '—'],
-                  ['Helpful Content score',           '✓', '—', '—', '—'],
-                  ['Search intent classification',    '✓', '✓', '✓', '—'],
-                  ['Keyword + LSI analysis',          '✓', '✓', '✓', '✓'],
-                  ['Heading rewrites with reasons',   '✓', 'Add-on', 'Add-on', '—'],
-                  ['Missing topic detection',         '✓', '✓', '✓', '✓'],
-                  ['Title + meta generation',         '✓', 'Add-on', '✓', '—'],
-                  ['Schema type suggestion',          '✓', '—', '—', '—'],
-                  ['No sign-up required',             '✓', '—', '—', '—'],
-                  ['Cost',                            '$0', '$89+/mo', '$45+/mo', '$170+/mo'],
-                ].map(([f, ...cols]) => (
-                  <tr key={f} className="border-b border-border last:border-0 hover:bg-muted/30">
-                    <td className="px-5 py-3.5 font-medium text-foreground">{f}</td>
-                    {cols.map((v, i) => (
-                      <td key={i} className={`px-5 py-3.5 text-center ${i === 0 ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{v}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">What the Scores Can&apos;t See</h2>
+          <p className="mt-4 leading-relaxed text-muted-foreground">The optimizer only sees the text you paste. It can&apos;t see:</p>
+          <ul className="mt-6 space-y-3 list-disc pl-6">
+          <li className="text-sm leading-relaxed text-muted-foreground">your site&apos;s reputation, your authors&apos; track record or links pointing to your site;</li>
+          <li className="text-sm leading-relaxed text-muted-foreground">how real visitors use the page;</li>
+          <li className="text-sm leading-relaxed text-muted-foreground">what currently ranks for your keyword;</li>
+          <li className="text-sm leading-relaxed text-muted-foreground">facts: it can flag claims that need a source, but it can&apos;t verify them.</li>
+          </ul>
+          <p className="mt-4 leading-relaxed text-muted-foreground">Treat the scores as an editor&apos;s checklist. A higher score doesn&apos;t guarantee better rankings; making the page more useful for the reader is the goal.</p>
+          <p className="mt-4 leading-relaxed text-muted-foreground">Your pasted text and keyword are sent to a third-party AI service for analysis; the tool code does not save them to a database or browser storage, but error logs may include part of an AI response, and the code does not establish the service’s retention policy.</p>
+        </div>
+      </section>
+
+      <section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">How to Act on the Report</h2>
+          <ol className="mt-6 space-y-3 list-decimal pl-6">
+          <li className="text-sm leading-relaxed text-muted-foreground">Fix anything marked critical first, such as a mismatch between your content type and the search intent.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground">Add first-hand detail only you can provide: what you tested, saw or measured, with photos or data where you have them.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground">Apply the heading rewrites that make the structure clearer; skip any that don&apos;t fit.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground">Add missing subtopics as new sections only where they help the reader.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground">Use the suggested title and meta as a starting point, then check their width with the <Link href="/tools/meta-title-description-pixel-generator" className="text-primary hover:underline">meta title &amp; description generator</Link> or the <Link href="/tools/meta-title-description-bulk-pixel-checker" className="text-primary hover:underline">bulk pixel checker</Link>.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground">Re-run the optimizer to see what&apos;s left.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">Content Optimizer, Writer or Detector?</h2>
+          <ul className="mt-6 space-y-3 list-disc pl-6">
+          <li className="text-sm leading-relaxed text-muted-foreground"><strong>Use this content optimizer</strong> when you already have a draft and want to know how to improve it.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground"><strong>Use the <Link href="/tools/content-writer" className="text-primary hover:underline">AI content writer</Link></strong> when you&apos;re starting from scratch.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground"><strong>Use the <Link href="/tools/plagiarism-checker" className="text-primary hover:underline">AI content detector &amp; grammar checker</Link></strong> to check readability and grammar before you publish.</li>
+          <li className="text-sm leading-relaxed text-muted-foreground"><strong>Use the <Link href="/tools/seo-strategy-maker" className="text-primary hover:underline">SEO strategy maker</Link></strong> to plan which topics to write about in the first place, and the <Link href="/tools/site-audit" className="text-primary hover:underline">site audit tool</Link> to check the technical side of the site.</li>
+          </ul>
         </div>
       </section>
 
@@ -157,10 +168,10 @@ export default function ContentOptimizerSeoSections() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: TrendingUp, title: 'SEO Managers',    description: 'Audit every article before publish. Stop the Helpful Content updates from wrecking client traffic by catching low-quality content before Google does.' },
-              { icon: Users,      title: 'Content Marketers', description: 'Score AI-drafted articles before shipping. Hit E-E-A-T baseline and add the missing topics competitors are ranking for.' },
-              { icon: FileText,   title: 'Bloggers',         description: 'Get one-click rewrites for titles, headings, and metas. Replace generic phrases with specific, ranking-friendly alternatives.' },
-              { icon: Award,      title: 'Agencies',         description: 'Run client content through a consistent Google-rules audit. Deliver client-ready optimization reports without paying SurferSEO or Clearscope subscriptions.' },
+              { icon: TrendingUp, title: 'SEO Managers',    description: 'Audit articles before they\'re published and catch thin or off-intent content early.' },
+              { icon: Users,      title: 'Content Marketers', description: 'Score AI-drafted articles before shipping. Check for experience and expertise signals and add useful subtopics you missed.' },
+              { icon: FileText,   title: 'Bloggers',         description: 'Get one-click rewrites for titles, headings, and metas. Replace generic phrases with specific, clearer alternatives.' },
+              { icon: Award,      title: 'Agencies',         description: 'Run client content through a consistent audit and share clear, specific fixes.' },
             ].map((u) => (
               <div key={u.title} className="rounded-2xl border border-border bg-card p-5">
                 <div className="mb-3 inline-flex rounded-xl bg-primary/10 p-2.5"><u.icon className="h-5 w-5 text-primary" /></div>
@@ -172,22 +183,13 @@ export default function ContentOptimizerSeoSections() {
         </div>
       </section>
 
-      <section className="border-t border-border px-4 py-16 sm:px-6 lg:px-8">
+      <section id="faq" className="border-t border-border px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <div className="mb-12 text-center">
             <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">Frequently Asked Questions</h2>
           </div>
           <div className="space-y-3">
-            {[
-              { q: 'What does this tool actually check?', a: 'It audits your content against Google\'s 2024 Search Quality Rater Guidelines and Helpful Content System: E-E-A-T signals, keyword + LSI coverage, search intent match, structure and readability, on-page SEO (title, meta, slug, schema), missing topics, heading quality, and content depth.' },
-              { q: 'What is E-E-A-T?', a: 'E-E-A-T stands for Experience, Expertise, Authoritativeness, and Trustworthiness — Google\'s official quality framework. Content that signals real first-hand experience, expert credentials, and trust markers ranks higher and is less likely to be demoted by Helpful Content updates.' },
-              { q: 'How is this different from a grammar checker?', a: 'Grammar checkers fix language. This tool grades content against Google\'s actual ranking factors — search intent match, topical coverage, E-E-A-T signals, on-page optimization — and writes the specific rewrites and fixes.' },
-              { q: 'How accurate is the E-E-A-T score?', a: 'The score uses GPT-4o to detect concrete signals in your text — first-person experience markers, original data, expert credentials, citations, author attribution. It is a calibrated estimate; final E-E-A-T also depends on author/site reputation measured externally by Google.' },
-              { q: 'What are LSI keywords and why do I need them?', a: 'LSI (Latent Semantic Indexing) keywords are semantically related terms that signal topical depth. An article about "best running shoes" should also mention "pronation", "arch support", "midsole cushioning". Including these tells Google you cover the topic comprehensively, not superficially.' },
-              { q: 'How much content can I analyze?', a: 'Between 100 and 4,000 words per analysis. For longer pieces, audit each major section separately for more focused feedback.' },
-              { q: 'Is it really free?', a: 'Yes — no sign-up, no credit card, no watermark, unlimited analyses.' },
-              { q: 'What do I do after seeing the results?', a: 'Start with the Issues tab and fix all Critical issues first. Apply heading rewrites (one click to copy each). Add missing LSI keywords naturally. Replace your title/meta with the suggested versions. Add missing topics as new H2 sections. Re-run the tool to verify your score went up.' },
-            ].map((faq) => (
+            {faqs.map((faq) => (
               <details key={faq.q} className="group rounded-2xl border border-border bg-card">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-4 font-heading text-sm font-semibold text-foreground">
                   {faq.q}
@@ -206,9 +208,9 @@ export default function ContentOptimizerSeoSections() {
 
       <section className="border-t border-border bg-gradient-to-br from-primary/5 via-accent/5 to-transparent px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">Ready to Pass Google&apos;s Bar?</h2>
+          <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">Ready to Improve Your Content?</h2>
           <p className="mt-4 leading-relaxed text-muted-foreground">
-            Paste any article, get a Google-rules audit + concrete rewrites in under a minute — free.
+            Paste any article and get a content audit with concrete rewrites — free.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/tools/content-writer" className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
