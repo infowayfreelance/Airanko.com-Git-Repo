@@ -54,6 +54,15 @@ type Post = {
 
 const posts: Post[] = [
   {
+    "slug": "how-to-check-meta-tags-on-any-website",
+    "title": "How to Check Meta Tags on Any Website (Title, Description, Open Graph and More)",
+    "excerpt": "Check any page's title, description, robots, canonical and Open Graph tags three ways: page source, DevTools and a free bulk meta tag checker.",
+    "readingTime": "9 min read",
+    "category": "SEO",
+    "date": "November 25, 2026",
+    icon: Search,
+  },
+  {
     "slug": "how-to-extract-all-links-from-a-website",
     "title": "How to Find and Export Links From a Website (Free, No Code)",
     "excerpt": "Extract internal and external website links without coding. Filter results, export a CSV and use your list to review broken links and site structure.",
