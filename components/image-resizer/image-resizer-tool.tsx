@@ -421,7 +421,7 @@ export default function ImageResizerTool() {
           Free Online Image Resizer, Converter &amp; Compressor
         </h1>
         <p className="mt-2 text-muted-foreground text-pretty">
-          Resize, crop, convert and compress images in seconds with our all-in-one image tool. Optimize images for websites, social media, and SEO with support for PNG, JPEG, WebP, and more. No uploads, no delays — everything runs securely in your browser.
+          Resize, crop, convert and compress images with one free tool. Prepare images for your website or social media with support for PNG, JPEG, WebP and GIF. The tool runs in your browser and you don't need an account.
         </p>
       </div>
 
