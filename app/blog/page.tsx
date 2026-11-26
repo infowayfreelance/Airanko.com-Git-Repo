@@ -54,6 +54,15 @@ type Post = {
 
 const posts: Post[] = [
   {
+    "slug": "how-to-build-an-seo-strategy-for-a-new-website",
+    "title": "How to Build an SEO Strategy for a New Website (With a Free AI Strategy Creator)",
+    "excerpt": "Build an SEO strategy for a new website: set goals, map keywords, plan pages and content, fix technical basics and try Ai Ranko’s free AI planner.",
+    "readingTime": "10 min read",
+    "category": "SEO",
+    "date": "November 26, 2026",
+    icon: Search,
+  },
+  {
     "slug": "how-to-check-meta-tags-on-any-website",
     "title": "How to Check Meta Tags on Any Website (Title, Description, Open Graph and More)",
     "excerpt": "Check any page's title, description, robots, canonical and Open Graph tags three ways: page source, DevTools and a free bulk meta tag checker.",
