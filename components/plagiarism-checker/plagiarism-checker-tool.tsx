@@ -294,13 +294,13 @@ export default function PlagiarismCheckerTool() {
           <div className="mx-auto mb-8 max-w-2xl text-center">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
               <ShieldCheck className="h-3 w-3" />
-              AI Content Detector + Grammar + Readability · Powered by GPT-4o
+              AI Content Detector + Grammar + Readability
             </div>
             <h1 className="font-heading text-3xl font-bold tracking-tight text-balance sm:text-4xl">
               AI Content Detector & Grammar Checker
             </h1>
             <p className="mt-3 text-muted-foreground text-pretty leading-relaxed">
-              Detect AI-written text, fix grammar mistakes, measure readability, and get precise word replacement suggestions — all in one analysis.
+              Detect AI-written text, fix grammar mistakes, measure readability, and get precise word replacement suggestions — all in one analysis. It does not check text against the web for plagiarism.
             </p>
           </div>
 
@@ -358,8 +358,8 @@ export default function PlagiarismCheckerTool() {
             <div className="mt-4 flex items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
                 {wordCount < 30
-                  ? `Need ${30 - wordCount} more words to analyze`
-                  : 'Ready to analyze'}
+                  ? `Need ${30 - wordCount} more words to analyse`
+                  : 'Ready to analyse'}
               </p>
               <button
                 onClick={analyze}
@@ -388,8 +388,8 @@ export default function PlagiarismCheckerTool() {
               <Sparkles className="h-9 w-9 text-primary" />
             </div>
           </div>
-          <h2 className="font-heading text-xl font-bold text-foreground">Analyzing your content…</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{wordCount} words · may take 10–20 seconds</p>
+          <h2 className="font-heading text-xl font-bold text-foreground">Analysing your content…</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{wordCount} words · analysis in progress</p>
           <div className="mt-8 space-y-3">
             {LOADING_STEPS.map((step, i) => {
               const Icon = step.icon
