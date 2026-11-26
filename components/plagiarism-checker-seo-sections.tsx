@@ -11,9 +11,22 @@ import {
   TrendingUp,
   Users,
   FileText,
-  CheckCircle2,
   ArrowRight,
 } from 'lucide-react'
+
+const faqs = [
+{ q: "What does this tool check?", a: "It runs four checks in one analysis: AI-writing pattern detection (an AI% and Human% estimate), grammar and spelling with exact corrections, a readability score, and weak-word detection with replacement suggestions.", content: <>{"It runs four checks in one analysis: AI-writing pattern detection (an AI% and Human% estimate), grammar and spelling with exact corrections, a readability score, and weak-word detection with replacement suggestions."}</> },
+{ q: "Is this a plagiarism checker that compares my text against the web?", a: "No. It does not compare your text against web pages or any database of published documents, so it cannot tell you whether text was copied. To check for copied text, use a dedicated plagiarism checker that searches published sources. This tool checks writing quality and AI-writing patterns.", content: <>{"No. It does not compare your text against web pages or any database of published documents, so it cannot tell you whether text was copied. To check for copied text, use a dedicated plagiarism checker that searches published sources. This tool checks writing quality and AI-writing patterns."}</> },
+{ q: "How accurate is the AI detection?", a: "No AI detector is fully accurate. The tool looks for patterns that often appear in AI-generated writing, such as formulaic transitions, repetitive sentence structure, generic claims and a lack of personal voice. Treat the score as one signal, never as proof that someone used AI, and never as the only basis for a decision about a person.", content: <>{"No AI detector is fully accurate. The tool looks for patterns that often appear in AI-generated writing, such as formulaic transitions, repetitive sentence structure, generic claims and a lack of personal voice. Treat the score as one signal, never as proof that someone used AI, and never as the only basis for a decision about a person."}</> },
+{ q: "Why does my own writing score as partly AI-generated?", a: "If your writing is very structured, uses common transitional phrases or lacks specific personal examples, it can share patterns with AI text. The tool flags patterns, not intent. Open the Signals tab to see exactly what triggered the score.", content: <>{"If your writing is very structured, uses common transitional phrases or lacks specific personal examples, it can share patterns with AI text. The tool flags patterns, not intent. Open the Signals tab to see exactly what triggered the score."}</> },
+{ q: "What readability score should I aim for?", a: "The readability score is an AI estimate, not a separately calculated reading test. A score between 60–80 can be a rough starting point for general web content, but check whether the text suits your readers. Technical content for expert readers may need more specialist language. Treat the suggested grade level as an estimate too.", content: <>{"The readability score is an AI estimate, not a separately calculated reading test. A score between 60–80 can be a rough starting point for general web content, but check whether the text suits your readers. Technical content for expert readers may need more specialist language. Treat the suggested grade level as an estimate too."}</> },
+{ q: "How many words can I analyse?", a: "Between 30 and 3,000 words per analysis. For longer content, analyse it in sections.", content: <>{"Between 30 and 3,000 words per analysis. For longer content, analyse it in sections."}</> },
+{ q: "Can I analyse content in languages other than English?", a: "You can paste text in languages other than English, but the code does not apply language-specific readability formulas or validate language accuracy. Grammar suggestions and readability scores are AI estimates. Check non-English results with someone fluent in the language.", content: <>{"You can paste text in languages other than English, but the code does not apply language-specific readability formulas or validate language accuracy. Grammar suggestions and readability scores are AI estimates. Check non-English results with someone fluent in the language."}</> },
+{ q: "Is my content stored or used for training?", a: "Your text is sent to a third-party AI service through its API to produce the analysis. This tool has no database or browser-storage writes for your text, but error logs may include part of an AI response. The tool code does not establish the provider’s retention or training practices. See our privacy policy for details.", content: <>{"Your text is sent to a third-party AI service through its API to produce the analysis. This tool has no database or browser-storage writes for your text, but error logs may include part of an AI response. The tool code does not establish the provider’s retention or training practices. See our "}<Link href="/privacy-policy" className="text-primary hover:underline">{"privacy policy"}</Link>{" for details."}</> },
+{ q: "Is this tool free?", a: "Yes. There's no account, subscription or watermark: paste your text and run the analysis.", content: <>{"Yes. There's no account, subscription or watermark: paste your text and run the analysis."}</> },
+{ q: "Will Google penalise content that scores as AI-written?", a: "Google says it rewards helpful, original content however it is produced, and that using automation to produce content mainly to manipulate rankings breaks its spam policies. See Google's guidance on AI-generated content. Use the score to find generic, low-value passages and improve them for your readers, not to chase a number.", content: <>{"Google says it rewards helpful, original content however it is produced, and that using automation to produce content mainly to manipulate rankings breaks its spam policies. See "}<Link href="https://developers.google.com/search/blog/2023/02/google-search-and-ai-content" target="_blank" rel="noopener" className="text-primary hover:underline">{"Google's guidance on AI-generated content"}</Link>{". Use the score to find generic, low-value passages and improve them for your readers, not to chase a number."}</> },
+{ q: "What should I do after seeing the results?", a: "Start with the Grammar tab and fix the errors first. Then work through the Words tab and replace weak words. If the AI score is high, review the Signals tab and rewrite those sections with your own experience, specific examples and varied sentence structure. To tighten a page for a target keyword afterwards, try the Content Optimizer.", content: <>{"Start with the Grammar tab and fix the errors first. Then work through the Words tab and replace weak words. If the AI score is high, review the Signals tab and rewrite those sections with your own experience, specific examples and varied sentence structure. To tighten a page for a target keyword afterwards, try the "}<Link href="/tools/content-optimizer" className="text-primary hover:underline">{"Content Optimizer"}</Link>{"."}</> }
+]
 
 export default function PlagiarismCheckerSeoSections() {
   return (
@@ -26,7 +39,7 @@ export default function PlagiarismCheckerSeoSections() {
               How It Works
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Four-layer content analysis in under 20 seconds — no sign-up, no fees.
+              Four checks in one analysis, with no sign-up and no fees.
             </p>
           </div>
           <div className="grid gap-8 sm:grid-cols-3">
@@ -40,16 +53,16 @@ export default function PlagiarismCheckerSeoSections() {
               },
               {
                 step: '02',
-                title: 'GPT-4o Analyzes',
+                title: 'We Analyse Your Text',
                 description:
-                  'Our tool sends your content to GPT-4o, which performs a deep multi-layer scan: AI pattern detection, grammar checking, readability calculation, and word quality review — simultaneously.',
+                  'Your text is sent securely to our AI analysis, which checks AI-writing patterns, grammar, readability and word quality in one pass.',
                 icon: Zap,
               },
               {
                 step: '03',
                 title: 'See Your Report',
                 description:
-                  'Results appear in seconds with score gauges, inline text highlights (click any highlight to see the fix), and actionable suggestions you can copy with one click.',
+                  'Your report shows score gauges, inline text highlights (click any highlight to see the fix), and suggestions you can copy with one click.',
                 icon: Eye,
               },
             ].map((step) => (
@@ -76,7 +89,7 @@ export default function PlagiarismCheckerSeoSections() {
               Everything in One Analysis
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Most tools do one thing. This tool does four — simultaneously, for free.
+              Four checks in one free analysis.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -85,7 +98,7 @@ export default function PlagiarismCheckerSeoSections() {
                 icon: Bot,
                 title: 'AI Content Detection',
                 description:
-                  'Identifies formulaic structure, repetitive sentence patterns, generic phrasing, and the lack of personal voice that reveal AI authorship. Returns an AI% and Human% score.',
+                  'Identifies formulaic structure, repetitive sentence patterns, generic phrasing, and a lack of personal voice that often appear in AI-written text. Returns an AI% and Human% score.',
                 color: 'text-amber-600',
                 bg: 'bg-amber-50',
               },
@@ -101,7 +114,7 @@ export default function PlagiarismCheckerSeoSections() {
                 icon: BarChart3,
                 title: 'Readability Score',
                 description:
-                  'Calculates a Flesch Reading Ease equivalent score (0–100) and tells you the US school grade level. Grade 6–8 is the sweet spot for most web content.',
+                  'Returns an AI-estimated Flesch Reading Ease-style score (0–100) and an estimated US school grade level. Review the text for your own audience.',
                 color: 'text-blue-600',
                 bg: 'bg-blue-50',
               },
@@ -109,7 +122,7 @@ export default function PlagiarismCheckerSeoSections() {
                 icon: Wand2,
                 title: 'Word Replacements',
                 description:
-                  'Finds weak, vague, or overused words ("very", "good", "things") and suggests 3 precise alternatives per word. Click any suggestion to copy it instantly.',
+                  'Finds weak, vague, or overused words ("very", "good", "things") and suggests 3 precise alternatives per word. Click any suggestion to copy it.',
                 color: 'text-primary',
                 bg: 'bg-primary/10',
               },
@@ -133,7 +146,7 @@ export default function PlagiarismCheckerSeoSections() {
                 icon: TrendingUp,
                 title: 'Overall Quality Score',
                 description:
-                  'A single 0–100 score that combines grammar accuracy, readability, word quality, and writing clarity — giving you one number to aim to improve.',
+                  'An AI-estimated 0–100 assessment of writing quality. Use it alongside the specific feedback and your own judgement.',
                 color: 'text-emerald-600',
                 bg: 'bg-emerald-50',
               },
@@ -163,113 +176,35 @@ export default function PlagiarismCheckerSeoSections() {
         </div>
       </section>
 
-      {/* ── Why Accurate Content Matters for SEO ── */}
-      <section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div>
-              <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">
-                Why Content Quality Directly Impacts Your Rankings
-              </h2>
-              <p className="mt-4 leading-relaxed text-muted-foreground">
-                Google&apos;s Helpful Content system and E-E-A-T guidelines are designed to reward content
-                that reads as genuine, expert, and authoritative. Content that pattern-matches to
-                AI-generated text — even if factually accurate — risks being demoted or ignored.
-              </p>
-              <p className="mt-4 leading-relaxed text-muted-foreground">
-                Beyond AI detection, readability and word quality directly affect dwell time and
-                engagement. Content at a Grade 7–8 reading level consistently outperforms overly complex
-                writing because it keeps readers on the page longer, reducing bounce rate — a key indirect
-                ranking signal.
-              </p>
-              <ul className="mt-6 space-y-3">
-                {[
-                  "Google's 2024 Helpful Content update targeted low-quality AI-generated content at scale",
-                  'Readable content (Grade 6–8) has 40–60% higher average time-on-page',
-                  'Precise word choices improve click-through rates on meta descriptions',
-                  'Grammar errors reduce trust signals — users leave faster from error-heavy pages',
-                  'Human-sounding content earns 3× more natural backlinks than generic AI text',
-                  'E-E-A-T signals require personal experience and unique perspective — not templates',
-                  'Fixing 5–10 grammar issues typically lifts quality score by 15–20 points',
-                ].map((point) => (
-                  <li key={point} className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <span className="text-sm text-muted-foreground">{point}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { metric: '40%',  label: 'Higher dwell time', sub: 'when readability is Grade 7–8' },
-                { metric: '3×',   label: 'More backlinks',    sub: 'for human-sounding vs generic AI content' },
-                { metric: '60%',  label: 'Lower bounce rate', sub: 'on content without grammar errors' },
-                { metric: '15pt', label: 'Quality boost',     sub: 'from fixing top grammar issues' },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="flex flex-col gap-1 rounded-2xl border border-border bg-card p-5"
-                >
-                  <span className="font-heading text-3xl font-bold text-primary">{stat.metric}</span>
-                  <span className="text-sm font-semibold text-foreground">{stat.label}</span>
-                  <span className="text-xs text-muted-foreground">{stat.sub}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Comparison Table ── */}
-      <section className="border-t border-border px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">
-              How We Compare
-            </h2>
-            <p className="mt-3 text-muted-foreground">
-              Ai Ranko replaces four separate tools — for free.
-            </p>
-          </div>
-          <div className="overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="px-5 py-4 text-left font-semibold text-foreground">Feature</th>
-                  <th className="px-5 py-4 text-center font-semibold text-primary">Ai Ranko</th>
-                  <th className="px-5 py-4 text-center font-semibold text-muted-foreground">Grammarly</th>
-                  <th className="px-5 py-4 text-center font-semibold text-muted-foreground">Originality.ai</th>
-                  <th className="px-5 py-4 text-center font-semibold text-muted-foreground">Hemingway</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ['AI content detection',        '✓', '—', '✓', '—'],
-                  ['Grammar & spelling check',     '✓', '✓', '—', '—'],
-                  ['Readability score',            '✓', '—', '—', '✓'],
-                  ['Word replacement suggestions', '✓', '✓', '—', '✓'],
-                  ['Inline text highlights',       '✓', '✓', '✓', '✓'],
-                  ['AI signal breakdown',          '✓', '—', '✓', '—'],
-                  ['Overall quality score',        '✓', '—', '—', '—'],
-                  ['No sign-up required',          '✓', '—', '—', '—'],
-                  ['100% free',                    '✓', '—', '—', '—'],
-                  ['No word-count limits (paid)',  '✓', '—', '—', '—'],
-                ].map(([feature, ...cols]) => (
-                  <tr key={feature} className="border-b border-border last:border-0 hover:bg-muted/30">
-                    <td className="px-5 py-3.5 font-medium text-foreground">{feature}</td>
-                    {cols.map((val, i) => (
-                      <td key={i} className={`px-5 py-3.5 text-center ${i === 0 ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
-                        {val}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
+<section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-7xl">
+<h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">{"AI Content, Helpful Content and Google"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"Google's position is that it rewards helpful, original content, however it was produced, and that using automation mainly to manipulate search rankings breaks its spam policies ("}<Link href="https://developers.google.com/search/blog/2023/02/google-search-and-ai-content" target="_blank" rel="noopener" className="text-primary hover:underline">{"Google Search's guidance about AI-generated content"}</Link>{"). Its guide to "}<Link href="https://developers.google.com/search/docs/fundamentals/creating-helpful-content" target="_blank" rel="noopener" className="text-primary hover:underline">{"creating helpful, reliable, people-first content"}</Link>{" asks whether a page shows first-hand experience, adds original information and leaves the reader satisfied."}</p>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"That's how to use this tool: not to \"beat\" a detector, but to find the generic, repetitive passages a reader would skim past, fix the grammar that undermines trust, and make the text easier to read. Then add what only you can: real examples, your own data and your experience."}</p>
+</div></section>
+<section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-7xl">
+<h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">{"How to Read Your Results"}</h2>
+<ul className="mt-6 space-y-3">
+<li className="text-sm leading-relaxed text-muted-foreground"><strong>{"AI% and Human%:"}</strong>{" an estimate of how closely the text matches common AI-writing patterns. It is an AI estimate, not a calibrated probability or proof. Formal, translated or non-native writing can score higher without any AI involved."}</li>
+<li className="text-sm leading-relaxed text-muted-foreground"><strong>{"AI Signals:"}</strong>{" the specific phrases and structures behind the score. Rewrite these first if you want the text to sound more like you."}</li>
+<li className="text-sm leading-relaxed text-muted-foreground"><strong>{"Grammar:"}</strong>{" each error with the exact correction and a one-sentence explanation."}</li>
+<li className="text-sm leading-relaxed text-muted-foreground"><strong>{"Readability:"}</strong>{" an AI-estimated Flesch Reading Ease-style score (0–100) and grade level. Check the text against your audience’s needs rather than treating the number as a measured reading test."}</li>
+<li className="text-sm leading-relaxed text-muted-foreground"><strong>{"Words:"}</strong>{" weak or vague words with stronger alternatives you can copy."}</li>
+<li className="text-sm leading-relaxed text-muted-foreground"><strong>{"Overall quality score:"}</strong>{" an AI-estimated 0–100 assessment of the writing. The code does not calculate a fixed weighted score from grammar, readability or word quality. Use it as feedback alongside your own review."}</li>
+</ul>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"The report also includes a Tips tab for improvement suggestions. All scores and text statistics come from the AI response; they are not independently verified measurements."}</p>
+</div></section>
+<section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-7xl">
+<h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">{"Looking for a Plagiarism Checker?"}</h2>
+<p className="mt-4 leading-relaxed text-muted-foreground">{"This tool doesn't compare your text against web pages or published papers, so it can't tell you whether something was copied. If you need that, use a dedicated plagiarism checker that searches published sources and shows each match. Use this tool alongside it to check the quality of the writing itself: AI-writing patterns, grammar, readability and word choice."}</p>
+</div></section>
+<section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-7xl">
+<h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">{"More Free Content Tools"}</h2>
+<ul className="mt-6 space-y-3">
+<li className="text-sm leading-relaxed text-muted-foreground"><Link href="/tools/content-optimizer" className="text-primary hover:underline">{"Content Optimizer"}</Link>{": improve a page for its target keyword."}</li>
+<li className="text-sm leading-relaxed text-muted-foreground"><Link href="/tools/content-writer" className="text-primary hover:underline">{"AI Content Writer"}</Link>{": draft a first version to edit and make your own."}</li>
+<li className="text-sm leading-relaxed text-muted-foreground"><Link href="/tools/meta-title-description-pixel-generator" className="text-primary hover:underline">{"Meta Title & Description Pixel Generator"}</Link>{": draft titles and descriptions and review their estimated search-result width."}</li>
+</ul>
+</div></section>
       {/* ── Use Cases ── */}
       <section className="border-t border-border bg-muted/30 px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
@@ -284,13 +219,13 @@ export default function PlagiarismCheckerSeoSections() {
                 icon: Users,
                 title: 'Content Marketers',
                 description:
-                  'Check AI-drafted content before publishing. Ensure it passes Google\'s Helpful Content guidelines and reads as authentic expert writing.',
+                  'Check AI-drafted content before publishing. Check it reads clearly and adds your own experience before it goes live.',
               },
               {
                 icon: TrendingUp,
                 title: 'SEO Professionals',
                 description:
-                  'Audit client content for grammar, readability, and AI signals before going live. Catch issues that harm rankings before Google does.',
+                  'Audit client content for grammar, readability, and AI signals before going live. Catch weak, generic passages before they go live.',
               },
               {
                 icon: FileText,
@@ -302,7 +237,7 @@ export default function PlagiarismCheckerSeoSections() {
                 icon: ShieldCheck,
                 title: 'Educators & Students',
                 description:
-                  'Verify the authenticity of submitted work or improve your own writing quality with actionable, specific feedback on every submission.',
+                  'Improve your own writing with specific feedback, or review a draft alongside other evidence. A detector score alone should never be used to judge someone\'s work.',
               },
             ].map((uc) => (
               <div key={uc.title} className="rounded-2xl border border-border bg-card p-5">
@@ -318,7 +253,7 @@ export default function PlagiarismCheckerSeoSections() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="border-t border-border px-4 py-16 sm:px-6 lg:px-8">
+      <section id="faq" className="border-t border-border px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <div className="mb-12 text-center">
             <h2 className="font-heading text-3xl font-bold tracking-tight text-foreground">
@@ -326,40 +261,7 @@ export default function PlagiarismCheckerSeoSections() {
             </h2>
           </div>
           <div className="space-y-3">
-            {[
-              {
-                q: 'Is this a real plagiarism checker that compares against the web?',
-                a: "This tool focuses on AI content detection, grammar quality, readability, and word improvement — not web-based duplicate content checking. It cannot compare your text against a live index of web pages. For web plagiarism detection, Copyscape is the industry standard. This tool's strength is analyzing writing quality and identifying AI-generated patterns.",
-              },
-              {
-                q: 'How accurate is the AI detection?',
-                a: 'The detection uses GPT-4o to identify structural and stylistic patterns associated with AI-generated writing — including formulaic transitions, repetitive sentence structure, generic claims, and lack of personal voice. It is highly reliable for identifying typical AI output but should not be used as sole evidence. Highly skilled human editing can reduce AI signals.',
-              },
-              {
-                q: 'What readability score should I aim for?',
-                a: 'A score between 60–80 (Standard to Easy) is ideal for most web content. This corresponds to a Grade 6–8 reading level — accessible to most adults without feeling simplistic. Technical content for expert audiences can sit lower without issue.',
-              },
-              {
-                q: 'Why does the AI score my otherwise well-written content as partly AI-generated?',
-                a: "AI writing patterns have influenced how many humans write — especially those who use AI tools regularly. If your writing is very structured, uses common transitional phrases, or lacks specific personal examples, it may score higher on AI signals. The tool flags patterns, not intent. Use the AI Signals tab to see exactly what triggered the score.",
-              },
-              {
-                q: 'Can I analyze content in languages other than English?',
-                a: 'The tool works best with English content. GPT-4o supports other languages, so it can analyze them, but the grammar corrections and readability scoring are calibrated for English-language standards.',
-              },
-              {
-                q: 'How is this different from Grammarly?',
-                a: 'Grammarly focuses on grammar and style corrections. This tool also checks for AI content patterns, calculates a readability score, provides word replacement suggestions, and gives an overall quality score — in a single free analysis with no sign-up required.',
-              },
-              {
-                q: 'Is my content stored or used for training?',
-                a: 'Content is sent to the OpenAI API for analysis and is not stored by Ai Ranko. OpenAI\'s data usage policy applies to API usage. We do not use your content for any purpose other than returning your analysis.',
-              },
-              {
-                q: 'What should I do after seeing the results?',
-                a: "Start with the Grammar tab — fix all errors first. Then work through the Words tab, replacing weak words with the suggested alternatives (one-click copy). If your AI score is high, review the Signals tab and manually rewrite those sections to add personal perspective, specific examples, and varied sentence structure.",
-              },
-            ].map((faq) => (
+            {faqs.map((faq) => (
               <details
                 key={faq.q}
                 className="group rounded-2xl border border-border bg-card"
@@ -372,7 +274,7 @@ export default function PlagiarismCheckerSeoSections() {
                     </svg>
                   </span>
                 </summary>
-                <p className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground">{faq.a}</p>
+                <p className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground">{faq.content}</p>
               </details>
             ))}
           </div>
@@ -386,7 +288,7 @@ export default function PlagiarismCheckerSeoSections() {
             Ready to Improve Your Content?
           </h2>
           <p className="mt-4 leading-relaxed text-muted-foreground">
-            Paste any text above and get your full AI detection, grammar, readability, and word quality report in seconds — completely free.
+            Paste any text above and get your full AI detection, grammar, readability, and word quality report, free and without sign-up.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
