@@ -54,6 +54,15 @@ type Post = {
 
 const posts: Post[] = [
   {
+    "slug": "title-tag-pixel-width-explained",
+    "title": "Title Tag Pixel Width Explained — and How to Bulk-Check Yours",
+    "excerpt": "Learn why title pixel width matters more than character count, what estimated limits mean, and how to bulk-check desktop and mobile widths from a sitemap.",
+    "readingTime": "9 min read",
+    "category": "SEO",
+    "date": "November 27, 2026",
+    icon: Search,
+  },
+  {
     "slug": "how-to-build-an-seo-strategy-for-a-new-website",
     "title": "How to Build an SEO Strategy for a New Website (With a Free AI Strategy Creator)",
     "excerpt": "Build an SEO strategy for a new website: set goals, map keywords, plan pages and content, fix technical basics and try Ai Ranko’s free AI planner.",
