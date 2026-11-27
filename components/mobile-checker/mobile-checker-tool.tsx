@@ -458,7 +458,7 @@ export default function MobileCheckerTool() {
                 </h1>
               </div>
               <p className="mt-1 ml-11 text-sm text-muted-foreground">
-                Live device preview across every major phone, tablet and desktop, plus a real mobile-friendliness audit measured from the actual page source. No installs, no sign-up.
+                Preview any page at common phone, tablet and desktop sizes, plus a mobile-friendliness audit measured from the page's own HTML. No install, no sign-up.
               </p>
             </div>
             <div className="ml-11 flex items-center gap-2 sm:ml-0">
@@ -652,7 +652,7 @@ export default function MobileCheckerTool() {
               </div>
               <div className="mt-2 grid grid-cols-1 gap-2 text-left sm:grid-cols-2">
                 {[
-                  { icon: CheckCircle2, text: 'Live preview across 40+ real device sizes' },
+                  { icon: CheckCircle2, text: 'Live preview at device screen sizes' },
                   { icon: CheckCircle2, text: 'Real audit — viewport, legibility, Flash, redirects' },
                   { icon: CheckCircle2, text: 'Grid view compares devices side by side' },
                   { icon: CheckCircle2, text: 'Compare two URLs, export a PDF report' },
