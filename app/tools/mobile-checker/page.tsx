@@ -2,185 +2,53 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronRight, Zap } from 'lucide-react'
 import Navbar from '@/components/navbar'
-import ToolSchema from '@/components/ToolSchema'
 import BreadcrumbSchema from '@/components/BreadcrumbSchema'
 import MobileCheckerTool from '@/components/mobile-checker/mobile-checker-tool'
-import MobileCheckerSeoSections from '@/components/mobile-checker-seo-sections'
+import MobileCheckerSeoSections, { mobileCheckerFaqs } from '@/components/mobile-checker-seo-sections'
 import { CookieSettingsLink } from '@/components/cookie-consent/cookie-settings-link'
 
 export const metadata: Metadata = {
-  title: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
+  title: 'Mobile Friendliness Checker: Preview & Audit | Ai Ranko',
   description:
-    'Preview any website on real iPhone, Android, tablet, and desktop sizes, plus run a real mobile-friendliness audit — viewport, legibility, Flash/plugin detection, responsive images, and mobile-redirect checks. Compare two URLs or audit a whole sitemap in bulk. Free, no signup.',
+    'Preview any page at phone, tablet and desktop sizes and audit viewport, text size and more. Free, no sign-up. Compare two URLs or audit a sitemap.',
   keywords:
     'mobile friendliness checker, mobile friendliness audit, mobile responsive test, website mobile test, mobile preview tool, responsive design tester, mobile-first indexing test, free mobile checker, bulk mobile audit, sitemap mobile audit',
   alternates: {
     canonical: 'https://airanko.com/tools/mobile-checker',
   },
   openGraph: {
-    title: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
+    title: 'Mobile Friendliness Checker: Preview & Audit | Ai Ranko',
     description:
-      'Live device preview plus a real mobile-friendliness audit. Compare two URLs side by side, or audit a whole sitemap in bulk. Free, no signup.',
+      'Preview any page at phone, tablet and desktop sizes and run a mobile-friendliness audit. Compare two URLs or audit a sitemap. Free, no sign-up.',
     url: 'https://airanko.com/tools/mobile-checker',
-    siteName: 'AI Ranko',
+    siteName: 'Ai Ranko',
     images: [
       {
         url: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
         width: 1200,
         height: 630,
-        alt: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
+        alt: 'Mobile Friendliness Checker: Preview & Audit | Ai Ranko',
       },
     ],
-    locale: 'en_US',
+    locale: 'en_GB',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Free Mobile Friendliness Checker & Audit Tool | Ai Ranko',
+    title: 'Mobile Friendliness Checker: Preview & Audit | Ai Ranko',
     description:
-      'Live device preview plus a real mobile-friendliness audit. Compare two URLs side by side, or audit a whole sitemap in bulk. Free, no signup.',
+      'Preview any page at phone, tablet and desktop sizes and run a mobile-friendliness audit. Compare two URLs or audit a sitemap. Free, no sign-up.',
     images: [
       'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Image%20Resizer%20and%20converter%20tool%20open%20graph-airanko-fRSh9KtchB104ghNi32hTIxcT2OE87.webp',
     ],
   },
 }
 
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'Free Mobile Friendliness Checker — Test Any Website Instantly',
-  description:
-    'Check how any website looks on iPhone, Android, tablet, or desktop instantly. Test mobile responsiveness free — no install, no signup required.',
-  url: 'https://airanko.com/tools/mobile-checker',
-  applicationCategory: 'DeveloperApplication',
-  operatingSystem: 'All',
-  browserRequirements: 'Requires JavaScript. Works in modern browsers.',
-  featureList: [
-    'Preview on Phone, Tablet, and Desktop',
-    'Real device screen sizes — iPhone SE, iPhone 14, iPhone 14 Pro Max, Galaxy S23, Pixel 7, plus custom viewport dimensions',
-    'Portrait and Landscape orientation toggle',
-    'Grid view compares multiple devices simultaneously',
-    'Zoom controls — 50%, 75%, 100%',
-    'Real mobile-friendliness audit: viewport configuration, font legibility, tap targets, Flash/plugin detection, responsive images, render-blocking scripts, mobile-redirect consistency — measured from actual fetched HTML, not guessed',
-    'Compare two URLs side by side with independent audits',
-    'Bulk and sitemap-wide audit mode with sortable, filterable results',
-    'CSV, JSON, and PDF report export',
-    'No data stored or tracked',
-    '100% free with no signup required',
-  ],
-  creator: {
-    '@type': 'Organization',
-    name: 'AI Ranko',
-    url: 'https://airanko.com',
-  },
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'USD',
-  },
-}
+const jsonLd = {"@context": "https://schema.org", "@type": "WebApplication", "@id": "https://airanko.com/tools/mobile-checker#app", "name": "Mobile Friendliness Checker", "url": "https://airanko.com/tools/mobile-checker", "description": "Preview a public web page at phone, tablet and desktop screen sizes and run a mobile-friendliness audit of viewport, text size, plugins, responsive images and mobile redirects. Compare two URLs or audit up to 200 pages from a sitemap. Free, no sign-up.", "applicationCategory": "UtilityApplication", "operatingSystem": "Any", "browserRequirements": "Requires JavaScript. Works in modern browsers.", "isAccessibleForFree": true, "featureList": ["Preview at phone, tablet and desktop screen sizes, in portrait or landscape", "Zoom the preview to 50%, 75% or 100%", "Mobile-friendliness audit of the page's HTML: viewport, pinch-to-zoom, font sizes, fixed-width elements, plugins, responsive images, render-blocking scripts and mobile redirects", "Compare two URLs side by side", "Bulk audit from a sitemap, up to 200 pages per run", "Export CSV or JSON results; print or save a PDF through your browser"], "offers": {"@type": "Offer", "price": "0", "priceCurrency": "GBP"}, "provider": {"@id": "https://airanko.com/#organization"}}
 
 const faqJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What is a mobile friendliness checker?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'A mobile friendliness checker is a tool that previews any website in real mobile, tablet, or desktop screen sizes. It helps you visually inspect how your site looks and behaves on different devices — before your users experience any issues.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is this mobile friendliness checker completely free?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes — 100% free with no hidden charges, no subscription, and no sign-up required. Just enter any URL and get an instant mobile preview, unlimited times.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Which devices can I test my website on?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'You can test on iPhone SE, iPhone 14, iPhone 14 Pro Max, Samsung Galaxy S23, and Google Pixel 7. Tablet and Desktop previews are also available — plus Portrait and Landscape orientation for each.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Does Google use mobile-friendliness as a ranking factor?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Yes — Google has used mobile-first indexing since 2019, meaning it ranks your site based on its mobile version first. A poor mobile experience directly impacts your search rankings, traffic, and conversions.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Do I need to install anything to use this tool?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'No installation, no browser extension, and no account is needed. The tool runs entirely in your browser — just open the page, enter a URL, and preview instantly.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I test competitor websites with this tool?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Yes — you can test any publicly accessible website, including competitor sites. It's a great way to benchmark your mobile UX against industry competitors.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is my data safe when using this tool?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Your URL is only used to load the preview — no data is stored, tracked, or shared. Ai Ranko is fully privacy-first. Your browsing activity stays completely private.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'What is the difference between Portrait and Landscape mode?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Portrait mode shows the vertical screen view — how most users hold their phone. Landscape mode shows the horizontal view — useful for catching layout breaks that only appear when the screen rotates.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'What does the zoom control do?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Zoom controls let you scale the preview to 50%, 75%, or 100% of the actual device size. Use it to inspect small text, buttons, and UI elements more closely or get a wider overall view.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: "How is Ai Ranko's mobile checker different from Google's Mobile-Friendly Test?",
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Google's tool only gives a pass/fail report — it doesn't show a live visual preview. Ai Ranko gives you both: a real-time visual preview across multiple devices, orientations, and zoom levels, plus a real audit checklist measured from the page's actual HTML, CSS, and response headers.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'What does the mobile-friendliness audit actually check?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'It measures viewport meta tag configuration, pinch-to-zoom availability, small/illegible font sizes, fixed-width elements that risk horizontal scrolling, responsive media queries, Flash or unsupported plugin content, responsive image usage (srcset), touch/home-screen icons, HTML document weight, render-blocking scripts, and whether mobile visitors get redirected to a separate URL. Every check runs against the real fetched page — checks that require full browser rendering to measure exactly are clearly labeled "estimated".',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I audit my whole website at once?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes — switch to "Bulk / Sitemap Audit" mode, enter your site\'s URL, and the tool discovers your sitemap.xml (via robots.txt, then conventional locations, following nested sitemap indexes) and audits every page it finds, up to 200 pages per run. Results are sortable, filterable, and exportable as CSV, JSON, or PDF.',
-      },
-    },
-  ],
+ "@context": "https://schema.org", "@type": "FAQPage", "@id": "https://airanko.com/tools/mobile-checker#faq",
+ mainEntity: mobileCheckerFaqs.map(faq => ({ "@type": "Question", name: faq.q, acceptedAnswer: { "@type": "Answer", text: faq.a } }))
 }
 
 export default function MobileCheckerPage() {
@@ -196,7 +64,6 @@ export default function MobileCheckerPage() {
       />      <div className="print:hidden" data-print-hide>
         <Navbar />
       </div>
-      <ToolSchema name="Mobile Friendliness Checker" slug="mobile-checker" description="Preview any website in real mobile, tablet and desktop frames including iPhone, Galaxy, Pixel and iPad, plus a real mobile-friendliness audit." />
       <BreadcrumbSchema items={[{ name: 'Tools', href: '/#tools' }, { name: 'Mobile Checker', href: '/tools/mobile-checker' }]} />
 
       {/* Breadcrumb */}
