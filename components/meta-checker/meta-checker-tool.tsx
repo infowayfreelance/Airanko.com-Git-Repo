@@ -573,7 +573,7 @@ export default function MetaCheckerTool() {
           Check Meta Tags & Open Graph
         </h1>
         <p className="mt-3 text-muted-foreground text-pretty max-w-xl mx-auto">
-          Enter one or many URLs to instantly extract and preview meta title, meta description, Open Graph tags, and Twitter Card data — all in one view.
+          Enter one or many URLs to extract and preview meta title, meta description, Open Graph tags, and Twitter Card data — all in one view.
         </p>
       </div>
 
